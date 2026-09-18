@@ -1,0 +1,77 @@
+name: Release
+
+# Publishes the built app as opencrew-app-dist.tar.gz, which is what the
+# server's `npm run fetch:app` downloads when no sibling checkout is present.
+#
+# The tarball has a single top-level directory because fetch-app.mjs unpacks it
+# with --strip-components=1.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (must already exist)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm }
+
+      - name: Install
+        run: npm ci
+
+      # Vendored protocol and SDK must match their owner before anything ships.
+      - name: Check vendored code, build and test
+        run: |
+          git clone --depth 1 https://github.com/opentribe-dev/opencrew-server.git ../opencrew-server
+          npm --prefix ../opencrew-server ci
+          npm --prefix ../opencrew-server run build
+          npm run vendor:check
+          npm run build
+          npm test
+
+      - name: Package
+        run: |
+          set -eu
+          test -f dist/index.html
+          mkdir -p release
+          tar -czf release/opencrew-app-dist.tar.gz dist
+          cd release
+          sha256sum opencrew-app-dist.tar.gz > checksums.txt
+          cat checksums.txt
+
+      # fetch-app.mjs strips the leading directory, so prove the archive
+      # actually unpacks to a servable app rather than assuming the shape.
+      - name: Verify the archive unpacks to a servable app
+        run: |
+          set -eu
+          mkdir -p /tmp/unpack
+          tar -xzf release/opencrew-app-dist.tar.gz -C /tmp/unpack --strip-components=1
+          test -f /tmp/unpack/index.html
+          echo "archive unpacks correctly"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "OpenCrew App $TAG" \
+            --generate-notes \
+            --verify-tag \
+            release/opencrew-app-dist.tar.gz \
+            release/checksums.txt
