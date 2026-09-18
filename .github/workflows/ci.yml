@@ -8,8 +8,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '24', cache: npm }
       # Vendored copies must match the owning repo; clone it as a sibling.
-      - name: Clone opencrew-server
-        run: git clone --depth 1 https://github.com/opentribe-dev/opencrew-server.git ../opencrew-server
+      - name: Clone and build opencrew-server
+        # Needed twice over: vendor:check diffs the vendored protocol/sdk against
+        # it, and test/p0-ui.test.tsx renders the UI against a real server.
+        run: |
+          git clone --depth 1 https://github.com/opentribe-dev/opencrew-server.git ../opencrew-server
+          npm --prefix ../opencrew-server ci
+          npm --prefix ../opencrew-server run build
       - run: npm ci
       - run: npm run vendor:check
       - run: npm run build

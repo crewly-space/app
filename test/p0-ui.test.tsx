@@ -3,12 +3,27 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildApp } from '../../server/dist/app.js';
-import { openDatabase } from '../../server/dist/db/connection.js';
-import { runMigrations } from '../../server/dist/db/migrate.js';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import { afterEach, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
+
+/*
+ * This is an end-to-end test: it renders the real UI against a real server.
+ * The server lives in the opencrew-server repository, so this needs a sibling
+ * checkout that has been built. CI clones and builds it. Without one the test
+ * skips rather than failing, so a fresh clone is not red for a missing
+ * dependency it never asked for.
+ */
+const serverDist = new URL('../../opencrew-server/dist/', import.meta.url);
+const hasServer = existsSync(fileURLToPath(new URL('app.js', serverDist)));
+if (!hasServer) {
+  console.warn('p0-ui: ../opencrew-server/dist not found - skipping. Build the sibling to run it.');
+}
+const { buildApp } = hasServer ? await import(new URL('app.js', serverDist).href) : ({} as any);
+const { openDatabase } = hasServer ? await import(new URL('db/connection.js', serverDist).href) : ({} as any);
+const { runMigrations } = hasServer ? await import(new URL('db/migrate.js', serverDist).href) : ({} as any);
 
 let provider: Server | undefined;
 let server: Awaited<ReturnType<typeof buildApp>> | undefined;
@@ -24,7 +39,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it('renders the authenticated provider-backed DM and restores its reply after remount', async () => {
+it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores its reply after remount', async () => {
   provider = createServer(async (req, res) => {
     if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return; }
     const chunks: Buffer[] = [];
