@@ -1,0 +1,10 @@
+/*
+ * The whole OpenCrew design language in one import.
+ *
+ *   @import "@opencrew/ui/css/index.css";   (bundled consumers)
+ *   <link rel="stylesheet" href="/vendor/opencrew-ui/css/index.css" />  (static)
+ */
+@import "./fonts.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";

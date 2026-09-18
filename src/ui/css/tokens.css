@@ -1,0 +1,133 @@
+/*
+ * OpenCrew design tokens — the single source of truth for the visual language.
+ *
+ * Every OpenCrew surface (website, app, cloud console) imports this file and
+ * refers to these custom properties. Do not restate a raw hex value in a
+ * consuming repository: add or adjust a token here instead, so the three
+ * surfaces cannot drift apart again.
+ *
+ * Values below reconcile the three palettes that had already diverged:
+ * accent was #f05b3e in app/cloud but #ef5b3e on the website, and bg, line,
+ * muted and text each had two spellings.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, from furthest back to closest to the reader. */
+  --oc-bg: #0b0b0c;
+  --oc-panel: #111113;
+  --oc-panel-2: #151518;
+  --oc-panel-3: #19191c;
+
+  /* Hairlines. --oc-line separates regions, --oc-line-soft groups within one. */
+  --oc-line: #252529;
+  --oc-line-soft: #1d1d20;
+  --oc-line-strong: #303034;
+
+  /* Text. --oc-muted is the lowest level that still meets contrast on
+     --oc-panel; use --oc-muted-2 only for decoration, never for prose. */
+  --oc-text: #ededee;
+  --oc-text-strong: #ffffff;
+  --oc-muted: #8b8b93;
+  --oc-muted-2: #66666d;
+
+  /* Brand accent. */
+  --oc-accent: #f05b3e;
+  --oc-accent-light: #ff765b;
+  --oc-accent-soft: rgba(240, 91, 62, 0.12);
+  --oc-accent-ring: rgba(240, 91, 62, 0.6);
+
+  /* Status. */
+  --oc-success: #38bd7c;
+  --oc-success-soft: rgba(56, 189, 124, 0.11);
+  --oc-warning: #e0a138;
+  --oc-warning-soft: rgba(224, 161, 56, 0.12);
+  --oc-danger: #e5484d;
+  --oc-danger-soft: rgba(229, 72, 77, 0.12);
+
+  /* Type. The display face is for headings and the wordmark only. */
+  --oc-font-sans:
+    "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --oc-font-display: "Manrope Variable", Manrope, var(--oc-font-sans);
+  --oc-font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
+
+  /* Type scale. */
+  --oc-text-2xs: 10px;
+  --oc-text-xs: 11px;
+  --oc-text-sm: 12px;
+  --oc-text-base: 13px;
+  --oc-text-md: 14px;
+  --oc-text-lg: 16px;
+  --oc-text-xl: 20px;
+  --oc-text-2xl: 23px;
+  --oc-text-3xl: 30px;
+  --oc-text-4xl: 36px;
+
+  /* Spacing. */
+  --oc-space-1: 4px;
+  --oc-space-2: 8px;
+  --oc-space-3: 12px;
+  --oc-space-4: 16px;
+  --oc-space-5: 22px;
+  --oc-space-6: 30px;
+  --oc-space-7: 42px;
+  --oc-space-8: 60px;
+
+  /* Radii. */
+  --oc-radius-sm: 6px;
+  --oc-radius: 8px;
+  --oc-radius-md: 11px;
+  --oc-radius-lg: 16px;
+  --oc-radius-full: 999px;
+
+  /* Elevation. */
+  --oc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --oc-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  --oc-shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --oc-shadow-accent: inset 0 1px rgba(255, 255, 255, 0.15),
+    0 8px 22px rgba(240, 91, 62, 0.12);
+
+  /* Motion. Keep these short; the product should feel immediate. */
+  --oc-transition: 0.18s ease;
+  --oc-transition-slow: 0.28s ease;
+
+  /* Control sizing, so a button and an input always line up. */
+  --oc-control-height: 42px;
+  --oc-control-height-sm: 38px;
+  --oc-control-height-lg: 50px;
+}
+
+/*
+ * Compatibility aliases. The three surfaces already ship CSS written against
+ * unprefixed names; these keep that working while files migrate to --oc-*.
+ * Prefer the --oc-* token in new code.
+ */
+:root {
+  --bg: var(--oc-bg);
+  --panel: var(--oc-panel);
+  --panel-2: var(--oc-panel-2);
+  --panel-3: var(--oc-panel-3);
+  --line: var(--oc-line);
+  --line-soft: var(--oc-line-soft);
+  --text: var(--oc-text);
+  --muted: var(--oc-muted);
+  --muted-2: var(--oc-muted-2);
+  --accent: var(--oc-accent);
+  --accent-light: var(--oc-accent-light);
+  --accent-soft: var(--oc-accent-soft);
+  --success: var(--oc-success);
+  --success-soft: var(--oc-success-soft);
+  --font-sans: var(--oc-font-sans);
+  --font-display: var(--oc-font-display);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --oc-transition: 0s;
+    --oc-transition-slow: 0s;
+  }
+}

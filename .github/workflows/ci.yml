@@ -1,0 +1,16 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm }
+      # Vendored copies must match the owning repo; clone it as a sibling.
+      - name: Clone opencrew-server
+        run: git clone --depth 1 https://github.com/opentribe-dev/opencrew-server.git ../opencrew-server
+      - run: npm ci
+      - run: npm run vendor:check
+      - run: npm run build
+      - run: npm test

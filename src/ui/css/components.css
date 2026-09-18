@@ -1,0 +1,345 @@
+/*
+ * OpenCrew shared components: the primitives that must look identical on the
+ * website, in the app, and in the cloud console.
+ *
+ * Class names match what the three surfaces already used, so adopting this
+ * file means deleting the local copy rather than rewriting markup.
+ */
+
+/* ---------------------------------------------------------------- brand -- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--oc-space-3);
+  color: #f0f0f1;
+  font: 700 15px var(--oc-font-display);
+  letter-spacing: -0.2px;
+  text-decoration: none;
+}
+
+.brand small {
+  padding-left: var(--oc-space-3);
+  border-left: 1px solid var(--oc-line-strong);
+  color: #77777e;
+  font: 600 var(--oc-text-sm) var(--oc-font-sans);
+}
+
+.brand-mark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 25px;
+  height: 25px;
+  border: 1.5px solid var(--oc-text);
+  border-radius: var(--oc-radius);
+  display: inline-grid;
+  place-items: center;
+  transform: rotate(30deg);
+}
+
+.brand-mark i {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--oc-accent);
+}
+
+.brand-mark b {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--oc-text);
+}
+
+.brand-mark.mini {
+  width: 21px;
+  height: 21px;
+  border-radius: var(--oc-radius-sm);
+}
+
+.brand-mark.mini i {
+  width: 7px;
+  height: 7px;
+}
+
+.brand-mark-large {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--oc-radius-md);
+}
+
+.brand-mark-large i {
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+}
+
+.brand-mark-large b {
+  right: 5px;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+}
+
+/* -------------------------------------------------------------- buttons -- */
+
+.primary-button,
+.secondary-button,
+.text-button,
+.icon-button {
+  border: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-weight: 650;
+  transition: background var(--oc-transition), color var(--oc-transition),
+    border-color var(--oc-transition), transform var(--oc-transition);
+}
+
+.primary-button {
+  min-height: var(--oc-control-height);
+  padding: 0 17px;
+  border-radius: var(--oc-radius);
+  background: var(--oc-accent);
+  color: var(--oc-text-strong);
+  box-shadow: var(--oc-shadow-accent);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--oc-accent-light);
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondary-button {
+  min-height: var(--oc-control-height);
+  padding: 0 17px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: #141416;
+  color: #d7d7da;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: #48484e;
+  background: var(--oc-panel-3);
+  color: var(--oc-text-strong);
+}
+
+.primary-button.compact,
+.secondary-button.compact {
+  min-height: var(--oc-control-height-sm);
+  padding: 0 15px;
+  font-size: var(--oc-text-base);
+}
+
+.primary-button.large,
+.secondary-button.large {
+  min-height: var(--oc-control-height-lg);
+  padding: 0 21px;
+  font-size: var(--oc-text-md);
+}
+
+.primary-button.full,
+.secondary-button.full {
+  width: 100%;
+  min-height: 48px;
+}
+
+.text-button {
+  padding: 0;
+  background: transparent;
+  color: var(--oc-muted);
+  font-size: var(--oc-text-xs);
+  font-weight: 600;
+}
+
+.text-button:hover {
+  color: var(--oc-text);
+}
+
+.icon-button {
+  width: var(--oc-control-height-sm);
+  height: var(--oc-control-height-sm);
+  border-radius: var(--oc-radius);
+  background: transparent;
+  color: var(--oc-muted);
+}
+
+.icon-button:hover {
+  background: var(--oc-panel-2);
+  color: var(--oc-text);
+}
+
+/* ------------------------------------------------------- forms + fields -- */
+
+.form {
+  display: grid;
+  gap: var(--oc-space-4);
+}
+
+.form label,
+.oc-field > span,
+.oc-label {
+  display: grid;
+  gap: var(--oc-space-2);
+  font-size: var(--oc-text-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--oc-muted);
+  text-transform: uppercase;
+}
+
+.form input,
+.form select,
+.form textarea,
+.oc-input {
+  width: 100%;
+  min-height: var(--oc-control-height);
+  padding: 0 var(--oc-space-3);
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-text);
+  font-size: var(--oc-text-md);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  transition: border-color var(--oc-transition);
+}
+
+.form textarea {
+  min-height: 88px;
+  padding: var(--oc-space-3);
+  resize: vertical;
+}
+
+.form input:hover,
+.form select:hover,
+.form textarea:hover {
+  border-color: var(--oc-line-strong);
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+  color: var(--oc-muted-2);
+}
+
+.form small,
+.oc-hint {
+  color: var(--oc-muted);
+  font-size: var(--oc-text-sm);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.form [role="alert"],
+.oc-error {
+  margin: 0;
+  padding: var(--oc-space-3);
+  border: 1px solid var(--oc-danger);
+  border-radius: var(--oc-radius);
+  background: var(--oc-danger-soft);
+  color: #ffb4b6;
+  font-size: var(--oc-text-base);
+}
+
+/* --------------------------------------------------- surfaces + notices -- */
+
+.oc-card {
+  background: var(--oc-panel);
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius-lg);
+  padding: var(--oc-space-6);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: var(--oc-text-2xs);
+  letter-spacing: 0.16em;
+  color: var(--oc-accent);
+  font-weight: 700;
+}
+
+.callout {
+  padding: var(--oc-space-4);
+  border: 1px solid var(--oc-line);
+  border-left: 2px solid var(--oc-accent);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-base);
+}
+
+.callout strong {
+  color: var(--oc-text);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  /* A badge is a pill: never let a grid or flex parent stretch it. */
+  justify-self: start;
+  align-self: start;
+  width: fit-content;
+  gap: var(--oc-space-1);
+  padding: 3px 9px;
+  border-radius: var(--oc-radius-full);
+  background: var(--oc-panel-3);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-xs);
+  font-weight: 650;
+}
+
+.badge.is-success {
+  background: var(--oc-success-soft);
+  color: var(--oc-success);
+}
+
+.badge.is-warning {
+  background: var(--oc-warning-soft);
+  color: var(--oc-warning);
+}
+
+.badge.is-danger {
+  background: var(--oc-danger-soft);
+  color: #ff9a9c;
+}
+
+.badge.is-accent {
+  background: var(--oc-accent-soft);
+  color: var(--oc-accent);
+}
+
+/* ------------------------------------------------------------ code, pre -- */
+
+pre {
+  margin: 0;
+  padding: var(--oc-space-4);
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius);
+  background: #0e0e10;
+  overflow-x: auto;
+  font-size: var(--oc-text-base);
+  line-height: 1.6;
+}
+
+:not(pre) > code {
+  padding: 2px 6px;
+  border-radius: var(--oc-radius-sm);
+  background: var(--oc-panel-2);
+  font-size: 0.92em;
+}
