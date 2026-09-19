@@ -92,9 +92,8 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText('Base URL'), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
   fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
-  await page.findByRole('heading', { name: 'Your crew' });
-  fireEvent.click(page.getByRole('button', { name: 'Create agent' }));
-  const dialog = within(page.getByRole('dialog', { name: 'Create an agent' }));
+  // First run goes straight to the agent dialog; there is no interstitial page.
+  const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
   fireEvent.change(dialog.getByRole('textbox', { name: 'Model ID' }), { target: { value: 'test-model' } });
