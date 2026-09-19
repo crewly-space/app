@@ -2195,7 +2195,7 @@ function AgentProfileDialog({
   );
 }
 
-function AgentEditor({
+export function AgentEditor({
   providers,
   agent,
   onClose,
@@ -2213,7 +2213,9 @@ function AgentEditor({
     Boolean(agent?.workspace || agent?.instructions),
   );
   const [model, setModel] = useState(agent?.model ?? "");
-  const [providerId, setProviderId] = useState(agent?.providerId ?? providers[0]?.id ?? "");
+  // The select below lists only connected providers, so the default has to come from the same list.
+  const connectedProviders = providers.filter((p) => p.status === 'connected');
+  const [providerId, setProviderId] = useState(agent?.providerId ?? connectedProviders[0]?.id ?? "");
   const [runtime, setRuntime] = useState(agent?.runtime ?? "Chat");
   const [workspace, setWorkspace] = useState(agent?.workspace ?? "");
   const [instructions, setInstructions] = useState(agent?.instructions ?? "");
@@ -2246,7 +2248,11 @@ function AgentEditor({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim() || !role.trim() || !model.trim() || !providerId || saving) return;
+    if (!name.trim() || !role.trim() || !model.trim() || saving) return;
+    if (!providerId) {
+      setError("Connect a provider in Settings before creating an agent.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -2347,10 +2353,11 @@ function AgentEditor({
           <div className="form-section-label">How this agent works</div>
           <div className="simple-options">
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-              {providers.filter((p) => p.status === 'connected').map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+              {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
             </select></label>
             <label>Model ID<input required value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-4-20250514" /></label>
           </div>
+          {!connectedProviders.length && <small className="field-description">No connected provider. Connect one in Settings first.</small>}
           <button
             type="button"
             className="advanced-toggle"

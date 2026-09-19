@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run test/p0-ui.test.tsx",
+    "test": "vitest run",
     "preview": "vite preview",
     "vendor:check": "node scripts/vendor.mjs --check",
     "vendor:sync": "node scripts/vendor.mjs"
