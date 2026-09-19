@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { Blobatar } from "@blobatar/react";
-import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@opencrew/sdk";
+import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
 import {
   Activity,
   AtSign,
@@ -85,11 +85,11 @@ type MentionOption = {
   agent?: Agent;
 };
 
-const AVATAR_STYLE_KEY = "opencrew:avatar-style";
-const THEME_KEY = "opencrew:theme";
+const AVATAR_STYLE_KEY = "crewly:avatar-style";
+const THEME_KEY = "crewly:theme";
 // Set when someone chooses to look around before connecting a provider, so a
 // reload does not drop them back onto the setup screen they just dismissed.
-const PROVIDER_SKIPPED_KEY = "opencrew:provider-setup-skipped";
+const PROVIDER_SKIPPED_KEY = "crewly:provider-setup-skipped";
 const AvatarStyleContext = createContext<AvatarStyle>("blobatar");
 
 const FOCUSABLE =
@@ -644,7 +644,7 @@ export default function App() {
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
             <BrandMark />
-            <span>OpenCrew</span>
+            <span>Crewly</span>
             <button
               className="icon-button mobile-only"
               onClick={() => setMobileNav(false)}
@@ -1525,7 +1525,7 @@ function PairingApproval({ code, onApproved }: { code: string; onApproved: () =>
     <div className="device-illustration"><Laptop size={24} /></div>
     <h1>Pair this device?</h1>
     {error ? <p role="alert">{error}</p> : !pairing ? <p>Checking pairing code…</p> : <>
-      <p><strong>{pairing.deviceName}</strong> wants to connect to this OpenCrew server.</p>
+      <p><strong>{pairing.deviceName}</strong> wants to connect to this Crewly server.</p>
       <p className="muted-copy">{pairing.platform ?? "Unknown platform"} · Code {code.toUpperCase()}</p>
       <div className="security-note"><LockKeyhole size={15} /><span>Only approve a device you recognize. Its private key never leaves that computer.</span></div>
       <button className="primary-button" disabled={approving} onClick={async () => {
@@ -1651,7 +1651,7 @@ function SettingsPanel({
             ))}
             <div className="local-note">
               <LockKeyhole size={15} />
-              <span>Provider credentials are stored on the OpenCrew server.</span>
+              <span>Provider credentials are stored on the Crewly server.</span>
             </div>
           </>
         ) : section === "members" ? (
@@ -1731,7 +1731,7 @@ function SettingsPanel({
               <div className="empty-state">
                 <Laptop size={24} />
                 <strong>No trusted devices yet</strong>
-                <p>Run <code>opencrew connect {window.location.origin}</code> on a computer, then enter its code above.</p>
+                <p>Run <code>crewly connect {window.location.origin}</code> on a computer, then enter its code above.</p>
               </div>
             )}
           </>
@@ -1740,7 +1740,7 @@ function SettingsPanel({
             <div className="section-heading">
               <div>
                 <h3>Appearance</h3>
-                <p>Make OpenCrew comfortable in your environment.</p>
+                <p>Make Crewly comfortable in your environment.</p>
               </div>
             </div>
             <fieldset className="theme-options">
@@ -1868,7 +1868,7 @@ function AddUserDialog({
         <div>
           <span className="eyebrow">Server access</span>
           <h2 id="add-person-title">Add a person</h2>
-          <p>Create a sign-in for this OpenCrew server.</p>
+          <p>Create a sign-in for this Crewly server.</p>
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </header>

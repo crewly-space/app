@@ -1,4 +1,4 @@
-const CACHE = "opencrew-shell-v2";
+const CACHE = "crewly-shell-v2";
 const SHELL = ["/", "/mark.svg", "/manifest.webmanifest"];
 self.addEventListener("install", (event) => event.waitUntil(
   caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())

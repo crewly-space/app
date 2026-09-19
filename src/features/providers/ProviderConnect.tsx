@@ -18,7 +18,7 @@ const kindLabels: Record<Kind, string> = {
   ollama: 'Ollama on a paired device',
 };
 
-const PENDING_KEY = 'opencrew:provider-oauth';
+const PENDING_KEY = 'crewly:provider-oauth';
 const callbackUrl = `${window.location.origin}/`;
 
 // Session storage is not always reachable: a private window, blocked site data,

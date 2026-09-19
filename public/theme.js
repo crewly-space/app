@@ -1,5 +1,5 @@
 (() => {
-  const saved = localStorage.getItem("opencrew:theme");
+  const saved = localStorage.getItem("crewly:theme");
   const theme = saved === "light" || saved === "dark"
     ? saved
     : matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";

@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, Conversation as ApiConversation, DevicePairingInfo, Message as ApiMessage } from '@opencrew/sdk';
+import type { Agent as ApiAgent, Conversation as ApiConversation, DevicePairingInfo, Message as ApiMessage } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Conversation, Message, Provider } from '../types';
 

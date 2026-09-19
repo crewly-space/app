@@ -1,5 +1,5 @@
 /* Tokens, base layer, and shared primitives come from the design language. */
-@import "@opencrew/ui/css/index.css";
+@import "@crewly/ui/css/index.css";
 
 :root {
   font-family: var(--oc-font-sans);
@@ -17,7 +17,7 @@ body,
 body {
   overflow: hidden;
 }
-/* Element defaults and the focus treatment come from @opencrew/ui/css/base.css. */
+/* Element defaults and the focus treatment come from @crewly/ui/css/base.css. */
 .app-shell {
   height: 100vh;
   height: 100dvh;

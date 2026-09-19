@@ -1,9 +1,9 @@
-# OpenCrew app instructions
+# Crewly app instructions
 
-GitHub organization: opentribe-dev. One of four repositories:
-`opencrew-server`, `opencrew-app` (this), `opencrew-cli`, `opencrew-cloud`.
+GitHub organization: crewly-space. One of four repositories:
+`server`, `app` (this), `cli`, `cloud`.
 
-`src/protocol` and `src/sdk` are **vendored copies owned by opencrew-server**.
+`src/protocol` and `src/sdk` are **vendored copies owned by the server repo**.
 Do not edit them here. Change them in the server repo, then run
 `npm run vendor:sync` and commit the refresh. CI runs `vendor:check`.
 

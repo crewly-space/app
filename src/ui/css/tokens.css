@@ -1,7 +1,7 @@
 /*
- * OpenCrew design tokens — the single source of truth for the visual language.
+ * Crewly design tokens — the single source of truth for the visual language.
  *
- * Every OpenCrew surface (website, app, cloud console) imports this file and
+ * Every Crewly surface (website, app, cloud console) imports this file and
  * refers to these custom properties. Do not restate a raw hex value in a
  * consuming repository: add or adjust a token here instead, so the three
  * surfaces cannot drift apart again.

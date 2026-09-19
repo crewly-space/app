@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes the built app as opencrew-app-dist.tar.gz, which is what the
+# Publishes the built app as crewly-app-dist.tar.gz, which is what the
 # server's `npm run fetch:app` downloads when no sibling checkout is present.
 #
 # The tarball has a single top-level directory because fetch-app.mjs unpacks it
@@ -36,9 +36,9 @@ jobs:
       # Vendored protocol and SDK must match their owner before anything ships.
       - name: Check vendored code, build and test
         run: |
-          git clone --depth 1 https://github.com/opentribe-dev/opencrew-server.git ../opencrew-server
-          npm --prefix ../opencrew-server ci
-          npm --prefix ../opencrew-server run build
+          git clone --depth 1 https://github.com/crewly-space/server.git ../server
+          npm --prefix ../server ci
+          npm --prefix ../server run build
           npm run vendor:check
           npm run build
           npm test
@@ -48,9 +48,9 @@ jobs:
           set -eu
           test -f dist/index.html
           mkdir -p release
-          tar -czf release/opencrew-app-dist.tar.gz dist
+          tar -czf release/crewly-app-dist.tar.gz dist
           cd release
-          sha256sum opencrew-app-dist.tar.gz > checksums.txt
+          sha256sum crewly-app-dist.tar.gz > checksums.txt
           cat checksums.txt
 
       # fetch-app.mjs strips the leading directory, so prove the archive
@@ -59,7 +59,7 @@ jobs:
         run: |
           set -eu
           mkdir -p /tmp/unpack
-          tar -xzf release/opencrew-app-dist.tar.gz -C /tmp/unpack --strip-components=1
+          tar -xzf release/crewly-app-dist.tar.gz -C /tmp/unpack --strip-components=1
           test -f /tmp/unpack/index.html
           echo "archive unpacks correctly"
 
@@ -70,8 +70,8 @@ jobs:
         run: |
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "OpenCrew App $TAG" \
+            --title "Crewly App $TAG" \
             --generate-notes \
             --verify-tag \
-            release/opencrew-app-dist.tar.gz \
+            release/crewly-app-dist.tar.gz \
             release/checksums.txt

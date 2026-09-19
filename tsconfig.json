@@ -20,13 +20,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@opencrew/sdk": [
+      "@crewly/sdk": [
         "./src/sdk/index.ts"
       ],
-      "@opencrew/protocol": [
+      "@crewly/protocol": [
         "./src/protocol/index.ts"
       ],
-      "@opencrew/ui/*": [
+      "@crewly/ui/*": [
         "./src/ui/*"
       ]
     }

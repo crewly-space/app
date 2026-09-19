@@ -10,9 +10,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@opencrew/sdk": r("./src/sdk/index.ts"),
-      "@opencrew/protocol": r("./src/protocol/index.ts"),
-      "@opencrew/ui": r("./src/ui"),
+      "@crewly/sdk": r("./src/sdk/index.ts"),
+      "@crewly/protocol": r("./src/protocol/index.ts"),
+      "@crewly/ui": r("./src/ui"),
     },
   },
   server: {
