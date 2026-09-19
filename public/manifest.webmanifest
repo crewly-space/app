@@ -1,6 +1,6 @@
 {
-  "name": "OpenCrew",
-  "short_name": "OpenCrew",
+  "name": "Crewly",
+  "short_name": "Crewly",
   "description": "A home for your AI crew.",
   "start_url": "/",
   "display": "standalone",

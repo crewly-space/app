@@ -6,7 +6,7 @@ let ws: ReturnType<typeof client.ws> | undefined;
 export function startRealtime(onMessage: (message: Message) => void, onFailure: (error: string) => void): () => void {
   const token = currentToken();
   if (!token) return () => {};
-  const seqKey = `opencrew:realtime-seq:${token.slice(0,12)}`;
+  const seqKey = `crewly:realtime-seq:${token.slice(0,12)}`;
   ws = client.ws(WebSocket);
   ws.onEvent((event) => {
     localStorage.setItem(seqKey, String(event.seq));

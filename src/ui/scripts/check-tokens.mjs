@@ -2,7 +2,7 @@
 /*
  * Drift guard.
  *
- * The three OpenCrew surfaces drifted apart once already: the accent was
+ * The three Crewly surfaces drifted apart once already: the accent was
  * #f05b3e in the app and console but #ef5b3e on the website, and bg, line,
  * muted and text each had two spellings. This script fails when a stylesheet
  * hardcodes a colour that a token already names, so the drift cannot come back

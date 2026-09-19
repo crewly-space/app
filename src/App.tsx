@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { Blobatar } from "@blobatar/react";
-import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@opencrew/sdk";
+import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
 import {
   Activity,
   AtSign,
@@ -85,11 +85,11 @@ type MentionOption = {
   agent?: Agent;
 };
 
-const AVATAR_STYLE_KEY = "opencrew:avatar-style";
-const THEME_KEY = "opencrew:theme";
+const AVATAR_STYLE_KEY = "crewly:avatar-style";
+const THEME_KEY = "crewly:theme";
 // Set when someone chooses to look around before connecting a provider, so a
 // reload does not drop them back onto the setup screen they just dismissed.
-const PROVIDER_SKIPPED_KEY = "opencrew:provider-setup-skipped";
+const PROVIDER_SKIPPED_KEY = "crewly:provider-setup-skipped";
 const AvatarStyleContext = createContext<AvatarStyle>("blobatar");
 
 const FOCUSABLE =
@@ -212,6 +212,8 @@ export default function App() {
     // Storage can throw outright in a private window or with site data blocked.
     try { return localStorage.getItem(PROVIDER_SKIPPED_KEY) === "true"; } catch { return false; }
   });
+  const [firstDmFailed, setFirstDmFailed] = useState(false);
+  const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -267,6 +269,24 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+  // Someone with agents but no conversation of their own — a member opening the
+  // server for the first time, or an owner whose DMs were all cleared — used to
+  // land on a page whose only content was a button. Open the DM for them.
+  useEffect(() => {
+    if (!data || data.conversations.length || !data.agents.length) return;
+    if (openingFirstDm.current) return;
+    openingFirstDm.current = true;
+    const agents = data.agents;
+    void gateway.createDm(agents[0].id, agents).then((dm) => {
+      resubscribeConversations();
+      setData((current) => current && ({ ...current, conversations: [...current.conversations, dm] }));
+      setSelected(dm.id);
+    }).catch((error) => {
+      // Fall back to the creation screen rather than spinning forever.
+      setFirstDmFailed(true);
+      notify(String(error), "error");
+    });
+  }, [data, notify]);
   useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(
@@ -295,30 +315,30 @@ export default function App() {
       setProviderSkipped(true);
     }}
   />;
-  if (!data.conversations.length && panel !== "settings") return <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card">
-    <h1>Your crew</h1><p>{data.agents.length ? 'Open a DM with an agent.' : 'Create your first agent.'}</p>
-    {data.agents.map((agent) => <button className="secondary-button" key={agent.id} onClick={async () => {
-      try { const dm = await gateway.createDm(agent.id, data.agents); resubscribeConversations();
-        setData((current) => current && ({ ...current, conversations: [...current.conversations, dm] }));
+  if (!data.conversations.length && panel !== "settings") {
+    // A DM is on its way from the effect above; showing "create your first
+    // agent" to someone who already has one would be a lie that flashes past.
+    if (data.agents.length && !firstDmFailed) return <Loading />;
+    // First run lands on the dialog that does the work. The card that used to
+    // sit here said nothing the dialog does not, and the only way past it was a
+    // button that opened the dialog anyway.
+    return <div className="first-run">
+      <header>
+        <BrandMark />
+        <button className="text-button" onClick={() => setPanel("settings")}>Settings</button>
+        <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
+      </header>
+      <AgentEditor firstRun providers={data.providers} onClose={() => setPanel("settings")} onSubmit={async (input) => {
+        const agent = await gateway.createAgent(input);
+        const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
+        setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
         setSelected(dm.id);
-      } catch (error) { notify(String(error), 'error'); }
-    }}>{agent.name} · Open DM</button>)}
-    <button className="primary-button" onClick={() => setCreating(true)}>Create agent</button>
-    <button className="secondary-button" onClick={() => setPanel("settings")}>Settings</button>
-    <button className="secondary-button" onClick={() => void gateway.logout()}>Log out</button>
-    {creating && <AgentEditor providers={data.providers} onClose={() => setCreating(false)} onSubmit={async (input) => {
-      const agent = await gateway.createAgent(input);
-      const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
-      setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
-      setSelected(dm.id); setCreating(false);
-    }} />}
-  </div></div></div>;
+      }} />
+      {toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}
+    </div>;
+  }
 
   if (!data.conversations.length) return <div className="empty-settings-shell">
-    <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card">
-      <h1>Your crew</h1><p>Finish setup here, then create your first agent.</p>
-      <button className="primary-button" onClick={() => setPanel(null)}>Back to setup</button>
-    </div></div></div>
     <SettingsPanel
     providers={data.providers} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
     avatarStyle={avatarStyle} onAvatarStyleChange={updateAvatarStyle} theme={theme} onThemeChange={updateTheme}
@@ -644,7 +664,7 @@ export default function App() {
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
             <BrandMark />
-            <span>OpenCrew</span>
+            <span>Crewly</span>
             <button
               className="icon-button mobile-only"
               onClick={() => setMobileNav(false)}
@@ -1466,11 +1486,12 @@ function DetailsPanel({
           <div className="memory-heading">
             <Database size={18} />
             <div>
-              <strong>Working memory</strong>
+              <strong id="memory-heading">Working memory</strong>
               <span>{memoryAgent?.name} uses this across conversations.</span>
             </div>
           </div>
           <textarea
+            aria-labelledby="memory-heading"
             value={memory}
             onChange={(event) => setMemory(event.target.value)}
             placeholder="Add one memory per line…"
@@ -1525,7 +1546,7 @@ function PairingApproval({ code, onApproved }: { code: string; onApproved: () =>
     <div className="device-illustration"><Laptop size={24} /></div>
     <h1>Pair this device?</h1>
     {error ? <p role="alert">{error}</p> : !pairing ? <p>Checking pairing code…</p> : <>
-      <p><strong>{pairing.deviceName}</strong> wants to connect to this OpenCrew server.</p>
+      <p><strong>{pairing.deviceName}</strong> wants to connect to this Crewly server.</p>
       <p className="muted-copy">{pairing.platform ?? "Unknown platform"} · Code {code.toUpperCase()}</p>
       <div className="security-note"><LockKeyhole size={15} /><span>Only approve a device you recognize. Its private key never leaves that computer.</span></div>
       <button className="primary-button" disabled={approving} onClick={async () => {
@@ -1651,7 +1672,7 @@ function SettingsPanel({
             ))}
             <div className="local-note">
               <LockKeyhole size={15} />
-              <span>Provider credentials are stored on the OpenCrew server.</span>
+              <span>Provider credentials are stored on the Crewly server.</span>
             </div>
           </>
         ) : section === "members" ? (
@@ -1691,7 +1712,7 @@ function SettingsPanel({
             <div className="pairing-form">
               <label htmlFor="device-pairing-code">Pairing code</label>
               <div>
-                <input id="device-pairing-code" value={pairingCode} placeholder="A1B2C3D4"
+                <input id="device-pairing-code" value={pairingCode} placeholder="A1B2C3D4" autoComplete="off" autoCapitalize="characters" spellCheck={false}
                   onChange={(event) => { setPairingCode(event.target.value.toUpperCase()); setPairing(null); setPairingError(""); }} />
                 <button disabled={pairingBusy || !pairingCode.trim()} onClick={async () => {
                   setPairingBusy(true); setPairingError("");
@@ -1731,7 +1752,7 @@ function SettingsPanel({
               <div className="empty-state">
                 <Laptop size={24} />
                 <strong>No trusted devices yet</strong>
-                <p>Run <code>opencrew connect {window.location.origin}</code> on a computer, then enter its code above.</p>
+                <p>Run <code>crewly connect {window.location.origin}</code> on a computer, then enter its code above.</p>
               </div>
             )}
           </>
@@ -1740,7 +1761,7 @@ function SettingsPanel({
             <div className="section-heading">
               <div>
                 <h3>Appearance</h3>
-                <p>Make OpenCrew comfortable in your environment.</p>
+                <p>Make Crewly comfortable in your environment.</p>
               </div>
             </div>
             <fieldset className="theme-options">
@@ -1868,7 +1889,7 @@ function AddUserDialog({
         <div>
           <span className="eyebrow">Server access</span>
           <h2 id="add-person-title">Add a person</h2>
-          <p>Create a sign-in for this OpenCrew server.</p>
+          <p>Create a sign-in for this Crewly server.</p>
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </header>
@@ -1885,8 +1906,8 @@ function AddUserDialog({
           setSaving(false);
         }
       }}>
-        <label><span>Name <em>Required</em></span><input autoFocus required maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-        <label><span>Email <em>Required</em></span><input required type="email" autoComplete="off" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+        <label><span>Name <em>Required</em></span><input autoFocus required autoComplete="name" maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+        <label><span>Email <em>Required</em></span><input required type="email" autoComplete="email" spellCheck={false} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
         <label><span>Temporary password <em>12+ characters</em></span><input required minLength={12} maxLength={256} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
         {allowAdmin && <label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value as 'member' | 'admin')}><option value="member">Member</option><option value="admin">Admin</option></select></label>}
         {error && <div className="form-error" role="alert">{error}</div>}
@@ -2080,6 +2101,9 @@ function SearchDialog({
           <Search size={18} />
           <input
             autoFocus
+            type="search"
+            aria-label="Search conversations"
+            spellCheck={false}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find a conversation or agent…"
@@ -2198,11 +2222,14 @@ function AgentProfileDialog({
 export function AgentEditor({
   providers,
   agent,
+  firstRun,
   onClose,
   onSubmit,
 }: {
   agent?: Agent;
   providers: Provider[];
+  /** First run: this dialog is the whole screen, so it has nothing to close to. */
+  firstRun?: boolean;
   onClose: () => void;
   onSubmit: (agent: CreateAgentInput) => Promise<void>;
 }) {
@@ -2224,6 +2251,9 @@ export function AgentEditor({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLInputElement>(null);
+  const modelRef = useRef<HTMLInputElement>(null);
   const editing = Boolean(agent);
   const templates = [
     ["Product", "Product strategist", "Turn ambiguous ideas into concise plans, tradeoffs, and next steps."],
@@ -2248,7 +2278,10 @@ export function AgentEditor({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim() || !role.trim() || !model.trim() || saving) return;
+    if (saving) return;
+    if (!name.trim()) { nameRef.current?.focus(); return; }
+    if (!role.trim()) { roleRef.current?.focus(); return; }
+    if (!model.trim()) { modelRef.current?.focus(); return; }
     if (!providerId) {
       setError("Connect a provider in Settings before creating an agent.");
       return;
@@ -2273,9 +2306,9 @@ export function AgentEditor({
   }
   return (
     <div
-      className="modal-layer"
+      className={`modal-layer${firstRun ? " modal-layer-plain" : ""}`}
       onMouseDown={(event) => {
-        if (event.currentTarget === event.target) onClose();
+        if (!firstRun && event.currentTarget === event.target) onClose();
       }}
     >
       <div
@@ -2291,13 +2324,13 @@ export function AgentEditor({
             <h2 id="agent-editor-title">{editing ? `Edit ${agent?.name}` : "Create an agent"}</h2>
             <p>{editing ? "Changes apply everywhere this agent appears." : "Choose a clear role now. Fine-tune the rest whenever you need."}</p>
           </div>
-          <button
+          {!firstRun && <button
             className="icon-button"
             onClick={onClose}
             aria-label={editing ? "Close agent editor" : "Close agent creation"}
           >
             <X size={18} />
-          </button>
+          </button>}
         </header>
         <form id="agent-editor-form" className="form agent-form" onSubmit={submit}>
           <div className="agent-draft-card">
@@ -2331,8 +2364,11 @@ export function AgentEditor({
           <label>
             <span>Name <em>Required</em></span>
             <input
+              ref={nameRef}
               autoFocus
               required
+              autoComplete="off"
+              spellCheck={false}
               maxLength={48}
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -2342,7 +2378,9 @@ export function AgentEditor({
           <label>
             <span>Role <em>Required</em></span>
             <input
+              ref={roleRef}
               required
+              autoComplete="off"
               maxLength={72}
               value={role}
               onChange={(event) => setRole(event.target.value)}
@@ -2355,7 +2393,7 @@ export function AgentEditor({
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
               {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
             </select></label>
-            <label>Model ID<input required value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-4-20250514" /></label>
+            <label>Model ID<input ref={modelRef} required autoComplete="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-4-20250514" /></label>
           </div>
           {!connectedProviders.length && <small className="field-description">No connected provider. Connect one in Settings first.</small>}
           <button
@@ -2382,14 +2420,14 @@ export function AgentEditor({
           {error && <div className="form-error" role="alert">{error}</div>}
         </form>
         <footer>
-          <button type="button" className="secondary-button" onClick={onClose}>
+          {!firstRun && <button type="button" className="secondary-button" onClick={onClose}>
             Cancel
-          </button>
+          </button>}
           <button
             type="submit"
             form="agent-editor-form"
             className="primary-button"
-            disabled={!name.trim() || !role.trim() || saving}
+            disabled={saving}
           >
             {saving
               ? editing

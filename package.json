@@ -1,10 +1,10 @@
 {
-  "name": "opencrew-app",
+  "name": "crewly-app",
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "type": "module",
-  "description": "The OpenCrew web app. Talks to any OpenCrew server over the vendored SDK.",
+  "description": "The Crewly web app. Talks to any Crewly server over the vendored SDK.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -34,13 +34,13 @@
   },
   "vendor": [
     {
-      "owner": "opencrew-server",
-      "from": "../opencrew-server/src/protocol",
+      "owner": "crewly-server",
+      "from": "../server/src/protocol",
       "to": "src/protocol"
     },
     {
-      "owner": "opencrew-server",
-      "from": "../opencrew-server/src/sdk",
+      "owner": "crewly-server",
+      "from": "../server/src/sdk",
       "to": "src/sdk"
     }
   ]

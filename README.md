@@ -1,13 +1,13 @@
-# OpenCrew App
+# Crewly App
 
-The OpenCrew browser client. Talks to any OpenCrew server — self-hosted or
+The Crewly browser client. Talks to any Crewly server — self-hosted or
 hosted — over the SDK.
 
 ```text
 src/
-  protocol/   vendored from opencrew-server  (do not edit here)
-  sdk/        vendored from opencrew-server  (do not edit here)
-  ui/         the design language            (owner; vendored by opencrew-cloud)
+  protocol/   vendored from crewly-server  (do not edit here)
+  sdk/        vendored from crewly-server  (do not edit here)
+  ui/         the design language            (owner; vendored by crewly-cloud)
   lib/ components/ ...
 ```
 
@@ -20,7 +20,7 @@ npm run build
 npm test
 ```
 
-`@opencrew/sdk` and `@opencrew/ui` resolve to the vendored copies through
+`@crewly/sdk` and `@crewly/ui` resolve to the vendored copies through
 aliases in `vite.config.ts` and `tsconfig.json`. There is no workspace and
 nothing is published to npm.
 
@@ -28,10 +28,10 @@ nothing is published to npm.
 
 ```sh
 npm run vendor:check    # CI: fails if a vendored copy drifted
-npm run vendor:sync     # refresh from ../opencrew-server, then commit
+npm run vendor:sync     # refresh from ../server, then commit
 ```
 
 ## Releases
 
 `npm run build` produces `dist/`. The server repository consumes it as
-`opencrew-app-dist.tar.gz` from this repo's GitHub release.
+`crewly-app-dist.tar.gz` from this repo's GitHub release.

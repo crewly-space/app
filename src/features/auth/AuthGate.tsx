@@ -24,12 +24,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
           setClaimRequired(Boolean(status.claimRequired));
           setPhase(status.initialized ? 'login' : 'setup');
         }
-      } catch { if (active) setError('Cannot reach the OpenCrew server. Start the server and reload.'); }
+      } catch { if (active) setError('Cannot reach the Crewly server. Start the server and reload.'); }
     };
     void refresh();
     const logout = () => { setPhase('login'); setPassword(''); };
-    window.addEventListener('opencrew:logout', logout);
-    return () => { active = false; window.removeEventListener('opencrew:logout', logout); };
+    window.addEventListener('crewly:logout', logout);
+    return () => { active = false; window.removeEventListener('crewly:logout', logout); };
   }, []);
   if (phase === 'ready') return <>{children}</>;
   return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card form" onSubmit={async (event) => {
@@ -41,9 +41,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
       storeToken(result.token); setPhase('ready');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Authentication failed'); }
   }}>
-    <h1>{phase === 'setup' ? 'Create first admin' : 'Log in to OpenCrew'}</h1>
-    {phase === 'setup' && <label>Name<input required value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>}
-    <label>Email<input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+    <h1>{phase === 'setup' ? 'Create first admin' : 'Log in to Crewly'}</h1>
+    {phase === 'setup' && <label>Name<input required autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>}
+    <label>Email<input type="email" required autoComplete={phase === 'setup' ? 'email' : 'username'} spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
     <label htmlFor="auth-password">Password</label>
     <input id="auth-password" type="password" required minLength={phase === 'setup' ? 12 : 1} autoComplete={phase === 'setup' ? 'new-password' : 'current-password'} aria-describedby={phase === 'setup' ? 'auth-password-help' : undefined} value={password} onChange={(e) => setPassword(e.target.value)} />
     {phase === 'setup' && <small id="auth-password-help">Use at least 12 characters.</small>}

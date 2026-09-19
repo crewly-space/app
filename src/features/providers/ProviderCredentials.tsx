@@ -36,8 +36,8 @@ export function ProviderCredentials({
   }}>
     <h1>Manage {provider.name}</h1>
     <p>{local ? 'This provider runs on a paired device. No credential is stored on the server.' : <>Rotate the credential for <strong>{provider.id}</strong>. Existing keys are never shown.</>}</p>
-    {!local && <label>New API key<input required type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label>}
-    {!local && provider.name === 'openai-compatible' && <label>New base URL <small>(optional)</small><input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="Leave blank to keep the current URL" /></label>}
+    {!local && <label>New API key<input required type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label>}
+    {!local && provider.name === 'openai-compatible' && <label>New base URL <small>(optional)</small><input type="url" autoComplete="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="Leave blank to keep the current URL" /></label>}
     {error && <p role="alert">{error}</p>}
     {!local && <button className="primary-button" disabled={saving}>{saving ? 'Updating…' : 'Rotate credential'}</button>}
     <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>

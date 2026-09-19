@@ -11,15 +11,15 @@ import WebSocket from 'ws';
 
 /*
  * This is an end-to-end test: it renders the real UI against a real server.
- * The server lives in the opencrew-server repository, so this needs a sibling
+ * The server lives in the crewly-server repository, so this needs a sibling
  * checkout that has been built. CI clones and builds it. Without one the test
  * skips rather than failing, so a fresh clone is not red for a missing
  * dependency it never asked for.
  */
-const serverDist = new URL('../../opencrew-server/dist/', import.meta.url);
+const serverDist = new URL('../../server/dist/', import.meta.url);
 const hasServer = existsSync(fileURLToPath(new URL('app.js', serverDist)));
 if (!hasServer) {
-  console.warn('p0-ui: ../opencrew-server/dist not found - skipping. Build the sibling to run it.');
+  console.warn('p0-ui: ../server/dist not found - skipping. Build the sibling to run it.');
 }
 const { buildApp } = hasServer ? await import(new URL('app.js', serverDist).href) : ({} as any);
 const { openDatabase } = hasServer ? await import(new URL('db/connection.js', serverDist).href) : ({} as any);
@@ -51,7 +51,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await new Promise<void>((resolve) => provider!.listen(0, '127.0.0.1', resolve));
   const providerAddress = provider.address();
   if (!providerAddress || typeof providerAddress === 'string') throw new Error('provider address');
-  dataDir = mkdtempSync(join(tmpdir(), 'opencrew-app-ui-'));
+  dataDir = mkdtempSync(join(tmpdir(), 'crewly-app-ui-'));
   db = openDatabase(dataDir); runMigrations(db);
   server = await buildApp({ db, setupClaimToken: 'test-claim-token' });
   await server.listen({ port: 0, host: '127.0.0.1' });
@@ -82,7 +82,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText(/Claim token/), { target: { value: 'test-claim-token' } });
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });
-  expect(win.localStorage.getItem('opencrew:session')).toBeTruthy();
+  expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
   fireEvent.change(page.getByLabelText('Provider'), { target: { value: 'openai-compatible' } });
   // The provider ID defaults to the provider kind and only appears once the
   // second-account disclosure is opened.
@@ -92,9 +92,8 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText('Base URL'), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
   fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
-  await page.findByRole('heading', { name: 'Your crew' });
-  fireEvent.click(page.getByRole('button', { name: 'Create agent' }));
-  const dialog = within(page.getByRole('dialog', { name: 'Create an agent' }));
+  // First run goes straight to the agent dialog; there is no interstitial page.
+  const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
   fireEvent.change(dialog.getByRole('textbox', { name: 'Model ID' }), { target: { value: 'test-model' } });
@@ -153,4 +152,4 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByText('Device paired. It can now connect securely.');
   expect(db.prepare('SELECT id, name FROM devices WHERE id = ?').get(deviceId)).toEqual({ id: deviceId, name: 'Work laptop' });
   refreshedView.unmount();
-});
+}, 20_000);

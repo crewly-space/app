@@ -1,5 +1,5 @@
 /*
- * OpenCrew brand faces, vendored so every surface renders identically.
+ * Crewly brand faces, vendored so every surface renders identically.
  *
  * The cloud console serves static files with no bundler and cannot resolve a
  * package from node_modules, so the woff2 files live in this repository and are

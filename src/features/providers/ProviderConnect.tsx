@@ -18,7 +18,7 @@ const kindLabels: Record<Kind, string> = {
   ollama: 'Ollama on a paired device',
 };
 
-const PENDING_KEY = 'opencrew:provider-oauth';
+const PENDING_KEY = 'crewly:provider-oauth';
 const callbackUrl = `${window.location.origin}/`;
 
 // Session storage is not always reachable: a private window, blocked site data,
@@ -128,10 +128,10 @@ export function ProviderConnect({ onConnected, onClose, onSkip }: {
     <label>Provider<select value={kind} onChange={(e) => { const next = e.target.value as Kind; setKind(next); setId(next); }}>
       {kinds.filter((item) => item !== 'claude-subscription' && item !== 'ollama' || localKinds.includes(item))
         .map((item) => <option key={item} value={item}>{kindLabels[item]}</option>)}</select></label>
-    {kind !== 'claude-subscription' && kind !== 'ollama' && <label>API key<input required type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} /></label>}
-    {kind === 'openai-compatible' && <label>Base URL<input required type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>}
+    {kind !== 'claude-subscription' && kind !== 'ollama' && <label>API key<input required type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} /></label>}
+    {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>}
     {showId
-      ? <label>Provider ID<input required value={id} onChange={(e) => setId(e.target.value)} />
+      ? <label>Provider ID<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
           <small>How agents refer to this connection. Change it to add a second {kindLabels[kind]} account.</small>
         </label>
       : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {kindLabels[kind]} provider?</button>}
