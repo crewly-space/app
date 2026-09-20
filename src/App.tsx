@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -16,7 +17,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  CircleHelp,
+  PanelRight,
   Cpu,
   Database,
   Folder,
@@ -54,6 +55,14 @@ import type {
   Message,
   Provider,
 } from "./types";
+
+/** What an agent's availability means to a reader, rather than its enum name. */
+function statusLabel(status: Agent["status"]): string {
+  if (status === "online") return "Ready";
+  if (status === "thinking") return "Working";
+  if (status === "offline") return "No model provider";
+  return "Status unknown";
+}
 
 type Bootstrap = {
   agents: Agent[];
@@ -228,7 +237,19 @@ export default function App() {
       // cannot be discarded while data is still null.
       stopRealtime = startRealtime((message) => setData((current) => current && ({ ...current,
         messages: current.messages.some((m) => m.id === message.id) ? current.messages : [...current.messages, message] })),
-        (error) => notify(error, 'error'));
+        (error) => notify(error, 'error'),
+        (presence) => setData((current) => {
+          if (!current) return current;
+          const known = current.devices.some((device) => device.id === presence.deviceId);
+          // A device pairs and connects in the same breath, so a presence event
+          // can name one this list has never seen. Reload rather than inventing
+          // a row from the little the event carries.
+          if (!known) { void gateway.bootstrap().then(setData).catch(() => {}); return current; }
+          return { ...current, devices: current.devices.map((device) => device.id === presence.deviceId
+            ? { ...device, connected: presence.connected,
+                lastSeenAt: presence.connected ? new Date().toISOString() : device.lastSeenAt }
+            : device) };
+        }));
     }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); };
   }, []);
@@ -854,7 +875,7 @@ export default function App() {
                     aria-expanded={panel === "details"}
                     aria-label="Conversation details"
                   >
-                    <CircleHelp size={18} />
+                    <PanelRight size={18} />
                   </button>
                   <button
                     className="icon-button"
@@ -1179,6 +1200,7 @@ export default function App() {
           <SearchDialog
             agents={data.agents}
             conversations={data.conversations}
+            messages={data.messages}
             onClose={() => setSearching(false)}
             onSelect={(id) => {
               openConversation(id);
@@ -1250,7 +1272,7 @@ function MessageItem({
             <span
               className={`status ${agent.status}`}
               role="img"
-              aria-label={agent.status}
+              aria-label={statusLabel(agent.status)}
             />
           )}
           {agent && <em>{agent.role}</em>}
@@ -1316,7 +1338,7 @@ function ApprovalMessage({
           <span
             className={`status ${agent.status}`}
             role="img"
-            aria-label={agent.status}
+            aria-label={statusLabel(agent.status)}
           />
           <em>{agent.role}</em>
           <time>{approval.requestedAt}</time>
@@ -1440,7 +1462,7 @@ function DetailsPanel({
               <h3>{agent.name}</h3>
               <p>{agent.role}</p>
               <span className="online-label">
-                <i className={`status ${agent.status}`} /> {agent.status}
+                <i className={`status ${agent.status}`} /> {statusLabel(agent.status)}
               </span>
               <div className="profile-grid">
                 <span>
@@ -1549,11 +1571,19 @@ function PairingApproval({ code, onApproved }: { code: string; onApproved: () =>
       <p><strong>{pairing.deviceName}</strong> wants to connect to this Crewly server.</p>
       <p className="muted-copy">{pairing.platform ?? "Unknown platform"} · Code {code.toUpperCase()}</p>
       <div className="security-note"><LockKeyhole size={15} /><span>Only approve a device you recognize. Its private key never leaves that computer.</span></div>
-      <button className="primary-button" disabled={approving} onClick={async () => {
-        setApproving(true); setError("");
-        try { await gateway.approveDevicePairing(code); await onApproved(); }
-        catch { setError("Could not approve this device. Request a new pairing code and try again."); setApproving(false); }
-      }}>{approving ? "Approving…" : "Approve device"}</button>
+      <div className="pairing-actions">
+        <button className="primary-button" disabled={approving} onClick={async () => {
+          setApproving(true); setError("");
+          try { await gateway.approveDevicePairing(code); await onApproved(); }
+          catch { setError("Could not approve this device. Request a new pairing code and try again."); setApproving(false); }
+        }}>{approving ? "Approving…" : "Approve device"}</button>
+        {/* A screen that asks you to recognise a device has to let you say no.
+            Closing the tab was the only refusal available. */}
+        <button className="secondary-button" disabled={approving} onClick={() => {
+          window.history.replaceState(null, "", window.location.pathname);
+          window.location.reload();
+        }}>Not this device</button>
+      </div>
     </>}
   </div></div></div>;
 
@@ -1934,6 +1964,7 @@ function UtilityView({
   onOpenConversation: (id: string) => void;
 }) {
   if (view === "inbox") {
+    const unread = conversations.filter((item) => item.unread);
     return (
       <section className="utility-view">
         <div className="utility-intro">
@@ -1943,10 +1974,12 @@ function UtilityView({
           <h1>Everything that needs you</h1>
           <p>Approvals and unread conversations, gathered in one place.</p>
         </div>
-        <div className="utility-section-title">
-          <span>Needs attention</span>
-          <small>{approvals.length}</small>
-        </div>
+        {approvals.length > 0 && (
+          <div className="utility-section-title">
+            <span>Needs attention</span>
+            <small>{approvals.length}</small>
+          </div>
+        )}
         {approvals.map((approval) => {
           const agent = agents.find((item) => item.id === approval.agentId);
           const conversation = conversations.find((item) =>
@@ -1972,12 +2005,13 @@ function UtilityView({
             </button>
           );
         })}
-        <div className="utility-section-title">
-          <span>Unread</span>
-        </div>
-        {conversations
-          .filter((item) => item.unread)
-          .map((conversation) => (
+        {unread.length > 0 && (
+          <div className="utility-section-title">
+            <span>Unread</span>
+            <small>{unread.length}</small>
+          </div>
+        )}
+        {unread.map((conversation) => (
             <button
               className="inbox-item"
               key={conversation.id}
@@ -1993,7 +2027,12 @@ function UtilityView({
               <em>{conversation.time}</em>
               <ChevronRight size={16} />
             </button>
-          ))}
+        ))}
+        {approvals.length === 0 && unread.length === 0 && (
+          <p className="utility-empty">
+            You are all caught up. Nothing is waiting on you.
+          </p>
+        )}
       </section>
     );
   }
@@ -2027,10 +2066,12 @@ function UtilityView({
           <span>Workspace</span>
         </div>
       </div>
-      <div className="utility-section-title">
-        <span>Sessions</span>
-        <small>Live</small>
-      </div>
+      {runtimeAgents.length > 0 && (
+        <div className="utility-section-title">
+          <span>Sessions</span>
+          <small>Live</small>
+        </div>
+      )}
       {runtimeAgents.map((agent) => {
         const conversation = conversations.find((item) =>
           item.agentIds.includes(agent.id),
@@ -2060,6 +2101,12 @@ function UtilityView({
           </button>
         );
       })}
+      {runtimeAgents.length === 0 && (
+        <p className="utility-empty">
+          No agent runs on a device yet. Pair one from Settings to see its
+          sessions here.
+        </p>
+      )}
     </section>
   );
 }
@@ -2067,23 +2114,36 @@ function UtilityView({
 function SearchDialog({
   agents,
   conversations,
+  messages,
   onClose,
   onSelect,
 }: {
   agents: Agent[];
   conversations: Conversation[];
+  messages: Message[];
   onClose: () => void;
   onSelect: (conversationId: string) => void;
 }) {
   const dialogRef = useDialog(onClose);
   const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  // Searching names alone cannot find a phrase you remember saying, which is
+  // what people actually reach for search to do.
+  const spoken = useMemo(() => {
+    const byConversation = new Map<string, string>();
+    for (const message of messages) {
+      const seen = byConversation.get(message.conversationId) ?? "";
+      byConversation.set(message.conversationId, `${seen} ${message.body}`);
+    }
+    return byConversation;
+  }, [messages]);
   const results = conversations.filter((conversation) => {
     const people = conversation.agentIds
       .map((id) => agents.find((agent) => agent.id === id)?.name ?? "")
       .join(" ");
-    return `${conversation.name} ${conversation.preview} ${people}`
+    return `${conversation.name} ${conversation.preview} ${people} ${spoken.get(conversation.id) ?? ""}`
       .toLowerCase()
-      .includes(query.toLowerCase());
+      .includes(needle);
   });
   return (
     <div
@@ -2112,7 +2172,9 @@ function SearchDialog({
         </div>
         <div className="search-results">
           <label>
-            {query ? `${results.length} results` : "Recent conversations"}
+            {query
+              ? `${results.length} ${results.length === 1 ? "result" : "results"}`
+              : "Recent conversations"}
           </label>
           {results.map((conversation) => {
             const agent = agents.find(
@@ -2142,7 +2204,7 @@ function SearchDialog({
             <div className="empty-search">
               <Search size={22} />
               <strong>No conversations found</strong>
-              <span>Try an agent name or a different phrase.</span>
+              <span>Try an agent name, or a phrase from the conversation.</span>
             </div>
           )}
         </div>
@@ -2393,7 +2455,7 @@ export function AgentEditor({
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
               {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
             </select></label>
-            <label>Model ID<input ref={modelRef} required autoComplete="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-4-20250514" /></label>
+            <label><span>Model ID <em>Required</em></span><input ref={modelRef} required autoComplete="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-5" /></label>
           </div>
           {!connectedProviders.length && <small className="field-description">No connected provider. Connect one in Settings first.</small>}
           <button
@@ -2539,7 +2601,7 @@ function Avatar({
         <i
           className={`status ${agent.status}`}
           role="img"
-          aria-label={agent.status}
+          aria-label={statusLabel(agent.status)}
         />
       )}
     </div>

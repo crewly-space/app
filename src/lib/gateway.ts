@@ -46,7 +46,18 @@ export const gateway = {
         detail: local ? localReady ? 'Paired device connected' : 'No connected device' : p.hasApiKey ? 'API key configured' : 'No API key',
         status: local ? localReady ? 'connected' : 'missing' : p.hasApiKey ? 'connected' : 'missing', local };
     });
-    return { agents, conversations, messages, providers, approvals: [], currentUser, users, devices };
+    // An agent is only as available as the provider behind it, and the server
+    // now refuses a run without one. Reporting every agent as "unknown" told
+    // the reader nothing they could act on.
+    const reachable = new Set(providers.filter((p) => p.status === 'connected').map((p) => p.id));
+    const withStatus = agents.map((agent) => ({
+      ...agent,
+      status: agent.providerId && reachable.has(agent.providerId)
+        ? ('online' as const)
+        : ('offline' as const),
+    }));
+    return { agents: withStatus, conversations, messages, providers,
+      approvals: [], currentUser, users, devices };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string }): Promise<Agent> {
     const api = await client.agents.create({ name: input.name,

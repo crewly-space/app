@@ -90,13 +90,13 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // The label wraps a hint, so its text is not exactly "Provider ID".
   fireEvent.change(await page.findByLabelText(/Provider ID/), { target: { value: 'mock' } });
   fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
-  fireEvent.change(page.getByLabelText('Base URL'), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
+  fireEvent.change(page.getByLabelText(/Base URL/), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
   fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
   // First run goes straight to the agent dialog; there is no interstitial page.
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(dialog.getByRole('textbox', { name: 'Model ID' }), { target: { value: 'test-model' } });
+  fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
   const composer = await page.findByRole('combobox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });

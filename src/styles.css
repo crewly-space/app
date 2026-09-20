@@ -121,8 +121,8 @@ body {
 .primary-nav button:hover,
 .primary-nav button.active,
 .sidebar-footer button:hover {
-  background: #18181b;
-  color: #f0f0f1;
+  background: var(--oc-panel-2);
+  color: var(--oc-text-strong);
 }
 .primary-nav small {
   margin-left: auto;
@@ -840,7 +840,7 @@ body {
   cursor: pointer;
 }
 .detail-panel {
-  --surface: #101012;
+  --surface: var(--oc-panel);
   background: var(--surface);
   border-left: 1px solid var(--line-soft);
   min-width: 0;
@@ -873,7 +873,7 @@ body {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #74747b;
+  color: var(--muted);
   font-size: 12px;
   cursor: pointer;
 }
@@ -901,7 +901,7 @@ body {
 }
 .agent-profile > p {
   margin: 0;
-  color: #7e7e85;
+  color: var(--muted);
   font-size: 12px;
 }
 .online-label {
@@ -936,7 +936,7 @@ body {
 .profile-grid strong {
   font-size: 11px;
   font-weight: 500;
-  color: #b7b7bc;
+  color: var(--muted);
   text-align: right;
 }
 .memory-editor {
@@ -1229,7 +1229,7 @@ body {
 .device-card span,
 .device-card small {
   font-size: 9px;
-  color: #74747b;
+  color: var(--muted);
 }
 .device-card small {
   display: flex;
@@ -1338,7 +1338,7 @@ body {
 .avatar-options label > i {
   width: 18px;
   height: 18px;
-  border: 1px solid #36363a;
+  border: 1px solid var(--oc-line-strong);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -1510,7 +1510,7 @@ body {
 .secondary-button {
   border: 1px solid var(--oc-line-strong);
   background: var(--oc-panel-3);
-  color: #b7b7bc;
+  color: var(--muted);
 }
 /* A quiet third tier below primary/secondary, for the ways out of a step that
    should stay available without competing with the action being encouraged. */
@@ -1889,6 +1889,16 @@ body {
   color: #a6a6ac;
   font-size: 8px;
 }
+.utility-empty {
+  margin: 18px 0 0;
+  padding: 18px;
+  border: 1px dashed var(--line-soft);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+}
 .inbox-item,
 .session-row {
   --surface: var(--oc-panel);
@@ -1937,7 +1947,7 @@ body {
 }
 .inbox-item small,
 .session-row small {
-  color: #74747b;
+  color: var(--muted);
   font-size: 9px;
   white-space: nowrap;
   overflow: hidden;
@@ -2617,17 +2627,26 @@ body {
   font-size: 11px;
   font-weight: 600;
 }
+/*
+ * An unchosen option shows an empty ring, the way the avatar picker below does.
+ * Filling all three and relying on the tick inside to tell them apart read as
+ * three selected themes at a glance.
+ */
 .theme-options label > i {
   position: absolute;
   right: 6px;
   top: 6px;
   width: 17px;
   height: 17px;
+  border: 1px solid var(--oc-line-strong);
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--accent);
   color: white;
+}
+.theme-options label.selected > i {
+  border-color: var(--accent);
+  background: var(--accent);
 }
 .preference-divider {
   height: 1px;
@@ -2647,17 +2666,12 @@ body {
   font-size: 10px;
 }
 
-/* Light theme keeps the same hierarchy while lifting every working surface. */
+/*
+ * Light theme keeps the same hierarchy while lifting every working surface.
+ * The palette itself lives in the design tokens, so restating hexes here would
+ * only let the two drift; these aliases already follow --oc-* into light.
+ */
 :root[data-theme="light"] {
-  --bg: #f6f6f8;
-  --panel: #ffffff;
-  --panel-2: #f3f3f5;
-  --line: #d9d9df;
-  --line-soft: #e9e9ed;
-  --muted: #66666f;
-  --text: #202024;
-  --accent: #d94b32;
-  --accent-soft: rgba(217, 75, 50, 0.1);
   color: var(--text);
   background: var(--bg);
 }
@@ -3062,4 +3076,18 @@ body {
   flex: 1;
   height: 1px;
   background: var(--oc-line);
+}
+
+/*
+ * Log out sits outside the panel's scrolling body, so it inherited none of its
+ * padding and ran edge to edge — its right border landing on the window frame.
+ */
+.settings-panel > .secondary-button {
+  margin: 0 18px 18px;
+}
+
+.pairing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
 }

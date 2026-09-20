@@ -131,3 +131,93 @@
     --oc-transition-slow: 0s;
   }
 }
+
+/*
+ * Light palette. The same roles, inverted: surfaces come forward as they get
+ * closer to the reader, text darkens, hairlines lighten.
+ *
+ * These override the --oc-* tokens themselves, not a consuming repo's aliases,
+ * because surfaces reach for --oc-text and --oc-panel directly. While only the
+ * aliases were flipped, anything styled against a raw token kept its dark
+ * value: headings, author names and the wordmark rendered #ededee on white,
+ * a contrast ratio of 1.17:1.
+ *
+ * The values live here once and are mapped twice below — for an explicit Light
+ * choice, and for a reader whose system asks for light and who has not chosen
+ * dark — so the two paths cannot drift apart.
+ */
+:root {
+  --oc-l-bg: #f6f6f8;
+  --oc-l-panel: #ffffff;
+  --oc-l-panel-2: #f3f3f5;
+  --oc-l-panel-3: #eaeaef;
+  --oc-l-line: #d9d9df;
+  --oc-l-line-soft: #e9e9ed;
+  --oc-l-line-strong: #c3c3cc;
+  --oc-l-text: #202024;
+  --oc-l-text-strong: #0b0b0c;
+  --oc-l-muted: #5b5b64;
+  --oc-l-muted-2: #6a6a73;
+  --oc-l-accent: #d94b32;
+  --oc-l-accent-light: #c33f28;
+  --oc-l-accent-soft: rgba(217, 75, 50, 0.1);
+  --oc-l-accent-ring: rgba(217, 75, 50, 0.5);
+  --oc-l-success: #1a7f4b;
+  --oc-l-success-soft: rgba(26, 127, 75, 0.12);
+  --oc-l-warning: #8a5a00;
+  --oc-l-warning-soft: rgba(138, 90, 0, 0.12);
+  --oc-l-danger: #c0262b;
+  --oc-l-danger-soft: rgba(192, 38, 43, 0.1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+    --oc-bg: var(--oc-l-bg);
+    --oc-panel: var(--oc-l-panel);
+    --oc-panel-2: var(--oc-l-panel-2);
+    --oc-panel-3: var(--oc-l-panel-3);
+    --oc-line: var(--oc-l-line);
+    --oc-line-soft: var(--oc-l-line-soft);
+    --oc-line-strong: var(--oc-l-line-strong);
+    --oc-text: var(--oc-l-text);
+    --oc-text-strong: var(--oc-l-text-strong);
+    --oc-muted: var(--oc-l-muted);
+    --oc-muted-2: var(--oc-l-muted-2);
+    --oc-accent: var(--oc-l-accent);
+    --oc-accent-light: var(--oc-l-accent-light);
+    --oc-accent-soft: var(--oc-l-accent-soft);
+    --oc-accent-ring: var(--oc-l-accent-ring);
+    --oc-success: var(--oc-l-success);
+    --oc-success-soft: var(--oc-l-success-soft);
+    --oc-warning: var(--oc-l-warning);
+    --oc-warning-soft: var(--oc-l-warning-soft);
+    --oc-danger: var(--oc-l-danger);
+    --oc-danger-soft: var(--oc-l-danger-soft);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    color-scheme: light;
+    --oc-bg: var(--oc-l-bg);
+    --oc-panel: var(--oc-l-panel);
+    --oc-panel-2: var(--oc-l-panel-2);
+    --oc-panel-3: var(--oc-l-panel-3);
+    --oc-line: var(--oc-l-line);
+    --oc-line-soft: var(--oc-l-line-soft);
+    --oc-line-strong: var(--oc-l-line-strong);
+    --oc-text: var(--oc-l-text);
+    --oc-text-strong: var(--oc-l-text-strong);
+    --oc-muted: var(--oc-l-muted);
+    --oc-muted-2: var(--oc-l-muted-2);
+    --oc-accent: var(--oc-l-accent);
+    --oc-accent-light: var(--oc-l-accent-light);
+    --oc-accent-soft: var(--oc-l-accent-soft);
+    --oc-accent-ring: var(--oc-l-accent-ring);
+    --oc-success: var(--oc-l-success);
+    --oc-success-soft: var(--oc-l-success-soft);
+    --oc-warning: var(--oc-l-warning);
+    --oc-warning-soft: var(--oc-l-warning-soft);
+    --oc-danger: var(--oc-l-danger);
+    --oc-danger-soft: var(--oc-l-danger-soft);
+  }
+}

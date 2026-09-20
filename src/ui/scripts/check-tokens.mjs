@@ -31,6 +31,11 @@ function readTokenColors() {
   for (const [, name, rawValue] of source.matchAll(/(--oc-[a-z0-9-]+)\s*:\s*([^;]+);/g)) {
     const value = rawValue.trim().toLowerCase();
     if (!/^(#|rgba?\()/.test(value)) continue;
+    // --oc-l-* are the light palette's raw inputs, which the theme blocks map
+    // onto the real tokens. Nothing should reference them directly, and their
+    // values collide with dark surfaces -- #202024 is light text and a dark
+    // panel -- so indexing them would tell a dark rule to use a text token.
+    if (name.startsWith('--oc-l-')) continue;
     if (!colors.has(value)) colors.set(value, name);
     // #rrggbb and #rgb spell the same colour; index both.
     const short = value.match(/^#([0-9a-f])\1([0-9a-f])\2([0-9a-f])\3$/);

@@ -129,7 +129,8 @@ export function ProviderConnect({ onConnected, onClose, onSkip }: {
       {kinds.filter((item) => item !== 'claude-subscription' && item !== 'ollama' || localKinds.includes(item))
         .map((item) => <option key={item} value={item}>{kindLabels[item]}</option>)}</select></label>
     {kind !== 'claude-subscription' && kind !== 'ollama' && <label>API key<input required type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} /></label>}
-    {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>}
+    {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+      <small>The root the provider documents for its OpenAI-compatible endpoints, without /chat/completions.</small></label>}
     {showId
       ? <label>Provider ID<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
           <small>How agents refer to this connection. Change it to add a second {kindLabels[kind]} account.</small>

@@ -22,7 +22,7 @@ function openEditor(providers: Providers) {
   render(<AgentEditor providers={providers} onClose={() => {}} onSubmit={onSubmit} />);
   fireEvent.change(screen.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(screen.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Model ID' }), { target: { value: 'test-model' } });
+  fireEvent.change(screen.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   return onSubmit;
 }
 
