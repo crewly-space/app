@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { Blobatar } from "@blobatar/react";
+import { crewAvatarSvg, crewVariantFor } from "@crewly/ui/crew-avatar";
 import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
 import {
   Activity,
@@ -76,7 +77,7 @@ type Bootstrap = {
 };
 type Panel = "details" | "settings" | null;
 type Toast = { message: string; tone: "info" | "error" };
-type AvatarStyle = "blobatar" | "initials";
+type AvatarStyle = "crew" | "blobatar" | "initials";
 type View = "messages" | "inbox" | "activity";
 type CreateAgentInput = Pick<Agent, "name" | "role" | "model" | "runtime"> & {
   providerId: string;
@@ -99,7 +100,8 @@ const THEME_KEY = "crewly:theme";
 // Set when someone chooses to look around before connecting a provider, so a
 // reload does not drop them back onto the setup screen they just dismissed.
 const PROVIDER_SKIPPED_KEY = "crewly:provider-setup-skipped";
-const AvatarStyleContext = createContext<AvatarStyle>("blobatar");
+const AVATAR_STYLES: readonly AvatarStyle[] = ["crew", "blobatar", "initials"];
+const AvatarStyleContext = createContext<AvatarStyle>("crew");
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -208,11 +210,11 @@ export default function App() {
   const [approvalResults, setApprovalResults] = useState<
     Record<string, string>
   >({});
-  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>(() =>
-    localStorage.getItem(AVATAR_STYLE_KEY) === "initials"
-      ? "initials"
-      : "blobatar",
-  );
+  // A saved choice always wins; the crew is the default for everyone else.
+  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>(() => {
+    const saved = localStorage.getItem(AVATAR_STYLE_KEY);
+    return AVATAR_STYLES.find((style) => style === saved) ?? "crew";
+  });
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
     return saved === "light" || saved === "dark" ? saved : "system";
@@ -1822,6 +1824,28 @@ function SettingsPanel({
             </div>
             <fieldset className="avatar-options">
               <legend>Avatar style</legend>
+              <label className={avatarStyle === "crew" ? "selected" : ""}>
+                <input
+                  type="radio"
+                  name="avatar-style"
+                  value="crew"
+                  checked={avatarStyle === "crew"}
+                  onChange={() => onAvatarStyleChange("crew")}
+                />
+                <span className="avatar-option-preview">
+                  {agents.slice(0, 3).map((agent) => (
+                    <Avatar key={agent.id} agent={agent} style="crew" />
+                  ))}
+                </span>
+                <span>
+                  <strong>Crew</strong>
+                  <small>
+                    Black characters with a red outline, one face per agent
+                    name.
+                  </small>
+                </span>
+                <i>{avatarStyle === "crew" && <Check size={13} />}</i>
+              </label>
               <label className={avatarStyle === "blobatar" ? "selected" : ""}>
                 <input
                   type="radio"
@@ -1864,7 +1888,7 @@ function SettingsPanel({
               </label>
             </fieldset>
             <p className="avatar-privacy-note">
-              Blobatars are generated locally and stay consistent for each agent
+              Avatars are generated locally and stay consistent for each agent
               name.
             </p>
           </>
@@ -2585,14 +2609,22 @@ function Avatar({
   const resolvedStyle = style ?? preferredStyle;
   return (
     <div
-      className={`avatar avatar-${size} ${resolvedStyle === "blobatar" ? "avatar-blobatar" : ""}`}
+      className={`avatar avatar-${size} ${resolvedStyle === "blobatar" ? "avatar-blobatar" : ""} ${resolvedStyle === "crew" ? "avatar-crew" : ""}`}
       style={
         resolvedStyle === "initials"
           ? { background: agent?.color ?? "#777" }
           : undefined
       }
     >
-      {resolvedStyle === "blobatar" && agent ? (
+      {resolvedStyle === "crew" && agent ? (
+        <span
+          aria-hidden="true"
+          // Static markup built from a fixed set of shapes, never from user input.
+          dangerouslySetInnerHTML={{
+            __html: crewAvatarSvg(crewVariantFor(agent.name)),
+          }}
+        />
+      ) : resolvedStyle === "blobatar" && agent ? (
         <Blobatar name={agent.name} aria-hidden="true" />
       ) : (
         (agent?.initials ?? "?")

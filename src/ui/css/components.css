@@ -26,63 +26,65 @@
 }
 
 .brand-mark {
-  position: relative;
   flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
-  border: 1.5px solid var(--oc-text);
-  border-radius: var(--oc-radius);
-  display: inline-grid;
-  place-items: center;
-  transform: rotate(30deg);
+  width: 34px;
+  height: 34px;
+  display: inline-block;
+  background: url("../assets/mark-small.svg") center / contain no-repeat;
 }
 
-.brand-mark i {
-  display: block;
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--oc-accent);
-}
-
-.brand-mark b {
-  position: absolute;
-  right: 3px;
-  top: 3px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--oc-text);
+/* The mark is an image now. Consumers still render the old <i>/<b> children,
+   so hide them rather than breaking every surface that has not caught up. */
+.brand-mark > i,
+.brand-mark > b {
+  display: none;
 }
 
 .brand-mark.mini {
-  width: 21px;
-  height: 21px;
-  border-radius: var(--oc-radius-sm);
-}
-
-.brand-mark.mini i {
-  width: 7px;
-  height: 7px;
+  width: 24px;
+  height: 24px;
 }
 
 .brand-mark-large {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--oc-radius-md);
+  width: 52px;
+  height: 52px;
+  background-image: url("../assets/mark.svg");
 }
 
-.brand-mark-large i {
-  width: 15px;
-  height: 15px;
-  border-radius: 5px;
+/* ---------------------------------------------------------- crew avatar -- */
+
+/* Geometry comes from crew-avatar.ts; every colour is a token here. */
+.crew-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.brand-mark-large b {
-  right: 5px;
-  top: 5px;
-  width: 6px;
-  height: 6px;
+.crew-svg .crew-body {
+  fill: var(--oc-bg);
+  stroke: var(--oc-accent);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.crew-svg .crew-line {
+  fill: none;
+  stroke: var(--oc-accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.crew-svg .crew-dot {
+  fill: var(--oc-accent);
+}
+
+.crew-svg .crew-eye {
+  fill: var(--oc-text);
+}
+
+.crew-svg.is-you .crew-body {
+  stroke: var(--oc-text);
 }
 
 /* -------------------------------------------------------------- buttons -- */

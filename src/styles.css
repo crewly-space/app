@@ -48,32 +48,6 @@ body {
   font: 700 15px var(--font-display);
   letter-spacing: -0.2px;
 }
-.brand-mark {
-  width: 25px;
-  height: 25px;
-  border: 1.5px solid var(--oc-text);
-  border-radius: 8px;
-  display: inline-grid;
-  place-items: center;
-  position: relative;
-  transform: rotate(30deg);
-}
-.brand-mark i {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--accent);
-  display: block;
-}
-.brand-mark b {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--oc-text);
-  right: 3px;
-  top: 3px;
-}
 .search {
   border: 1px solid var(--line);
   background: #141416;
@@ -495,8 +469,17 @@ body {
   border-radius: 17px;
   font-size: 18px;
 }
-.avatar-blobatar {
+.avatar-blobatar,
+.avatar-crew {
   overflow: visible;
+}
+.avatar-crew {
+  background: none;
+}
+.avatar-crew > span {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .avatar-blobatar > img,
 .avatar-blobatar > svg {
@@ -2687,12 +2670,6 @@ body {
 :root[data-theme="light"] .session-row,
 :root[data-theme="light"] .avatar-options > label {
   --surface: #ffffff;
-}
-:root[data-theme="light"] .brand-mark {
-  border-color: #2a2a30;
-}
-:root[data-theme="light"] .brand-mark b {
-  background: #2a2a30;
 }
 :root[data-theme="light"] .search,
 :root[data-theme="light"] .composer,
