@@ -20,6 +20,15 @@
   --oc-panel-2: #151518;
   --oc-panel-3: #19191c;
 
+  /*
+   * The well an input sits in. Forms live on --oc-panel on every surface, so
+   * the field recedes below it rather than rising above: a control you type
+   * into reads as a hollow, not a tile. The console had this right with
+   * --oc-bg before the fields were unified onto a panel rung.
+   */
+  --oc-field: #0e0e10;
+  --oc-field-disabled: #0c0c0d;
+
   /* Hairlines. --oc-line separates regions, --oc-line-soft groups within one. */
   --oc-line: #252529;
   --oc-line-soft: #1d1d20;
@@ -151,6 +160,9 @@
   --oc-shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.35);
   --oc-shadow-accent: inset 0 1px rgba(255, 255, 255, 0.15),
     0 8px 22px rgba(240, 91, 62, 0.12);
+  /* The depth that makes a field read as a well. Dropped on focus, so the
+     field opens up when it takes the caret. */
+  --oc-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.35);
 
   /* Motion. Keep these short; the product should feel immediate. */
   --oc-transition: 0.18s ease;
@@ -212,6 +224,11 @@
   --oc-l-panel: #ffffff;
   --oc-l-panel-2: #f3f3f5;
   --oc-l-panel-3: #eaeaef;
+  /* The same hollow, at the weight a light surface can carry: 0.35 black is
+     tuned for a field cut into near-black and reads as a smudge on white. */
+  --oc-l-shadow-inset: inset 0 1px 2px rgba(24, 24, 28, 0.07);
+  --oc-l-field: #f3f3f5;
+  --oc-l-field-disabled: #eeeef0;
   --oc-l-line: #d9d9df;
   --oc-l-line-soft: #e9e9ed;
   --oc-l-line-strong: #c3c3cc;
@@ -268,6 +285,9 @@
   --oc-panel: var(--oc-l-panel);
   --oc-panel-2: var(--oc-l-panel-2);
   --oc-panel-3: var(--oc-l-panel-3);
+  --oc-shadow-inset: var(--oc-l-shadow-inset);
+  --oc-field: var(--oc-l-field);
+  --oc-field-disabled: var(--oc-l-field-disabled);
   --oc-line: var(--oc-l-line);
   --oc-line-soft: var(--oc-l-line-soft);
   --oc-line-strong: var(--oc-l-line-strong);
@@ -321,6 +341,9 @@
     --oc-panel: var(--oc-l-panel);
     --oc-panel-2: var(--oc-l-panel-2);
     --oc-panel-3: var(--oc-l-panel-3);
+    --oc-shadow-inset: var(--oc-l-shadow-inset);
+    --oc-field: var(--oc-l-field);
+    --oc-field-disabled: var(--oc-l-field-disabled);
     --oc-line: var(--oc-l-line);
     --oc-line-soft: var(--oc-l-line-soft);
     --oc-line-strong: var(--oc-l-line-strong);
