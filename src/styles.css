@@ -39,14 +39,10 @@ body {
   flex-direction: column;
   min-width: 0;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* The wordmark itself comes from the kit; this is only where it sits. */
+.sidebar .brand {
   height: 32px;
   padding: 0 8px;
-  font: 700 15px var(--font-display);
-  letter-spacing: -0.2px;
 }
 .search {
   border: 1px solid var(--line);
@@ -159,7 +155,7 @@ body {
 .conversation-row small {
   margin-left: auto;
   background: var(--accent);
-  color: white;
+  color: var(--oc-on-accent);
   min-width: 17px;
   height: 17px;
   border-radius: 9px;
@@ -214,7 +210,7 @@ body {
   justify-content: center;
   border-radius: 7px;
   background: var(--accent);
-  color: var(--oc-text-strong);
+  color: var(--oc-on-accent);
   font-size: 12px;
   font-weight: 600;
 }
@@ -275,18 +271,7 @@ body {
   display: flex;
   gap: 4px;
 }
-.icon-button {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  background: transparent;
-  border-radius: 7px;
-  color: var(--oc-muted);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.icon-button:hover,
+/* .selected is an app state the kit does not model; it borrows hover's look. */
 .icon-button.selected {
   background: var(--oc-line-soft);
   color: var(--oc-text);
@@ -446,7 +431,7 @@ body {
   display: grid;
   place-items: center;
   font: 700 12px var(--font-display);
-  color: white;
+  color: var(--oc-on-accent);
   position: relative;
   flex: 0 0 auto;
 }
@@ -665,7 +650,7 @@ body {
 .approval-actions button.approve {
   background: var(--oc-accent);
   border-color: var(--oc-accent);
-  color: white;
+  color: var(--oc-on-accent);
 }
 .approval-result {
   border-top: 1px solid var(--oc-accent-panel-2);
@@ -742,7 +727,7 @@ body {
   border: 0;
   border-radius: 4px;
   background: color-mix(in srgb, var(--mention-color) 18%, transparent);
-  color: color-mix(in srgb, var(--mention-color) 76%, white);
+  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text-strong));
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   padding: 1px 3px;
@@ -790,7 +775,7 @@ body {
 .composer-tools button.send {
   margin-left: 10px;
   background: var(--accent);
-  color: white;
+  color: var(--oc-on-accent);
 }
 .composer-tools button.send:disabled {
   background: var(--oc-line);
@@ -1091,15 +1076,6 @@ body {
   border-color: var(--oc-danger-line);
   background: var(--oc-danger-panel);
 }
-.danger-button {
-  border: 1px solid var(--oc-danger-line);
-  background: var(--oc-danger-panel);
-  color: var(--oc-danger-text);
-  border-radius: 7px;
-  padding: 9px 12px;
-  cursor: pointer;
-}
-.danger-button:disabled { opacity: 0.55; cursor: default; }
 .danger-confirm {
   border: 1px solid var(--oc-danger-line-strong);
   background: var(--oc-danger-panel);
@@ -1326,7 +1302,7 @@ body {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: white;
+  color: var(--oc-on-accent);
   font-style: normal;
 }
 .avatar-options label.selected > i {
@@ -1356,13 +1332,6 @@ body {
 }
 .onboarding > header .text-button {
   margin-left: auto;
-}
-.text-button {
-  border: 0;
-  background: transparent;
-  color: var(--oc-muted);
-  font-size: 11px;
-  cursor: pointer;
 }
 .onboarding-body {
   grid-row: 2;
@@ -1430,13 +1399,6 @@ body {
   text-align: center;
   padding: 46px 50px 40px;
 }
-.eyebrow {
-  text-transform: uppercase;
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: var(--accent);
-  font-weight: 700;
-}
 .onboarding-card h1 {
   font: 700 36px/1.14 var(--font-display);
   letter-spacing: -0.025em;
@@ -1465,52 +1427,6 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-.primary-button,
-.secondary-button {
-  min-height: 44px;
-  border-radius: 8px;
-  padding: 0 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.primary-button {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: white;
-}
-.primary-button:hover {
-  background: var(--oc-accent-light);
-}
-.primary-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.secondary-button {
-  border: 1px solid var(--oc-line-strong);
-  background: var(--oc-panel-3);
-  color: var(--muted);
-}
-/* A quiet third tier below primary/secondary, for the ways out of a step that
-   should stay available without competing with the action being encouraged. */
-.link-button {
-  border: none;
-  background: none;
-  padding: 6px 2px;
-  color: var(--muted);
-  font: inherit;
-  text-align: center;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.link-button:hover {
-  color: var(--accent);
 }
 .link-button:disabled {
   opacity: 0.45;
@@ -1688,38 +1604,12 @@ body {
   color: var(--oc-muted);
   font-size: 12px;
 }
+/* The fields are the kit's; this is the dialog padding around them. */
 .form {
   padding: 21px 26px;
-  display: grid;
-  gap: 15px;
-}
-.form label {
-  display: grid;
-  gap: 7px;
-  color: var(--oc-muted-strong);
-  font-size: 12px;
-  font-weight: 600;
-}
-.form input,
-.form textarea,
-.form select {
-  width: 100%;
-  border: 1px solid var(--oc-line-strong);
-  background: var(--oc-panel-2);
-  color: var(--oc-text);
-  border-radius: 8px;
-  min-height: 44px;
-  padding: 11px 12px;
-  font-size: 13px;
 }
 .form textarea {
   min-height: 68px;
-  resize: vertical;
-}
-.form input:focus,
-.form textarea:focus,
-.form select:focus {
-  border-color: var(--oc-line-hover);
 }
 .simple-options {
   display: grid;
@@ -1759,7 +1649,7 @@ body {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: white;
+  background: var(--oc-on-accent);
   top: 2px;
   left: 2px;
   transition: transform 0.2s;
@@ -2250,7 +2140,7 @@ body {
   display: inline;
   border: 0;
   background: color-mix(in srgb, var(--mention-color) 18%, transparent);
-  color: color-mix(in srgb, var(--mention-color) 76%, white);
+  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text-strong));
   border-radius: 4px;
   padding: 1px 3px;
   font: inherit;
@@ -2318,7 +2208,7 @@ body {
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--mention-color) 18%, transparent);
-  color: color-mix(in srgb, var(--mention-color) 78%, white);
+  color: color-mix(in srgb, var(--mention-color) 78%, var(--oc-text-strong));
 }
 .mention-menu strong {
   font-size: 13px;
@@ -2628,7 +2518,7 @@ body {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: white;
+  color: var(--oc-on-accent);
 }
 .theme-options label.selected > i {
   border-color: var(--accent);

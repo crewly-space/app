@@ -54,9 +54,26 @@ const ALPHA = 0.04;
  * to be worth a look, far enough that it may be a colour the palette lacks. */
 const LOOSE = 14;
 
-/** #abc, #aabbcc, #aabbccdd, rgb(), rgba() -> [r, g, b, a] or null. */
+/*
+ * The named colours CSS allows. `color: white` is exactly the hardcoding this
+ * guard exists to catch, and for a while it walked straight past it: four
+ * accent-filled buttons across the app and console spelled their label `white`
+ * and no hex ever appeared for the matcher to see. Only the handful that turn
+ * up in real stylesheets are listed; the rest would be noise.
+ */
+const NAMED = {
+  white: '#ffffff', black: '#000000', red: '#ff0000', gray: '#808080', grey: '#808080',
+  silver: '#c0c0c0', whitesmoke: '#f5f5f5', gainsboro: '#dcdcdc', lightgray: '#d3d3d3',
+  lightgrey: '#d3d3d3', darkgray: '#a9a9a9', darkgrey: '#a9a9a9', dimgray: '#696969',
+  dimgrey: '#696969', orange: '#ffa500', tomato: '#ff6347', coral: '#ff7f50',
+  crimson: '#dc143c', green: '#008000', lime: '#00ff00', teal: '#008080',
+  navy: '#000080', blue: '#0000ff', yellow: '#ffff00', gold: '#ffd700',
+};
+
+/** #abc, #aabbcc, #aabbccdd, rgb(), rgba(), or a named colour -> [r,g,b,a]. */
 function parseColor(literal) {
-  const value = literal.trim().toLowerCase();
+  let value = literal.trim().toLowerCase();
+  if (NAMED[value]) value = NAMED[value];
   if (value.startsWith('#')) {
     let hex = value.slice(1);
     if (hex.length === 3 || hex.length === 4) hex = [...hex].map((c) => c + c).join('');
@@ -323,6 +340,13 @@ function propertyAt(source, index) {
  * into a modal-backdrop token, so the guard leaves them alone.
  */
 const isShadow = (property) => /^(?:box-shadow|text-shadow|--oc-shadow)/.test(property);
+
+/*
+ * A bare word is a colour only where a colour can go. Without this, \bwhite\b
+ * also matches the selector .white-panel, a font named "Helvetica White",
+ * url(/white.png), and any custom property with the word in its name.
+ */
+const COLOR_PROPERTY = /^(?:color|background|background-color|border[a-z-]*|outline[a-z-]*|fill|stroke|caret-color|accent-color|text-decoration-color|column-rule-color)$/;
 const isText = (property) => property === 'color';
 
 /* `/* token-exempt: why *\/` opts a colour out. The reason is not optional. */
@@ -383,18 +407,21 @@ for (const file of files) {
   deadStates.push(...findDeadStates(file, original, aliases));
   const edits = [];
 
-  for (const hit of original.matchAll(/(#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\))/g)) {
+  for (const hit of original.matchAll(/(#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|\b(?:black|blue|coral|crimson|darkgray|darkgrey|dimgray|dimgrey|gainsboro|gold|gray|green|grey|lightgray|lightgrey|lime|navy|orange|red|silver|teal|tomato|white|whitesmoke|yellow)\b)/g)) {
     const literal = hit[0];
     const index = hit.index;
     if (inComment(original, index)) continue;
     if (exemptAt(original, index)) continue;
     const color = parseColor(literal);
     if (!color) continue;
+    const property = propertyAt(original, index);
+    // A named colour counts only where a colour can go, or .white-panel,
+    // url(/white.png) and --my-white-thing all read as the colour white.
+    if (NAMED[literal.toLowerCase()] && !COLOR_PROPERTY.test(property)) continue;
     const palette = paletteAt(original, index);
     const found = match(color, palettes[palette]);
     if (!found || found.distance > LOOSE) continue;
 
-    const property = propertyAt(original, index);
     const line = original.slice(0, index).split(/\r?\n/).length;
     const text = original.slice(original.lastIndexOf('\n', index) + 1,
       original.indexOf('\n', index) === -1 ? undefined : original.indexOf('\n', index)).trim();
