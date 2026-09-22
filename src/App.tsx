@@ -10,6 +10,7 @@ import {
 import { Blobatar } from "@blobatar/react";
 import { crewAvatarSvg, crewVariantFor } from "@crewly/ui/crew-avatar";
 import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
+import type { ModelInfo } from "@crewly/protocol";
 import {
   Activity,
   AtSign,
@@ -47,6 +48,7 @@ import {
 } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
+import { ModelPicker } from "./features/agents/ModelPicker";
 import { ProviderConnect } from "./features/providers/ProviderConnect";
 import { ProviderCredentials } from "./features/providers/ProviderCredentials";
 import type {
@@ -2311,6 +2313,7 @@ export function AgentEditor({
   firstRun,
   onClose,
   onSubmit,
+  loadModels,
 }: {
   agent?: Agent;
   providers: Provider[];
@@ -2318,6 +2321,8 @@ export function AgentEditor({
   firstRun?: boolean;
   onClose: () => void;
   onSubmit: (agent: CreateAgentInput) => Promise<void>;
+  /** The provider's model list. Injected so a test needs no provider behind it. */
+  loadModels?: (providerId: string) => Promise<ModelInfo[]>;
 }) {
   const dialogRef = useDialog(onClose);
   const [name, setName] = useState(agent?.name ?? "");
@@ -2339,7 +2344,6 @@ export function AgentEditor({
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
   const roleRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLInputElement>(null);
   const editing = Boolean(agent);
   const templates = [
     ["Product", "Product strategist", "Turn ambiguous ideas into concise plans, tradeoffs, and next steps."],
@@ -2367,9 +2371,14 @@ export function AgentEditor({
     if (saving) return;
     if (!name.trim()) { nameRef.current?.focus(); return; }
     if (!role.trim()) { roleRef.current?.focus(); return; }
-    if (!model.trim()) { modelRef.current?.focus(); return; }
+    // The provider comes first: without one there is no model list to choose
+    // from, so asking for a model would be asking for something impossible.
     if (!providerId) {
       setError("Connect a provider in Settings before creating an agent.");
+      return;
+    }
+    if (!model.trim()) {
+      setError("Choose a model for this agent.");
       return;
     }
     setSaving(true);
@@ -2479,7 +2488,7 @@ export function AgentEditor({
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
               {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
             </select></label>
-            <label><span>Model ID <em>Required</em></span><input ref={modelRef} required autoComplete="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder="e.g. gpt-4o-mini or claude-sonnet-5" /></label>
+            <ModelPicker providerId={providerId} value={model} onChange={setModel} loadModels={loadModels} />
           </div>
           {!connectedProviders.length && <small className="field-description">No connected provider. Connect one in Settings first.</small>}
           <button
