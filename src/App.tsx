@@ -47,6 +47,9 @@ import {
 } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
+import { ServerRail } from "./features/servers/ServerRail";
+import { useServerRegistry } from "./features/servers/useServerRegistry";
+import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ProviderConnect } from "./features/providers/ProviderConnect";
 import { ProviderCredentials } from "./features/providers/ProviderCredentials";
 import type {
@@ -185,6 +188,8 @@ const isApple = /mac|iphone|ipad/i.test(navigator.userAgent);
 const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
 
 export default function App() {
+  const registry = useServerRegistry();
+  const [addingServer, setAddingServer] = useState(false);
   const [data, setData] = useState<Bootstrap | null>(null);
   const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState("launch");
@@ -254,7 +259,10 @@ export default function App() {
         }));
     }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); };
-  }, []);
+    // Switching servers reloads everything: agents, conversations and the
+    // socket all belong to one server, and showing the previous server's
+    // while connected to another would be a lie.
+  }, [registry.epoch]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
@@ -683,7 +691,23 @@ export default function App() {
 
   return (
     <AvatarStyleContext.Provider value={avatarStyle}>
-      <div className={`app-shell ${panel ? "panel-open" : ""}`}>
+      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""}`}>
+        {registry.multiServer && registry.servers.length > 0 && (
+          <ServerRail
+            servers={registry.servers}
+            selectedId={registry.selected?.id ?? null}
+            onSelect={registry.select}
+            onAddServer={() => setAddingServer(true)}
+            unread={registry.unread}
+            failures={registry.failures}
+          />
+        )}
+        {addingServer && (
+          <AddServerDialog
+            onClose={() => setAddingServer(false)}
+            onAdded={() => { setAddingServer(false); void registry.refresh(); }}
+          />
+        )}
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
             <BrandMark />

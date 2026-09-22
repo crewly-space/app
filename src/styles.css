@@ -30,6 +30,14 @@ body {
 .app-shell.panel-open {
   grid-template-columns: 246px minmax(440px, 1fr) 330px;
 }
+/* The rail is one more column in front of everything, so the sidebar and the
+   conversation keep the widths they were designed at. */
+.app-shell.has-rail {
+  grid-template-columns: 62px 246px minmax(440px, 1fr);
+}
+.app-shell.has-rail.panel-open {
+  grid-template-columns: 62px 246px minmax(440px, 1fr) 330px;
+}
 .sidebar {
   --surface: #0e0e10;
   background: var(--surface);
@@ -3067,4 +3075,77 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
+}
+
+/* The server rail: every server the account can open, cloud and self-hosted
+   together, distinguished by a mark rather than by being separate apps. */
+.server-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  overflow-y: auto;
+  background: var(--bg-sunken, var(--bg));
+  border-right: 1px solid var(--line-soft);
+}
+.server-tab {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-radius .14s ease, border-color .14s ease, color .14s ease;
+}
+.server-tab:hover:not(:disabled) { border-radius: 12px; color: var(--text); }
+.server-tab.selected { border-color: var(--accent); color: var(--text); border-radius: 12px; }
+/* A server that is still being built, or cannot be reached, is shown and not
+   offered: hiding it would be worse than explaining it. */
+.server-tab:disabled { cursor: default; opacity: .55; }
+.server-tab-mark { display: grid; place-items: center; width: 100%; height: 100%; }
+.server-tab-kind {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  color: var(--text-muted);
+}
+.server-tab.cloud .server-tab-kind { color: var(--accent); }
+.server-tab-unread {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font-size: 10px;
+  line-height: 17px;
+}
+.server-tab-state {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--warning, var(--text-muted));
+}
+.server-tab.failed .server-tab-state { background: var(--danger, var(--accent)); }
+.server-tab.add { border-style: dashed; }
+@media (max-width: 900px) {
+  .app-shell.has-rail, .app-shell.has-rail.panel-open { grid-template-columns: 62px minmax(0, 1fr); }
 }
