@@ -37,6 +37,7 @@ import {
   Reply,
   Search,
   Send,
+  Gauge,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -48,6 +49,8 @@ import {
 import { gateway } from "./lib/gateway";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
+import { Dashboard } from "./features/dashboard/Dashboard";
+import { serverApi } from "./features/dashboard/api";
 import { useServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ProviderConnect } from "./features/providers/ProviderConnect";
@@ -189,6 +192,12 @@ const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
 
 export default function App() {
   const registry = useServerRegistry();
+  // Administering a server is its own screen rather than a panel beside a
+  // conversation: suspending somebody is not a chat setting. It has its own
+  // address, so it can be opened, linked and left with the back button.
+  const [dashboardOpen, setDashboardOpen] = useState(
+    () => window.location.pathname === "/dashboard",
+  );
   const [addingServer, setAddingServer] = useState(false);
   const [data, setData] = useState<Bootstrap | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -821,6 +830,18 @@ export default function App() {
               <Plus size={17} />
               <span>New agent</span>
             </button>
+            {(data.currentUser.role === "owner" || data.currentUser.role === "admin") && (
+              <button
+                onClick={() => {
+                  setDashboardOpen(true);
+                  setMobileNav(false);
+                  history.pushState(null, "", "/dashboard");
+                }}
+              >
+                <Gauge size={17} />
+                <span>Server dashboard</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setPanel("settings");
@@ -838,6 +859,26 @@ export default function App() {
           </div>
         </aside>
         {mobileNav && <Scrim onClose={() => setMobileNav(false)} />}
+
+        {dashboardOpen && (
+          <div className="dashboard-layer">
+            <Dashboard
+              api={serverApi}
+              currentUser={{
+                id: data.currentUser.id,
+                email: data.currentUser.email,
+                displayName: data.currentUser.email,
+                role: data.currentUser.role as "owner" | "admin" | "member",
+                createdAt: new Date().toISOString(),
+              }}
+              serverName={registry.selected?.name ?? "This server"}
+              onClose={() => {
+                setDashboardOpen(false);
+                history.pushState(null, "", "/");
+              }}
+            />
+          </div>
+        )}
 
         <main className="conversation">
           <header className="conversation-header">

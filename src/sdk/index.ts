@@ -39,6 +39,7 @@ export { ApprovalsResource } from './resources/approvals.js';
 export {
   UsersResource,
   type CreateUserInput,
+  type Invite,
   type UserAccount,
   type UserRole,
 } from './resources/users.js';
@@ -47,6 +48,11 @@ export {
   type DeviceInfo,
   type DevicePairingInfo,
 } from './resources/devices.js';
+export {
+  ServerResource,
+  type ServerStatus,
+  type ServerLogEntry,
+} from './resources/server.js';
 export {
   WsClient,
   type WebSocketConnection,
