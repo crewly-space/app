@@ -24,27 +24,71 @@
   --oc-line: #252529;
   --oc-line-soft: #1d1d20;
   --oc-line-strong: #303034;
+  /* The rung above --oc-line-strong, for a hairline that has to brighten on
+     hover. Without it a hovered border resolves to the colour it already had
+     and the affordance disappears. */
+  --oc-line-hover: #45454b;
 
   /* Text. --oc-muted is the lowest level that still meets contrast on
      --oc-panel; use --oc-muted-2 only for decoration, never for prose. */
   --oc-text: #ededee;
   --oc-text-strong: #ffffff;
+  --oc-muted-strong: #b0b0b6;
   --oc-muted: #8b8b93;
   --oc-muted-2: #66666d;
+
+  /* Scrims sit over content, so they are their own role rather than a tint of
+     --oc-bg: in the light theme a dialog backdrop still darkens, it does not
+     turn white. --oc-scrim is for dropdowns and popovers, --oc-scrim-strong
+     for modal backdrops, --oc-scrim-veil for a sticky bar's frosted ground. */
+  --oc-scrim: rgba(0, 0, 0, 0.4);
+  --oc-scrim-strong: rgba(0, 0, 0, 0.72);
+  --oc-scrim-veil: rgba(11, 11, 12, 0.86);
 
   /* Brand accent. */
   --oc-accent: #f05b3e;
   --oc-accent-light: #ff765b;
   --oc-accent-soft: rgba(240, 91, 62, 0.12);
   --oc-accent-ring: rgba(240, 91, 62, 0.6);
+  /* A faint wash, for a focus ring's glow and a hero's backlight. */
+  --oc-accent-wash: rgba(240, 91, 62, 0.08);
+  /* Accent read as text on --oc-accent-soft, where the flat accent is too
+     heavy to read. Pills and inline error text want this, not --oc-accent. */
+  --oc-accent-text: #f18a75;
+  /* Surfaces and hairlines warmed toward the accent, for the panels that sit
+     beside a call to action: a sign-in aside, a selected row. */
+  --oc-accent-panel: #17120f;
+  --oc-accent-panel-2: #2a2523;
+  --oc-accent-line: #3d302c;
+  --oc-accent-line-strong: #5a2c28;
 
-  /* Status. */
+  /* Status. Each family has a flat colour for marks and fills, a --*-soft
+     ground, and a --*-text that stays legible as text on that ground. */
   --oc-success: #38bd7c;
   --oc-success-soft: rgba(56, 189, 124, 0.11);
+  --oc-success-text: #72ce9f;
+  /* A panel and hairline tinted toward success, for a chip or callout that has
+     to read as healthy at a glance without being filled solid. */
+  --oc-success-panel: #121a15;
+  --oc-success-line: #294334;
+  --oc-success-line-strong: #345d47;
   --oc-warning: #e0a138;
   --oc-warning-soft: rgba(224, 161, 56, 0.12);
+  --oc-warning-text: #e5aa49;
   --oc-danger: #e5484d;
   --oc-danger-soft: rgba(229, 72, 77, 0.12);
+  --oc-danger-text: #e08a84;
+  --oc-danger-panel: #1d1210;
+  --oc-danger-line: #4b2d29;
+  --oc-danger-line-strong: #6b302b;
+
+  /* Informational, and the second mark in a two-colour diagram. Violet was
+     already doing this job in the console -- pending pills, region notes, the
+     account avatar -- as a raw #8b7cf6 that no token named. */
+  --oc-info: #8b7cf6;
+  --oc-info-soft: rgba(139, 124, 246, 0.11);
+  --oc-info-text: #aaa0ec;
+  --oc-info-panel: #2b2530;
 
   /* Type. The display face is for headings and the wordmark only. */
   --oc-font-sans:
@@ -154,45 +198,96 @@
   --oc-l-line: #d9d9df;
   --oc-l-line-soft: #e9e9ed;
   --oc-l-line-strong: #c3c3cc;
+  --oc-l-line-hover: #a9a9b5;
   --oc-l-text: #202024;
   --oc-l-text-strong: #0b0b0c;
+  --oc-l-muted-strong: #3f3f47;
   --oc-l-muted: #5b5b64;
   --oc-l-muted-2: #6a6a73;
+
+  /* A scrim still darkens in the light theme; it does not invert. */
+  --oc-l-scrim: rgba(24, 24, 28, 0.32);
+  --oc-l-scrim-strong: rgba(24, 24, 28, 0.55);
+  --oc-l-scrim-veil: rgba(246, 246, 248, 0.86);
   --oc-l-accent: #d94b32;
   --oc-l-accent-light: #c33f28;
   --oc-l-accent-soft: rgba(217, 75, 50, 0.1);
   --oc-l-accent-ring: rgba(217, 75, 50, 0.5);
+  --oc-l-accent-wash: rgba(217, 75, 50, 0.07);
+  --oc-l-accent-text: #a8321c;
+  --oc-l-accent-panel: #fdf6f4;
+  --oc-l-accent-panel-2: #f7e9e5;
+  --oc-l-accent-line: #e8cec7;
+  --oc-l-accent-line-strong: #d3a99e;
   --oc-l-success: #1a7f4b;
   --oc-l-success-soft: rgba(26, 127, 75, 0.12);
+  --oc-l-success-text: #116037;
+  --oc-l-success-panel: #eef7f1;
+  --oc-l-success-line: #c2e0ce;
+  --oc-l-success-line-strong: #9ccbb2;
   --oc-l-warning: #8a5a00;
   --oc-l-warning-soft: rgba(138, 90, 0, 0.12);
+  --oc-l-warning-text: #6b4600;
   --oc-l-danger: #c0262b;
   --oc-l-danger-soft: rgba(192, 38, 43, 0.1);
+  --oc-l-danger-text: #96181d;
+  --oc-l-danger-panel: #fdf1f1;
+  --oc-l-danger-line: #efc9c8;
+  --oc-l-danger-line-strong: #dfa19f;
+
+  --oc-l-info: #5b45cf;
+  --oc-l-info-soft: rgba(91, 69, 207, 0.1);
+  --oc-l-info-text: #4733a8;
+  --oc-l-info-panel: #f1eefc;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-    --oc-bg: var(--oc-l-bg);
-    --oc-panel: var(--oc-l-panel);
-    --oc-panel-2: var(--oc-l-panel-2);
-    --oc-panel-3: var(--oc-l-panel-3);
-    --oc-line: var(--oc-l-line);
-    --oc-line-soft: var(--oc-l-line-soft);
-    --oc-line-strong: var(--oc-l-line-strong);
-    --oc-text: var(--oc-l-text);
-    --oc-text-strong: var(--oc-l-text-strong);
-    --oc-muted: var(--oc-l-muted);
-    --oc-muted-2: var(--oc-l-muted-2);
-    --oc-accent: var(--oc-l-accent);
-    --oc-accent-light: var(--oc-l-accent-light);
-    --oc-accent-soft: var(--oc-l-accent-soft);
-    --oc-accent-ring: var(--oc-l-accent-ring);
-    --oc-success: var(--oc-l-success);
-    --oc-success-soft: var(--oc-l-success-soft);
-    --oc-warning: var(--oc-l-warning);
-    --oc-warning-soft: var(--oc-l-warning-soft);
-    --oc-danger: var(--oc-l-danger);
-    --oc-danger-soft: var(--oc-l-danger-soft);
+  --oc-bg: var(--oc-l-bg);
+  --oc-panel: var(--oc-l-panel);
+  --oc-panel-2: var(--oc-l-panel-2);
+  --oc-panel-3: var(--oc-l-panel-3);
+  --oc-line: var(--oc-l-line);
+  --oc-line-soft: var(--oc-l-line-soft);
+  --oc-line-strong: var(--oc-l-line-strong);
+  --oc-line-hover: var(--oc-l-line-hover);
+  --oc-text: var(--oc-l-text);
+  --oc-text-strong: var(--oc-l-text-strong);
+  --oc-muted-strong: var(--oc-l-muted-strong);
+  --oc-muted: var(--oc-l-muted);
+  --oc-muted-2: var(--oc-l-muted-2);
+  --oc-scrim: var(--oc-l-scrim);
+  --oc-scrim-strong: var(--oc-l-scrim-strong);
+  --oc-scrim-veil: var(--oc-l-scrim-veil);
+  --oc-accent: var(--oc-l-accent);
+  --oc-accent-light: var(--oc-l-accent-light);
+  --oc-accent-soft: var(--oc-l-accent-soft);
+  --oc-accent-ring: var(--oc-l-accent-ring);
+  --oc-accent-wash: var(--oc-l-accent-wash);
+  --oc-accent-text: var(--oc-l-accent-text);
+  --oc-accent-panel: var(--oc-l-accent-panel);
+  --oc-accent-panel-2: var(--oc-l-accent-panel-2);
+  --oc-accent-line: var(--oc-l-accent-line);
+  --oc-accent-line-strong: var(--oc-l-accent-line-strong);
+  --oc-success: var(--oc-l-success);
+  --oc-success-soft: var(--oc-l-success-soft);
+  --oc-success-text: var(--oc-l-success-text);
+  --oc-success-panel: var(--oc-l-success-panel);
+  --oc-success-line: var(--oc-l-success-line);
+  --oc-success-line-strong: var(--oc-l-success-line-strong);
+  --oc-warning: var(--oc-l-warning);
+  --oc-warning-soft: var(--oc-l-warning-soft);
+  --oc-warning-text: var(--oc-l-warning-text);
+  --oc-danger: var(--oc-l-danger);
+  --oc-danger-soft: var(--oc-l-danger-soft);
+  --oc-danger-text: var(--oc-l-danger-text);
+  --oc-danger-panel: var(--oc-l-danger-panel);
+  --oc-danger-line: var(--oc-l-danger-line);
+  --oc-danger-line-strong: var(--oc-l-danger-line-strong);
+  --oc-info: var(--oc-l-info);
+  --oc-info-soft: var(--oc-l-info-soft);
+  --oc-info-text: var(--oc-l-info-text);
+  --oc-info-panel: var(--oc-l-info-panel);
 }
 
 @media (prefers-color-scheme: light) {
@@ -205,19 +300,43 @@
     --oc-line: var(--oc-l-line);
     --oc-line-soft: var(--oc-l-line-soft);
     --oc-line-strong: var(--oc-l-line-strong);
+    --oc-line-hover: var(--oc-l-line-hover);
     --oc-text: var(--oc-l-text);
     --oc-text-strong: var(--oc-l-text-strong);
+    --oc-muted-strong: var(--oc-l-muted-strong);
     --oc-muted: var(--oc-l-muted);
     --oc-muted-2: var(--oc-l-muted-2);
+    --oc-scrim: var(--oc-l-scrim);
+    --oc-scrim-strong: var(--oc-l-scrim-strong);
+    --oc-scrim-veil: var(--oc-l-scrim-veil);
     --oc-accent: var(--oc-l-accent);
     --oc-accent-light: var(--oc-l-accent-light);
     --oc-accent-soft: var(--oc-l-accent-soft);
     --oc-accent-ring: var(--oc-l-accent-ring);
+    --oc-accent-wash: var(--oc-l-accent-wash);
+    --oc-accent-text: var(--oc-l-accent-text);
+    --oc-accent-panel: var(--oc-l-accent-panel);
+    --oc-accent-panel-2: var(--oc-l-accent-panel-2);
+    --oc-accent-line: var(--oc-l-accent-line);
+    --oc-accent-line-strong: var(--oc-l-accent-line-strong);
     --oc-success: var(--oc-l-success);
     --oc-success-soft: var(--oc-l-success-soft);
+    --oc-success-text: var(--oc-l-success-text);
+    --oc-success-panel: var(--oc-l-success-panel);
+    --oc-success-line: var(--oc-l-success-line);
+    --oc-success-line-strong: var(--oc-l-success-line-strong);
     --oc-warning: var(--oc-l-warning);
     --oc-warning-soft: var(--oc-l-warning-soft);
+    --oc-warning-text: var(--oc-l-warning-text);
     --oc-danger: var(--oc-l-danger);
     --oc-danger-soft: var(--oc-l-danger-soft);
+    --oc-danger-text: var(--oc-l-danger-text);
+    --oc-danger-panel: var(--oc-l-danger-panel);
+    --oc-danger-line: var(--oc-l-danger-line);
+    --oc-danger-line-strong: var(--oc-l-danger-line-strong);
+    --oc-info: var(--oc-l-info);
+    --oc-info-soft: var(--oc-l-info-soft);
+    --oc-info-text: var(--oc-l-info-text);
+    --oc-info-panel: var(--oc-l-info-panel);
   }
 }
