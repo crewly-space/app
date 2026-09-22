@@ -116,26 +116,69 @@ function sameFamily(a, b) {
   return delta <= HUE_AGREE;
 }
 
-/** Every colour a token defines, ready to measure against. */
+/**
+ * Every colour a token defines, ready to measure against -- twice.
+ *
+ * A rule inside :root[data-theme="light"] is painting the light theme, so its
+ * literals have to be measured against the light palette. Measuring them
+ * against the dark one is how #ffffff came out as var(--oc-text-strong): true
+ * in the dark theme, and in the light theme that token is #0b0b0c, so every
+ * white surface in the app's light block turned near-black.
+ *
+ * Both tables carry the same role names; only the values differ. Matching in
+ * the right table and emitting the role name gets a token that is correct in
+ * the theme where it is written.
+ */
 function readTokens() {
   const source = readFileSync(tokensFile, 'utf8');
-  const tokens = [];
-  const seen = new Set();
+  const raw = new Map();
   for (const [, name, rawValue] of source.matchAll(/(--oc-[a-z0-9-]+)\s*:\s*([^;]+);/g)) {
     const value = rawValue.trim().toLowerCase();
     if (!/^(#|rgba?\()/.test(value)) continue;
-    // --oc-l-* are the light palette's raw inputs, which the theme blocks map
-    // onto the real tokens. Nothing should reference them directly, and their
-    // values collide with dark surfaces -- #202024 is light text and a dark
-    // panel -- so indexing them would tell a dark rule to use a text token.
-    if (name.startsWith('--oc-l-')) continue;
-    if (seen.has(name)) continue;
-    const color = parseColor(value);
-    if (!color) continue;
-    seen.add(name);
-    tokens.push({ name, value, color, lab: toLab(color) });
+    if (!raw.has(name)) raw.set(name, value);
   }
-  return tokens;
+  const build = (light) => {
+    const out = [];
+    for (const [name, value] of raw) {
+      // --oc-l-* are the light palette's raw inputs; the roles are what code
+      // refers to, so only roles are indexed.
+      if (name.startsWith('--oc-l-')) continue;
+      const chosen = light ? (raw.get(name.replace('--oc-', '--oc-l-')) ?? value) : value;
+      const color = parseColor(chosen);
+      if (!color) continue;
+      out.push({ name, value: chosen, color, lab: toLab(color) });
+    }
+    return out;
+  };
+  return { dark: build(false), light: build(true) };
+}
+
+/*
+ * Which palette the literal at `index` is painting. A rule under
+ * [data-theme="light"], or inside an @media (prefers-color-scheme: light),
+ * is writing the light theme.
+ */
+function paletteAt(source, index) {
+  // The selector this declaration belongs to.
+  const brace = source.lastIndexOf('{', index);
+  if (brace !== -1) {
+    const prior = Math.max(source.lastIndexOf('}', brace), source.lastIndexOf('{', brace - 1));
+    const selector = source.slice(prior + 1, brace);
+    if (/\[data-theme=["']?light["']?\]/.test(selector)) return 'light';
+  }
+  // Or an enclosing light media query.
+  for (const at of source.matchAll(/@media[^{]*prefers-color-scheme:\s*light[^{]*\{/g)) {
+    if (at.index > index) break;
+    let depth = 1;
+    let i = at.index + at[0].length;
+    while (i < source.length && depth > 0) {
+      if (source[i] === '{') depth += 1;
+      else if (source[i] === '}') depth -= 1;
+      i += 1;
+    }
+    if (index < i) return 'light';
+  }
+  return 'dark';
 }
 
 /*
@@ -163,6 +206,83 @@ function checkThemeBlocksAgree() {
     if (!a.has(role)) missing.push(`${input} is declared but never mapped onto ${role}`);
   }
   return missing;
+}
+
+/*
+ * A hover or focus rule that resolves to the value its base rule already has.
+ *
+ * This is the failure mode of a careless token swap. The app's primary button
+ * brightened to #fa6749 on hover; the nearest token by distance was
+ * --oc-accent, which is exactly what the button already sat at, so the rewrite
+ * left a button that no longer responded to the pointer. The same swap ate a
+ * secondary button's border and a server row's hover in the console. Nothing
+ * looks wrong in the diff -- the colour is a token now -- so the check has to
+ * compare resolved values rather than trust the literal.
+ */
+const STATE_SELECTOR = /:hover(?:\([^)]*\))?|:focus(?:-visible|-within)?|\.active|\[aria-selected=["']?true["']?\]|:not\([^)]*\)/g;
+
+function findDeadStates(file, source, aliases) {
+  const text = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  const resolve_ = (value) =>
+    value.replace(/var\((--[a-z0-9-]+)\)/g, (hit, name) => `var(${aliases.get(name) ?? name})`)
+      .replace(/\s+/g, ' ')
+      .trim();
+  const declarations = [];
+  for (const rule of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (/@media|@supports|@keyframes/.test(rule[1])) continue;
+    const line = text.slice(0, rule.index).split(/\r?\n/).length;
+    /*
+     * A rule may set a custom property and then use it:
+     *
+     *   .session-row:hover { --surface: var(--oc-panel-2); background: var(--surface); }
+     *
+     * Compared literally that background matches the base rule's and looks
+     * dead, when the rule in fact repainted --surface first. Substitute what
+     * the rule itself declares before comparing.
+     */
+    const local = new Map();
+    for (const d of rule[2].matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+)/g)) local.set(d[1], resolve_(d[2]));
+    const settle = (value) => {
+      let out = resolve_(value);
+      for (let pass = 0; pass < 4 && /var\(--/.test(out); pass += 1) {
+        const next = out.replace(/var\((--[a-z0-9-]+)\)/g, (hit, name) => local.get(name) ?? hit);
+        if (next === out) break;
+        out = next;
+      }
+      return out;
+    };
+    for (const selector of rule[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')).filter(Boolean)) {
+      for (const d of rule[2].matchAll(/([-a-z]+)\s*:\s*([^;]+)/g)) {
+        declarations.push({ selector, property: d[1].trim(), value: settle(d[2]), line });
+      }
+    }
+  }
+  const index = new Map();
+  for (const d of declarations) index.set(`${d.selector}|${d.property}`, d);
+  const found = [];
+  const seen = new Set();
+  for (const d of declarations) {
+    if (!/:hover|:focus|\.active|\[aria-selected/.test(d.selector)) continue;
+    const base = d.selector.replace(STATE_SELECTOR, '').replace(/\s+/g, ' ').trim();
+    if (!base || base === d.selector) continue;
+    const other = index.get(`${base}|${d.property}`);
+    if (!other || other.value !== d.value) continue;
+    const key = `${d.selector}|${d.property}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    found.push({ file: relative(process.cwd(), file), line: d.line, selector: d.selector, property: d.property, value: d.value, base });
+  }
+  return found;
+}
+
+/** tokens.css aliases --accent onto --oc-accent; two spellings, one colour. */
+function readAliases() {
+  const source = readFileSync(tokensFile, 'utf8');
+  const aliases = new Map();
+  for (const [, name, target] of source.matchAll(/(--[a-z0-9-]+):\s*var\((--oc-[a-z0-9-]+)\);/g)) {
+    if (!name.startsWith('--oc-')) aliases.set(name, target);
+  }
+  return aliases;
 }
 
 function collectStylesheets(target) {
@@ -242,12 +362,15 @@ function match(color, tokens) {
   return best ? { token: best, distance: bestDistance } : null;
 }
 
-const tokens = readTokens();
+const palettes = readTokens();
+const tokens = palettes.dark;
 const args = process.argv.slice(2);
 const fix = args.includes('--fix');
 const targets = args.filter((arg) => arg !== '--fix').map((arg) => resolve(process.cwd(), arg));
 const files = (targets.length > 0 ? targets : [join(packageRoot, 'css')]).flatMap(collectStylesheets);
 
+const aliases = readAliases();
+const deadStates = [];
 const drift = [];
 const loose = [];
 const shadows = [];
@@ -257,6 +380,7 @@ for (const file of files) {
   // tokens.css is where the literals are supposed to live.
   if (resolve(file) === tokensFile) continue;
   const original = readFileSync(file, 'utf8');
+  deadStates.push(...findDeadStates(file, original, aliases));
   const edits = [];
 
   for (const hit of original.matchAll(/(#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\))/g)) {
@@ -266,7 +390,8 @@ for (const file of files) {
     if (exemptAt(original, index)) continue;
     const color = parseColor(literal);
     if (!color) continue;
-    const found = match(color, tokens);
+    const palette = paletteAt(original, index);
+    const found = match(color, palettes[palette]);
     if (!found || found.distance > LOOSE) continue;
 
     const property = propertyAt(original, index);
@@ -308,6 +433,10 @@ if (fix) {
     console.log(`check-tokens --fix: replaced ${drift.length} literal(s) in ${rewritten.size} file(s):`);
     for (const file of rewritten) console.log(`  ${file}`);
   }
+  if (deadStates.length > 0) {
+    console.log(`\n${deadStates.length} hover/focus rule(s) now change nothing; check them:`);
+    for (const d of deadStates) console.log(`  ${d.file}:${d.line}  ${d.selector} ${d.property}: ${d.value}`);
+  }
   if (loose.length > 0) {
     console.log(`\n${loose.length} colour(s) are close to a token but not close enough to rewrite.`);
     console.log('Pick a token deliberately, or add one if the palette is missing a rung:');
@@ -316,7 +445,16 @@ if (fix) {
   process.exit(0);
 }
 
-if (drift.length === 0 && themeProblems.length === 0) {
+if (deadStates.length > 0) {
+  console.error(`check-tokens: ${deadStates.length} hover/focus rule(s) that change nothing.\n`);
+  for (const d of deadStates) {
+    console.error(`  ${d.file}:${d.line}`);
+    console.error(`    ${d.selector} sets ${d.property}: ${d.value}`);
+    console.error(`    which is what ${d.base} already has\n`);
+  }
+}
+
+if (drift.length === 0 && themeProblems.length === 0 && deadStates.length === 0) {
   console.log(`check-tokens: ${files.length} stylesheet(s) clean.`);
   if (loose.length > 0) console.log(`${loose.length} near-token colour(s) noted; run with --fix to list them.`);
   if (shadows.length > 0) console.log(`${shadows.length} shadow colour(s) left alone; --oc-shadow* may fit.`);
