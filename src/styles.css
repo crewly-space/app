@@ -227,8 +227,7 @@ body {
   font-weight: 600;
 }
 .sidebar-footer .provider-nudge button:hover {
-  background: var(--oc-accent);
-  color: var(--oc-text-strong);
+  background: var(--oc-accent-light);
 }
 .device-dot {
   width: 7px;
@@ -1494,7 +1493,7 @@ body {
   color: white;
 }
 .primary-button:hover {
-  background: var(--oc-accent);
+  background: var(--oc-accent-light);
 }
 .primary-button:disabled {
   opacity: 0.45;
@@ -2671,17 +2670,17 @@ body {
   background: var(--bg);
 }
 :root[data-theme="light"] .sidebar {
-  --surface: var(--oc-text-strong);
+  --surface: var(--oc-bg);
 }
 :root[data-theme="light"] .conversation {
-  --surface: var(--oc-text-strong);
+  --surface: var(--oc-panel);
 }
 :root[data-theme="light"] .detail-panel,
 :root[data-theme="light"] .search-dialog,
 :root[data-theme="light"] .inbox-item,
 :root[data-theme="light"] .session-row,
 :root[data-theme="light"] .avatar-options > label {
-  --surface: var(--oc-text-strong);
+  --surface: var(--oc-panel);
 }
 :root[data-theme="light"] .search,
 :root[data-theme="light"] .composer,
@@ -2701,34 +2700,34 @@ body {
 :root[data-theme="light"] .local-note,
 :root[data-theme="light"] .security-note,
 :root[data-theme="light"] .os-switch {
-  background: var(--oc-text);
+  background: var(--oc-bg);
 }
 :root[data-theme="light"] .modal,
 :root[data-theme="light"] .mention-menu {
-  background: var(--oc-text-strong);
-  border-color: var(--oc-text);
+  background: var(--oc-panel);
+  border-color: var(--oc-line);
   box-shadow: 0 24px 80px rgba(38, 38, 46, 0.18);
 }
 :root[data-theme="light"] .jump-to-latest {
-  border-color: var(--oc-text);
-  background: var(--oc-text-strong);
-  color: var(--oc-line-hover);
+  border-color: var(--oc-line);
+  background: var(--oc-panel);
+  color: var(--oc-muted-strong);
   box-shadow: 0 8px 24px rgba(38, 38, 46, 0.16);
 }
 :root[data-theme="light"] .jump-to-latest:hover {
-  background: var(--oc-text);
-  color: var(--oc-muted);
+  background: var(--oc-panel-2);
+  color: #1f1f24;
 }
 :root[data-theme="light"] .modal > footer {
-  background: var(--oc-text-strong);
+  background: var(--oc-panel);
 }
 :root[data-theme="light"] .secondary-button {
-  border-color: var(--oc-text);
-  background: var(--oc-text);
-  color: var(--oc-line-hover);
+  border-color: var(--oc-line);
+  background: var(--oc-panel-2);
+  color: var(--oc-muted-strong);
 }
 :root[data-theme="light"] .primary-button:hover {
-  background: var(--oc-accent);
+  background: var(--oc-accent-light);
 }
 :root[data-theme="light"] .modal-layer {
   background: rgba(35, 35, 41, 0.36);
@@ -2737,7 +2736,7 @@ body {
 :root[data-theme="light"] .sidebar-footer button,
 :root[data-theme="light"] .conversation-row,
 :root[data-theme="light"] .icon-button {
-  color: var(--oc-muted-2);
+  color: var(--oc-muted);
 }
 :root[data-theme="light"] .primary-nav button:hover,
 :root[data-theme="light"] .primary-nav button.active,
@@ -2751,14 +2750,14 @@ body {
 :root[data-theme="light"] .agent-profile:hover,
 :root[data-theme="light"] .search-results > button:hover,
 :root[data-theme="light"] .search-results > button:focus-visible {
-  background: var(--oc-text);
-  color: var(--oc-line-soft);
+  background: var(--oc-panel-3);
+  color: var(--oc-text);
 }
 :root[data-theme="light"] .conversation-row.active {
   box-shadow: inset 3px 0 var(--accent);
 }
 :root[data-theme="light"] .message:hover {
-  --surface: var(--oc-text-strong);
+  --surface: var(--oc-bg);
 }
 :root[data-theme="light"] .message p,
 :root[data-theme="light"] .profile-instructions p,
@@ -2769,14 +2768,14 @@ body {
 :root[data-theme="light"] .provider-fields input,
 :root[data-theme="light"] .provider-fields select,
 :root[data-theme="light"] .memory-agent-picker select {
-  color: var(--oc-line-strong);
+  color: #2e2e33;
 }
 :root[data-theme="light"] .composer-editor:empty::before {
-  color: var(--oc-muted);
+  color: var(--oc-muted-2);
 }
 :root[data-theme="light"] .mention-token,
 :root[data-theme="light"] .message .mention {
-  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-panel-2));
+  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text));
   background: color-mix(in srgb, var(--mention-color) 14%, transparent);
 }
 :root[data-theme="light"] .runtime-icon,
@@ -2788,12 +2787,12 @@ body {
 :root[data-theme="light"] .permission-list,
 :root[data-theme="light"] .agent-draft-card,
 :root[data-theme="light"] .template-picker button {
-  background: var(--oc-text);
+  background: var(--oc-panel-2);
 }
 :root[data-theme="light"] .detail-tabs button.active,
 :root[data-theme="light"] .os-switch button.active {
-  background: var(--oc-text-strong);
-  color: var(--oc-info-panel);
+  background: var(--oc-panel);
+  color: #29292f;
   box-shadow: 0 1px 4px rgba(30, 30, 36, 0.12);
 }
 :root[data-theme="light"] .profile-grid,
@@ -2804,32 +2803,32 @@ body {
 :root[data-theme="light"] .inbox-item,
 :root[data-theme="light"] .session-row,
 :root[data-theme="light"] .avatar-options > label {
-  background: var(--oc-text-strong);
+  background: var(--oc-panel);
 }
 :root[data-theme="light"] .avatar-options > label:hover,
 :root[data-theme="light"] .avatar-options > label.selected,
 :root[data-theme="light"] .theme-options label.selected {
-  --surface: var(--oc-text-strong);
-  background: var(--oc-text-strong);
+  --surface: var(--oc-accent-panel);
+  background: var(--oc-accent-panel);
 }
 :root[data-theme="light"] .avatar-option-preview .avatar {
-  border-color: var(--surface, var(--oc-text-strong));
+  border-color: var(--surface, var(--oc-panel));
 }
 :root[data-theme="light"] .agent-draft-card {
-  background: linear-gradient(135deg, var(--oc-text-strong), var(--oc-text-strong));
+  background: linear-gradient(135deg, var(--oc-accent-panel), var(--oc-bg));
 }
 :root[data-theme="light"] .template-picker button:hover {
   color: var(--oc-accent-text);
 }
 :root[data-theme="light"] .approval-card {
-  background: var(--oc-text-strong);
+  background: var(--oc-accent-panel);
 }
 :root[data-theme="light"] .approval-command p {
-  color: var(--oc-line-hover);
+  color: var(--oc-muted-strong);
 }
 :root[data-theme="light"] .toast {
-  background: var(--oc-text-strong);
-  color: var(--oc-muted);
+  background: var(--oc-panel);
+  color: #303036;
   box-shadow: 0 14px 45px rgba(35, 35, 42, 0.16);
 }
 :root[data-theme="light"] .onboarding,
