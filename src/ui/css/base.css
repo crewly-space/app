@@ -105,7 +105,13 @@ video {
   max-width: 100%;
 }
 
-.oc-skip-link {
+/*
+ * The first thing a keyboard reaches. Both spellings are here because the
+ * console and the website each wrote their own .skip-link while this one sat
+ * unused; -300% rather than a negative top so it slides rather than jumps.
+ */
+.oc-skip-link,
+.skip-link {
   position: fixed;
   z-index: 100;
   top: var(--oc-space-3);
@@ -120,7 +126,8 @@ video {
   transition: transform var(--oc-transition);
 }
 
-.oc-skip-link:focus {
+.oc-skip-link:focus,
+.skip-link:focus {
   transform: translateY(0);
 }
 
