@@ -282,6 +282,34 @@
   color: var(--oc-muted-strong);
 }
 
+/*
+ * The qualifier beside a label -- "Required", "12+ characters", a character
+ * count. The app writes it as <em>, the console as <small>; both are the same
+ * thing, and neither should read as part of the label.
+ */
+.form label > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--oc-space-3);
+}
+
+.form label > span em,
+.form label > span small {
+  color: var(--oc-muted-2);
+  font-size: var(--oc-text-2xs);
+  font-style: normal;
+  font-weight: 450;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/*
+ * A field is a well: it sits below the panel it is on, carries a hairline and
+ * a shallow inset, and gives that inset up when it takes the caret. Height and
+ * radius come from the control tokens so a field and a button beside it line
+ * up exactly.
+ */
 .form input,
 .form select,
 .form textarea,
@@ -291,32 +319,37 @@
   padding: 0 var(--oc-space-3);
   border: 1px solid var(--oc-line-strong);
   border-radius: var(--oc-radius);
-  background: var(--oc-panel-2);
+  background: var(--oc-field);
+  box-shadow: var(--oc-shadow-inset);
   color: var(--oc-text);
+  font-family: inherit;
   font-size: var(--oc-text-base);
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
-  transition: border-color var(--oc-transition), box-shadow var(--oc-transition);
+  transition: border-color var(--oc-transition), box-shadow var(--oc-transition),
+    background var(--oc-transition);
 }
 
 .form textarea {
   min-height: 88px;
   padding: var(--oc-space-3);
+  line-height: 1.55;
   resize: vertical;
 }
 
-.form input:hover,
-.form select:hover,
-.form textarea:hover {
+.form input:hover:not(:disabled):not([readonly]),
+.form select:hover:not(:disabled),
+.form textarea:hover:not(:disabled):not([readonly]),
+.oc-input:hover:not(:disabled):not([readonly]) {
   border-color: var(--oc-line-hover);
 }
 
 /*
- * The field tints toward the accent while it holds the caret. This is on
- * :focus, so it shows for a pointer too; the outline in base.css is on
- * :focus-visible and remains the keyboard guarantee. The two stack rather
- * than replace each other.
+ * The field tints toward the accent while it holds the caret, and flattens --
+ * the inset goes, the ring arrives. This is on :focus, so it shows for a
+ * pointer too; the outline in base.css is on :focus-visible and remains the
+ * keyboard guarantee. The two stack rather than replace each other.
  */
 .form input:focus,
 .form select:focus,
@@ -324,31 +357,165 @@
 .oc-input:focus {
   border-color: var(--oc-accent-ring);
   box-shadow: 0 0 0 3px var(--oc-accent-wash);
+  outline-offset: 3px;
+}
+
+/*
+ * A field the form has rejected. Pairs with the message in [role="alert"].
+ *
+ * The ground is tinted as well as the hairline, because this brand's accent
+ * and its danger are both reds: a rejected field and a focused one are only a
+ * few degrees of hue apart, and at a glance the border alone does not separate
+ * them.
+ */
+.form [aria-invalid="true"],
+.oc-input[aria-invalid="true"] {
+  border-color: var(--oc-danger);
+  background-color: var(--oc-danger-panel);
+}
+
+.form [aria-invalid="true"]:focus,
+.oc-input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--oc-danger-soft);
+}
+
+/*
+ * Disabled is the single most common state in these forms -- there are dozens
+ * of them across the app and the console -- and it had no styling at all, so a
+ * field you could not type into looked exactly like one you could.
+ */
+.form input:disabled,
+.form select:disabled,
+.form textarea:disabled,
+.oc-input:disabled {
+  border-color: var(--oc-line);
+  /* background-color, not the shorthand: the shorthand resets
+     background-image, which is the select's arrow. */
+  background-color: var(--oc-field-disabled);
+  box-shadow: none;
+  color: var(--oc-muted);
+  cursor: not-allowed;
+}
+
+/* Read-only still carries a real value, so it stays legible; it just offers
+   nothing to change. */
+.form input[readonly],
+.form textarea[readonly],
+.oc-input[readonly] {
+  border-color: var(--oc-line);
+  box-shadow: none;
+  color: var(--oc-muted-strong);
+  cursor: default;
 }
 
 .form input::placeholder,
-.form textarea::placeholder {
-  color: var(--oc-muted-2);
+.form textarea::placeholder,
+.oc-input::placeholder {
+  color: var(--oc-muted);
 }
 
+/*
+ * A select keeps its own arrow only on the console, where appearance:none and
+ * a drawn replacement were written by hand. Every surface gets it here, so the
+ * app's native arrow stops being the odd one out. The mark is drawn from a
+ * token, which a background-image SVG could not be.
+ */
+.form select,
+.oc-input select {
+  padding-right: 34px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--oc-muted) 50%,
+      var(--oc-muted) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+    linear-gradient(135deg, transparent calc(50% - 1.5px),
+      var(--oc-muted) calc(50% - 1.5px), var(--oc-muted) 50%, transparent 50%);
+  background-position: right 18px center, right 12px center;
+  background-size: 7px 7px, 7px 7px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.form select:disabled {
+  cursor: not-allowed;
+}
+
+/*
+ * Chrome paints its own background and text colour over an autofilled field,
+ * which on a dark form is a white-blue block. There is no property to turn
+ * that off; the way through is an inset shadow thick enough to cover the fill
+ * and -webkit-text-fill-color for the text on top of it.
+ */
+.form input:-webkit-autofill,
+.oc-input:-webkit-autofill {
+  -webkit-text-fill-color: var(--oc-text);
+  -webkit-background-clip: text;
+  box-shadow: inset 0 0 0 100px var(--oc-field);
+  caret-color: var(--oc-text);
+  transition: background-color 600000s 0s;
+}
+
+.form input:-webkit-autofill:focus {
+  box-shadow: inset 0 0 0 100px var(--oc-field), 0 0 0 3px var(--oc-accent-wash);
+}
+
+/* The hint tucks under its field rather than floating between two of them. */
 .form small,
 .oc-hint {
+  margin-top: -3px;
   color: var(--oc-muted);
   font-size: var(--oc-text-sm);
   font-weight: 400;
+  line-height: 1.5;
   text-transform: none;
   letter-spacing: normal;
 }
 
+/*
+ * The form-level message. Tinted rather than outlined in full danger: this
+ * sits inside a form, under the field that caused it, and a solid --oc-danger
+ * hairline shouts louder than the fields it is explaining. The app had already
+ * settled on this treatment; the console had the same element as bare 10px
+ * text, which was too small to read.
+ *
+ * .form-error is here because both surfaces spell it that way as a class as
+ * well as a role.
+ */
 .form [role="alert"],
+.form-error,
 .oc-error {
   margin: 0;
-  padding: var(--oc-space-3);
-  border: 1px solid var(--oc-danger);
+  padding: var(--oc-space-2) var(--oc-space-3);
+  border: 1px solid var(--oc-danger-line);
   border-radius: var(--oc-radius);
-  background: var(--oc-danger-soft);
+  background: var(--oc-danger-panel);
   color: var(--oc-danger-text);
-  font-size: var(--oc-text-base);
+  font-size: var(--oc-text-sm);
+  line-height: 1.5;
+}
+
+/*
+ * Both surfaces keep an empty error paragraph in the DOM and fill it when
+ * something fails. Without this it paints as an empty tinted box on every
+ * form, and each surface had to remember to hide it by hand.
+ */
+.form [role="alert"]:empty,
+.form-error:empty,
+.oc-error:empty {
+  display: none;
+}
+
+/* Two fields that belong on one line, collapsing when there is no room. */
+.form .oc-field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--oc-space-3);
+}
+
+/* The row of buttons that closes a form. */
+.form .oc-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--oc-space-2);
+  margin-top: var(--oc-space-1);
 }
 
 /* --------------------------------------------------- surfaces + notices -- */

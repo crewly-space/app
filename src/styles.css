@@ -2103,14 +2103,6 @@ body {
   padding: 3px 7px;
   font-size: 8px !important;
 }
-.form-error {
-  border: 1px solid var(--oc-danger-line);
-  border-radius: 7px;
-  background: var(--oc-danger-panel);
-  color: var(--oc-danger-text);
-  padding: 9px 10px;
-  font-size: 10px;
-}
 
 /* Production interaction layer */
 .avatar-button {
