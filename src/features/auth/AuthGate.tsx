@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { client, clearToken, currentToken, storeToken } from '../../lib/api/client';
+import { consumeHandoffFromUrl } from '../../lib/api/handoff';
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<'loading' | 'setup' | 'login' | 'ready'>('loading');
@@ -12,6 +13,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const refresh = async () => {
+      // Arriving from Cloud: the token in the fragment becomes a session here,
+      // so nobody has to copy a setup code to open a server they paid for.
+      try {
+        if (await consumeHandoffFromUrl()) {
+          if (active) { setPhase('ready'); return; }
+        }
+      } catch { /* fall through to the usual sign-in */ }
       try {
         if (currentToken()) {
           await client.auth.me();
