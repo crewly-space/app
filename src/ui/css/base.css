@@ -113,7 +113,7 @@ video {
   padding: var(--oc-space-2) var(--oc-space-4);
   border-radius: var(--oc-radius);
   background: var(--oc-text-strong);
-  color: #111;
+  color: var(--oc-panel);
   font-size: var(--oc-text-sm);
   font-weight: 600;
   transform: translateY(-300%);

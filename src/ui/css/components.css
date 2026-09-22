@@ -21,7 +21,7 @@
 .brand small {
   padding-left: var(--oc-space-3);
   border-left: 1px solid var(--oc-line-strong);
-  color: #77777e;
+  color: var(--oc-muted);
   font: 600 var(--oc-text-sm) var(--oc-font-sans);
 }
 
@@ -130,12 +130,12 @@
   padding: 0 17px;
   border: 1px solid var(--oc-line-strong);
   border-radius: var(--oc-radius);
-  background: #141416;
-  color: #d7d7da;
+  background: var(--oc-panel-2);
+  color: var(--oc-text);
 }
 
 .secondary-button:hover:not(:disabled) {
-  border-color: #48484e;
+  border-color: var(--oc-line-hover);
   background: var(--oc-panel-3);
   color: var(--oc-text-strong);
 }
@@ -318,7 +318,7 @@
 
 .badge.is-danger {
   background: var(--oc-danger-soft);
-  color: #ff9a9c;
+  color: var(--oc-danger-text);
 }
 
 .badge.is-accent {
@@ -333,7 +333,7 @@ pre {
   padding: var(--oc-space-4);
   border: 1px solid var(--oc-line);
   border-radius: var(--oc-radius);
-  background: #0e0e10;
+  background: var(--oc-panel);
   overflow-x: auto;
   font-size: var(--oc-text-base);
   line-height: 1.6;
