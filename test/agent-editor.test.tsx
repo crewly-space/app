@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AgentEditor } from '../src/App';
+import type { ModelInfo } from '../src/protocol';
 
 type Providers = Parameters<typeof AgentEditor>[0]['providers'];
 
@@ -17,20 +18,34 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function openEditor(providers: Providers) {
+async function openEditor(providers: Providers, models: ModelInfo[] = []) {
   const onSubmit = vi.fn(async () => {});
-  render(<AgentEditor providers={providers} onClose={() => {}} onSubmit={onSubmit} />);
+  render(
+    <AgentEditor
+      providers={providers}
+      onClose={() => {}}
+      onSubmit={onSubmit}
+      // No provider behind these tests, so the picker falls back to a typed id.
+      loadModels={async () => models}
+    />,
+  );
   fireEvent.change(screen.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(screen.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(screen.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
+  // Without a connected provider there is no model to choose; the editor says
+  // so before it asks for one.
+  if (providers.some((provider) => provider.status === 'connected')) {
+    fireEvent.change(await screen.findByRole('textbox', { name: /Model ID/ }), {
+      target: { value: 'test-model' },
+    });
+  }
   return onSubmit;
 }
 
 const createButton = () => screen.getByRole('button', { name: /Create agent/ });
 
 describe('AgentEditor without a usable provider', () => {
-  it('tells the user to connect a provider instead of ignoring the click', () => {
-    const onSubmit = openEditor([]);
+  it('tells the user to connect a provider instead of ignoring the click', async () => {
+    const onSubmit = await openEditor([]);
 
     fireEvent.click(createButton());
 
@@ -38,8 +53,8 @@ describe('AgentEditor without a usable provider', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
   });
 
-  it('says the same when the only provider is not connected', () => {
-    const onSubmit = openEditor([missing]);
+  it('says the same when the only provider is not connected', async () => {
+    const onSubmit = await openEditor([missing]);
 
     fireEvent.click(createButton());
 
@@ -47,16 +62,16 @@ describe('AgentEditor without a usable provider', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
   });
 
-  it('warns before submitting, so the empty provider list is not a surprise', () => {
-    openEditor([]);
+  it('warns before submitting, so the empty provider list is not a surprise', async () => {
+    await openEditor([]);
 
     expect(screen.getByText(/no connected provider/i)).toBeTruthy();
   });
 });
 
 describe('AgentEditor with a connected provider', () => {
-  it('defaults to a connected provider, not to the first provider in the list', () => {
-    const onSubmit = openEditor([missing, connected]);
+  it('defaults to a connected provider, not to the first provider in the list', async () => {
+    const onSubmit = await openEditor([missing, connected]);
 
     fireEvent.click(createButton());
 
