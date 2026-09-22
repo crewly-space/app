@@ -45,7 +45,9 @@
   height: 24px;
 }
 
-.brand-mark-large {
+/* Both spellings exist in markup across the surfaces; they are one thing. */
+.brand-mark-large,
+.brand-mark.large {
   width: 52px;
   height: 52px;
   background-image: url("../assets/mark.svg");
@@ -98,8 +100,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  gap: var(--oc-space-2);
+  font-size: var(--oc-text-base);
   font-weight: 650;
+  cursor: pointer;
   transition: background var(--oc-transition), color var(--oc-transition),
     border-color var(--oc-transition), transform var(--oc-transition);
 }
@@ -109,7 +113,7 @@
   padding: 0 17px;
   border-radius: var(--oc-radius);
   background: var(--oc-accent);
-  color: var(--oc-text-strong);
+  color: var(--oc-on-accent);
   box-shadow: var(--oc-shadow-accent);
 }
 
@@ -119,10 +123,18 @@
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.danger-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Disabled because something is in flight, not because it is unavailable --
+   the console disables its submit for the length of the request. */
+.primary-button.is-busy:disabled,
+.secondary-button.is-busy:disabled {
+  cursor: wait;
 }
 
 .secondary-button {
@@ -185,6 +197,69 @@
   color: var(--oc-text);
 }
 
+/* Denser, for a toolbar that sits inside a row rather than beside one. */
+.icon-button.compact {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--oc-radius-sm);
+}
+
+/* Framed, where the button has to read as a control against a busy surface. */
+.icon-button.framed {
+  border: 1px solid var(--oc-line);
+  background: var(--oc-panel-2);
+}
+
+.icon-button.framed:hover {
+  border-color: var(--oc-line-hover);
+  background: var(--oc-panel-3);
+  color: var(--oc-text-strong);
+}
+
+/*
+ * A quiet third tier below primary and secondary, for the way out of a step
+ * that should stay available without competing with the action being urged.
+ */
+.link-button {
+  min-height: 0;
+  padding: var(--oc-space-1) 2px;
+  border: 0;
+  background: none;
+  color: var(--oc-muted);
+  font: inherit;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--oc-accent);
+}
+
+/*
+ * Destructive. Outlined rather than filled: the weight belongs to the thing
+ * being confirmed, not to the button offering it.
+ */
+.danger-button {
+  min-height: var(--oc-control-height-sm);
+  padding: 0 var(--oc-space-3);
+  border: 1px solid var(--oc-danger-line);
+  border-radius: var(--oc-radius-sm);
+  background: transparent;
+  color: var(--oc-danger-text);
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: var(--oc-danger-line-strong);
+  background: var(--oc-danger-soft);
+}
+
+/* Filled, for the confirm step where the destructive act is the point. */
+.danger-button.solid {
+  background: var(--oc-danger-panel);
+}
+
 /* ------------------------------------------------------- forms + fields -- */
 
 .form {
@@ -192,16 +267,19 @@
   gap: var(--oc-space-4);
 }
 
+/*
+ * Sentence case, not the small caps this once had. Both the app and the
+ * console had already overridden the kit to get it, which is as clear a vote
+ * as the design language is going to receive.
+ */
 .form label,
 .oc-field > span,
 .oc-label {
   display: grid;
   gap: var(--oc-space-2);
   font-size: var(--oc-text-xs);
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  color: var(--oc-muted);
-  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--oc-muted-strong);
 }
 
 .form input,
@@ -211,15 +289,15 @@
   width: 100%;
   min-height: var(--oc-control-height);
   padding: 0 var(--oc-space-3);
-  border: 1px solid var(--oc-line);
+  border: 1px solid var(--oc-line-strong);
   border-radius: var(--oc-radius);
   background: var(--oc-panel-2);
   color: var(--oc-text);
-  font-size: var(--oc-text-md);
+  font-size: var(--oc-text-base);
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
-  transition: border-color var(--oc-transition);
+  transition: border-color var(--oc-transition), box-shadow var(--oc-transition);
 }
 
 .form textarea {
@@ -231,7 +309,21 @@
 .form input:hover,
 .form select:hover,
 .form textarea:hover {
-  border-color: var(--oc-line-strong);
+  border-color: var(--oc-line-hover);
+}
+
+/*
+ * The field tints toward the accent while it holds the caret. This is on
+ * :focus, so it shows for a pointer too; the outline in base.css is on
+ * :focus-visible and remains the keyboard guarantee. The two stack rather
+ * than replace each other.
+ */
+.form input:focus,
+.form select:focus,
+.form textarea:focus,
+.oc-input:focus {
+  border-color: var(--oc-accent-ring);
+  box-shadow: 0 0 0 3px var(--oc-accent-wash);
 }
 
 .form input::placeholder,
@@ -255,7 +347,7 @@
   border: 1px solid var(--oc-danger);
   border-radius: var(--oc-radius);
   background: var(--oc-danger-soft);
-  color: #ffb4b6;
+  color: var(--oc-danger-text);
   font-size: var(--oc-text-base);
 }
 
@@ -269,6 +361,7 @@
 }
 
 .eyebrow {
+  margin: 0;
   text-transform: uppercase;
   font-size: var(--oc-text-2xs);
   letter-spacing: 0.16em;

@@ -724,7 +724,7 @@ export default function App() {
             <BrandMark />
             <span>Crewly</span>
             <button
-              className="icon-button mobile-only"
+              className="icon-button compact mobile-only"
               onClick={() => setMobileNav(false)}
               aria-label="Close navigation"
             >
@@ -897,7 +897,7 @@ export default function App() {
         <main className="conversation">
           <header className="conversation-header">
             <button
-              className="icon-button mobile-only"
+              className="icon-button compact mobile-only"
               onClick={() => setMobileNav(true)}
               aria-label="Open navigation"
             >
@@ -940,7 +940,7 @@ export default function App() {
             </div>
             <div className="header-actions">
               <button
-                className="icon-button"
+                className="icon-button compact"
                 onClick={() => setSearching(true)}
                 aria-label="Search"
               >
@@ -949,7 +949,7 @@ export default function App() {
               {view === "messages" && (
                 <>
                   <button
-                    className={`icon-button ${panel === "details" ? "selected" : ""}`}
+                    className={`icon-button compact ${panel === "details" ? "selected" : ""}`}
                     onClick={() =>
                       setPanel(panel === "details" ? null : "details")
                     }
@@ -959,7 +959,7 @@ export default function App() {
                     <PanelRight size={18} />
                   </button>
                   <button
-                    className="icon-button"
+                    className="icon-button compact"
                     onClick={() =>
                       notify("More conversation actions are coming soon.")
                     }
@@ -1525,7 +1525,7 @@ function DetailsPanel({
           {conversation.type === "group" ? "Conversation" : "Agent"} details
         </strong>
         <button
-          className="icon-button"
+          className="icon-button compact"
           onClick={onClose}
           aria-label="Close details"
         >
@@ -1733,7 +1733,7 @@ function SettingsPanel({
       <header>
         <strong>Settings</strong>
         <button
-          className="icon-button"
+          className="icon-button compact"
           onClick={onClose}
           aria-label="Close settings"
         >
@@ -2040,7 +2040,7 @@ function AddUserDialog({
           <h2 id="add-person-title">Add a person</h2>
           <p>Create a sign-in for this Crewly server.</p>
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <button type="button" className="icon-button compact" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </header>
       <form id="add-person-form" className="form agent-form" onSubmit={async (event) => {
         event.preventDefault();
@@ -2361,7 +2361,7 @@ function AgentProfileDialog({
             <span className="eyebrow">Agent profile</span>
             <h2 id="agent-profile-title">{agent.name}</h2>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Close profile">
+          <button className="icon-button compact" onClick={onClose} aria-label="Close profile">
             <X size={18} />
           </button>
         </header>
@@ -2513,7 +2513,7 @@ export function AgentEditor({
             <p>{editing ? "Changes apply everywhere this agent appears." : "Choose a clear role now. Fine-tune the rest whenever you need."}</p>
           </div>
           {!firstRun && <button
-            className="icon-button"
+            className="icon-button compact"
             onClick={onClose}
             aria-label={editing ? "Close agent editor" : "Close agent creation"}
           >

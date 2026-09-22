@@ -55,6 +55,23 @@
   /* Accent read as text on --oc-accent-soft, where the flat accent is too
      heavy to read. Pills and inline error text want this, not --oc-accent. */
   --oc-accent-text: #f18a75;
+  /*
+   * Text on a filled accent. It is pinned white in both themes, because the
+   * fill barely changes between them: --oc-text-strong inverts, so a primary
+   * button that read white-on-orange in the dark theme turned black-on-orange
+   * in the light one. Contrast here is 3.35:1 on the dark accent and 4.2:1 on
+   * the light one -- a brand-level limit of the accent itself, not something a
+   * label colour can fix.
+   */
+  --oc-on-accent: #ffffff;
+  /*
+   * The two tones of a display headline that swells along a word. They are
+   * tokens rather than a color-mix toward --oc-bg, because mixing toward the
+   * background dims the accent in the dark theme and washes it out in the
+   * light one -- on white the site's largest words came out at 2.3:1.
+   */
+  --oc-accent-dim: #a0402d;
+  --oc-accent-lit: #e26951;
   /* Surfaces and hairlines warmed toward the accent, for the panels that sit
      beside a call to action: a sign-in aside, a selected row. */
   --oc-accent-panel: #17120f;
@@ -215,6 +232,10 @@
   --oc-l-accent-ring: rgba(217, 75, 50, 0.5);
   --oc-l-accent-wash: rgba(217, 75, 50, 0.07);
   --oc-l-accent-text: #a8321c;
+  --oc-l-on-accent: #ffffff;
+  /* On white the swell runs the other way: deeper, not brighter. */
+  --oc-l-accent-dim: #c9462e;
+  --oc-l-accent-lit: #98301b;
   --oc-l-accent-panel: #fdf6f4;
   --oc-l-accent-panel-2: #f7e9e5;
   --oc-l-accent-line: #e8cec7;
@@ -265,6 +286,9 @@
   --oc-accent-ring: var(--oc-l-accent-ring);
   --oc-accent-wash: var(--oc-l-accent-wash);
   --oc-accent-text: var(--oc-l-accent-text);
+  --oc-on-accent: var(--oc-l-on-accent);
+  --oc-accent-dim: var(--oc-l-accent-dim);
+  --oc-accent-lit: var(--oc-l-accent-lit);
   --oc-accent-panel: var(--oc-l-accent-panel);
   --oc-accent-panel-2: var(--oc-l-accent-panel-2);
   --oc-accent-line: var(--oc-l-accent-line);
@@ -315,6 +339,9 @@
     --oc-accent-ring: var(--oc-l-accent-ring);
     --oc-accent-wash: var(--oc-l-accent-wash);
     --oc-accent-text: var(--oc-l-accent-text);
+    --oc-on-accent: var(--oc-l-on-accent);
+    --oc-accent-dim: var(--oc-l-accent-dim);
+    --oc-accent-lit: var(--oc-l-accent-lit);
     --oc-accent-panel: var(--oc-l-accent-panel);
     --oc-accent-panel-2: var(--oc-l-accent-panel-2);
     --oc-accent-line: var(--oc-l-accent-line);
