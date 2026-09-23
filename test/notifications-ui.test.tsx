@@ -23,6 +23,8 @@ function api(overrides: Partial<NotificationsApi> = {}): NotificationsApi {
     markAllRead: vi.fn(async () => {}),
     preferences: vi.fn(async () => preferences),
     setPreference: vi.fn(async (type, channel, mode) => preferences.map((entry) => entry.type === type ? { ...entry, channels: { ...entry.channels, [channel]: mode } } : entry)),
+    digestSchedule: vi.fn(async () => ({ frequency: 'daily' as const, hourUtc: 8, weekday: null })),
+    setDigestSchedule: vi.fn(async (schedule) => schedule),
     ...overrides,
   };
 }
@@ -43,8 +45,20 @@ describe('notifications in the inbox', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Notification settings' }));
     const mandatory = await screen.findByLabelText('Sign-in links: Email');
     expect((mandatory as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText('Mentions: Email'));
-    await waitFor(() => expect(notifications.setPreference).toHaveBeenCalledWith('mention.created', 'email', 'off'));
-    await waitFor(() => expect((screen.getByLabelText('Mentions: Email') as HTMLInputElement).checked).toBe(false));
+    fireEvent.change(screen.getByLabelText('Mentions: Email'), { target: { value: 'digest' } });
+    await waitFor(() => expect(notifications.setPreference).toHaveBeenCalledWith('mention.created', 'email', 'digest'));
+    await waitFor(() => expect((screen.getByLabelText('Mentions: Email') as HTMLSelectElement).value).toBe('digest'));
+    fireEvent.click(screen.getByLabelText('Mentions: In Crewly'));
+    await waitFor(() => expect(notifications.setPreference).toHaveBeenCalledWith('mention.created', 'in_app', 'off'));
+  });
+
+  it('sets the digest schedule', async () => {
+    const notifications = api();
+    render(<NotificationsSection api={notifications} onOpenConversation={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Notification settings' }));
+    fireEvent.change(await screen.findByLabelText('Digest frequency'), { target: { value: 'weekly' } });
+    await waitFor(() => expect(notifications.setDigestSchedule).toHaveBeenCalledWith({ frequency: 'weekly', hourUtc: 8, weekday: 1 }));
+    fireEvent.change(await screen.findByLabelText('Digest day'), { target: { value: '5' } });
+    await waitFor(() => expect(notifications.setDigestSchedule).toHaveBeenLastCalledWith({ frequency: 'weekly', hourUtc: 8, weekday: 5 }));
   });
 });
