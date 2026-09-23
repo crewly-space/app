@@ -59,6 +59,17 @@ describe('the hosted app front door', () => {
     expect(connectToServer.mock.calls[0]![0]).toBe(server);
   });
 
+  it('opens the server the dashboard asked for', async () => {
+    const other = { ...server, id: 'srv_2', name: 'staging' };
+    connectToServer.mockResolvedValue({ state: 'connected' });
+    window.history.replaceState(null, '', '/?server=srv_2');
+    gate(account({ servers: async () => [server, other] }));
+
+    expect(await screen.findByText('the chat')).toBeTruthy();
+    expect(connectToServer.mock.calls[0]![0]).toBe(other);
+    expect(window.location.search).toBe('');
+  });
+
   it('says so when the server is still being built', async () => {
     connectToServer.mockResolvedValue({ state: 'not_ready', status: 'provisioning' });
     gate(account({ servers: async () => [{ ...server, status: 'provisioning' }] }));

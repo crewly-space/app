@@ -193,7 +193,7 @@ export default function App() {
   // conversation: suspending somebody is not a chat setting. It has its own
   // address, so it can be opened, linked and left with the back button.
   const [dashboardOpen, setDashboardOpen] = useState(
-    () => window.location.pathname === "/dashboard",
+    () => window.location.pathname === "/admin",
   );
   const [addingServer, setAddingServer] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
@@ -708,6 +708,7 @@ export default function App() {
             selectedId={registry.selected?.id ?? null}
             onSelect={registry.select}
             onAddServer={() => setAddingServer(true)}
+            dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
             unread={registry.unread}
             failures={registry.failures}
           />
@@ -836,7 +837,7 @@ export default function App() {
                 onClick={() => {
                   setDashboardOpen(true);
                   setMobileNav(false);
-                  history.pushState(null, "", "/dashboard");
+                  history.pushState(null, "", "/admin");
                 }}
               >
                 <Gauge size={17} />

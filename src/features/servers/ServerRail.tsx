@@ -1,4 +1,4 @@
-import { Cloud, HardDrive, Plus } from 'lucide-react';
+import { Cloud, HardDrive, Plus, LayoutDashboard } from 'lucide-react';
 import type { RegistryServer } from '../../lib/servers/types';
 
 /** A server that is still being built, or gone, cannot be opened. */
@@ -35,6 +35,7 @@ export function ServerRail({
   onAddServer,
   unread = {},
   failures = {},
+  dashboardUrl,
 }: {
   servers: RegistryServer[];
   selectedId: string | null;
@@ -44,6 +45,8 @@ export function ServerRail({
   unread?: Record<string, number>;
   /** Why a server could not be reached, when it could not. */
   failures?: Record<string, string>;
+  /** The account's dashboard -- workspaces, billing, servers -- when hosted. */
+  dashboardUrl?: string;
 }) {
   return (
     <nav className="server-rail" role="tablist" aria-orientation="vertical" aria-label="Servers">
@@ -84,6 +87,11 @@ export function ServerRail({
       <button type="button" className="server-tab add" aria-label="Add a server" onClick={onAddServer}>
         <span className="server-tab-mark" aria-hidden="true"><Plus size={16} /></span>
       </button>
+      {dashboardUrl && (
+        <a className="server-tab add" href={dashboardUrl} aria-label="Dashboard" title="Dashboard: workspaces, servers and billing">
+          <span className="server-tab-mark" aria-hidden="true"><LayoutDashboard size={16} /></span>
+        </a>
+      )}
     </nav>
   );
 }

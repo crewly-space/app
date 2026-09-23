@@ -19,6 +19,22 @@ type Phase =
   | { name: 'ready' }
   | { name: 'error'; message: string };
 
+/**
+ * The dashboard opens a server with ?server=<id>. It becomes the remembered
+ * choice -- the one the rail then shows -- and leaves the address.
+ */
+function takeRequestedServer(): void {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('server');
+  if (!requested) return;
+  try {
+    localStorage.setItem(LAST_SERVER_KEY, requested);
+  } catch { /* storage can be refused; the first ready server is then shown */ }
+  params.delete('server');
+  const query = params.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+}
+
 function rememberedServer(): string | null {
   try {
     return localStorage.getItem(LAST_SERVER_KEY);
@@ -69,6 +85,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   }, [account]);
 
   useEffect(() => {
+    takeRequestedServer();
     void enter();
     fetch(`${base}/api/v1/auth/oauth/providers`, { credentials: 'include' })
       .then((response) => (response.ok ? response.json() : { providers: [] }))
