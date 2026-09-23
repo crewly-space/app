@@ -11,7 +11,8 @@ import type { CloudAccountProfile, RegistryServer } from '../servers/types';
 export class CloudAccount {
   constructor(
     private readonly baseUrl: string,
-    private readonly fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
+    // Looked up per call: the registry's account is built when the module loads.
+    private readonly fetchImpl: typeof fetch = (...args) => globalThis.fetch(...args),
   ) {}
 
   private async get<T>(path: string): Promise<T | null> {

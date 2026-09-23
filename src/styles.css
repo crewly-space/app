@@ -3208,3 +3208,24 @@ body {
 .dashboard-toggles li { padding: 3px 0; }
 .dashboard-blocked { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--radius-md); font-size: 13px; }
 .dashboard-tabs { flex-wrap: wrap; }
+
+/* The hosted app before a server is open: the rail, and beside it whatever
+   the selected server is doing. */
+.app-shell.server-pending {
+  grid-template-columns: 62px minmax(0, 1fr);
+}
+.server-pending-main {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+}
+.server-pending-body {
+  display: grid;
+  place-items: center;
+  align-content: safe center;
+  gap: 28px;
+  padding: 30px;
+}
+.server-pending-status {
+  color: var(--text-muted);
+}

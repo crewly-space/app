@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AuthGate } from '../auth/AuthGate';
-import { activateServer } from '../../lib/api/client';
 import type { CloudAccount } from '../../lib/cloud/account';
-import { connectToServer } from '../../lib/servers/connect';
-import type { RegistryServer } from '../../lib/servers/types';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
 
@@ -13,9 +9,6 @@ const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_U
 type Phase =
   | { name: 'loading' }
   | { name: 'signed_out' }
-  | { name: 'no_servers' }
-  | { name: 'not_ready'; server: RegistryServer }
-  | { name: 'local_login' }
   | { name: 'ready' }
   | { name: 'error'; message: string };
 
@@ -35,21 +28,14 @@ function takeRequestedServer(): void {
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
 }
 
-function rememberedServer(): string | null {
-  try {
-    return localStorage.getItem(LAST_SERVER_KEY);
-  } catch {
-    return null;
-  }
-}
-
 /**
  * The front door of the hosted app.
  *
  * Served from Crewly Cloud, the app is nobody's server: the person signs in to
- * their Crewly account, and the server they open is one that account owns.
- * The first server is entered with a Cloud handoff; one that does not know
- * Cloud falls back to its own login.
+ * their Crewly account and nothing else. Which server they open, and whether
+ * it answers, is the app's business once they are in -- a server that is
+ * offline, still being built or wanting its own login is shown as that
+ * server's state beside the rail, never in place of the whole app.
  */
 export function CloudGate({ account, cloudUrl, children }: { account: CloudAccount; cloudUrl: string; children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
@@ -62,25 +48,9 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   const enter = useCallback(async () => {
     setPhase({ name: 'loading' });
     try {
-      if (!(await account.me())) {
-        setPhase({ name: 'signed_out' });
-        return;
-      }
-      const servers = await account.servers();
-      const server = servers.find((candidate) => candidate.id === rememberedServer())
-        ?? servers.find((candidate) => candidate.status === 'ready')
-        ?? servers[0];
-      if (!server) {
-        setPhase({ name: 'no_servers' });
-        return;
-      }
-      activateServer(server);
-      const result = await connectToServer(server, account);
-      if (result.state === 'connected') setPhase({ name: 'ready' });
-      else if (result.state === 'not_ready') setPhase({ name: 'not_ready', server });
-      else setPhase({ name: 'local_login' });
+      setPhase(await account.me() ? { name: 'ready' } : { name: 'signed_out' });
     } catch {
-      setPhase({ name: 'error', message: 'Crewly Cloud is not answering. Try again in a moment.' });
+      setPhase({ name: 'error', message: 'Crewly is not answering. Try again in a moment.' });
     }
   }, [account]);
 
@@ -105,37 +75,16 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   }, [enter, base]);
 
   if (phase.name === 'ready') return <>{children}</>;
-  if (phase.name === 'local_login') return <AuthGate>{children}</AuthGate>;
 
   const card = (content: ReactNode) => (
     <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card form">{content}</div></div></div>
   );
-  const dashboardLink = dashboardUrl
-    ? <a className="primary-button" href={dashboardUrl}>Open the dashboard</a>
-    : null;
-
   if (phase.name === 'loading') return card(<p>Connecting to Crewly…</p>);
   if (phase.name === 'error') {
     return card(<>
       <h1>Can't reach Crewly</h1>
       <p role="alert">{phase.message}</p>
       <button className="primary-button" type="button" onClick={() => void enter()}>Try again</button>
-    </>);
-  }
-  if (phase.name === 'no_servers') {
-    return card(<>
-      <h1>No servers yet</h1>
-      <p>Your crew lives on a server. Create one in the dashboard, then come back here.</p>
-      {dashboardLink}
-      <button className="text-button" type="button" onClick={() => void enter()}>I've created one</button>
-    </>);
-  }
-  if (phase.name === 'not_ready') {
-    return card(<>
-      <h1>{phase.server.name} isn't ready</h1>
-      <p>This server is {phase.server.status}. A new server usually takes under a minute.</p>
-      <button className="primary-button" type="button" onClick={() => void enter()}>Check again</button>
-      {dashboardUrl && <a className="text-button" href={dashboardUrl}>Open the dashboard</a>}
     </>);
   }
 
@@ -157,7 +106,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
       setPassword('');
       await enter();
     } catch {
-      setError('Crewly Cloud is not answering. Try again in a moment.');
+      setError('Crewly is not answering. Try again in a moment.');
     }
   }}>
     <h1>Sign in to Crewly</h1>
