@@ -61,6 +61,7 @@ import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ServerPending } from "./features/servers/ServerPending";
 import { ModelPicker } from "./features/agents/ModelPicker";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
+import { FirstRunHome, firstRunStep, useFirstRunSkips } from "./features/onboarding/FirstRun";
 import { ProviderCredentials } from "./features/providers/ProviderCredentials";
 import type {
   Agent,
@@ -259,6 +260,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     notify("Provider saved.");
   }, [notify]);
   const [firstDmFailed, setFirstDmFailed] = useState(false);
+  const firstRun = useFirstRunSkips();
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -389,21 +391,37 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     // A DM is on its way from the effect above; showing "create your first
     // agent" to someone who already has one would be a lie that flashes past.
     if (data.agents.length && !firstDmFailed) return <Loading />;
-    // First run lands on the dialog that does the work. The card that used to
-    // sit here said nothing the dialog does not, and the only way past it was a
-    // button that opened the dialog anyway.
+    // First run is one flow -- provider, then agent, either skippable -- and
+    // the step comes from the server's state, so a refresh resumes it and a
+    // returning owner with a provider never sees the provider step again.
+    const hasConnectedProvider = data.providers.some((provider) => provider.status === "connected");
+    const canManageProviders = data.currentUser.role === "owner" || data.currentUser.role === "admin";
+    const step = firstRunStep({ hasConnectedProvider, canManageProviders, skipped: firstRun.skipped });
+    if (step === "provider") return <ProviderConnect closeLabel="Skip for now"
+      onConnected={() => { void gateway.bootstrap().then(setData); notify("Provider saved."); }}
+      onClose={() => firstRun.skip("provider")} />;
     return <div className="first-run">
       <header>
         <BrandMark />
         <button className="text-button" onClick={() => setPanel("settings")}>Settings</button>
         <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
       </header>
-      <AgentEditor firstRun providers={data.providers} onClose={() => setPanel("settings")} onSubmit={async (input) => {
-        const agent = await gateway.createAgent(input);
-        const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
-        setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
-        setSelected(dm.id);
-      }} />
+      {step === "agent" ? (
+        <AgentEditor firstRun providers={data.providers} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
+          const agent = await gateway.createAgent(input);
+          const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
+          setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
+          setSelected(dm.id);
+        }} />
+      ) : (
+        <FirstRunHome
+          hasConnectedProvider={hasConnectedProvider}
+          canManageProviders={canManageProviders}
+          onConnectProvider={() => firstRun.resume("provider")}
+          onCreateAgent={() => firstRun.resume("agent")}
+          onOpenSettings={() => setPanel("settings")}
+        />
+      )}
       {toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}
     </div>;
   }
@@ -2440,7 +2458,7 @@ export function AgentEditor({
 }: {
   agent?: Agent;
   providers: Provider[];
-  /** First run: this dialog is the whole screen, so it has nothing to close to. */
+  /** First run: this dialog is the whole screen; closing it skips the step. */
   firstRun?: boolean;
   onClose: () => void;
   onSubmit: (agent: CreateAgentInput) => Promise<void>;
@@ -2645,9 +2663,9 @@ export function AgentEditor({
           {error && <div className="form-error" role="alert">{error}</div>}
         </form>
         <footer>
-          {!firstRun && <button type="button" className="secondary-button" onClick={onClose}>
-            Cancel
-          </button>}
+          <button type="button" className="secondary-button" onClick={onClose}>
+            {firstRun ? "Skip for now" : "Cancel"}
+          </button>
           <button
             type="submit"
             form="agent-editor-form"
