@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DeviceInfo } from '@crewly/sdk';
+import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 
-const create = vi.fn(async () => ({}));
+const create = vi.fn(async (..._args: unknown[]): Promise<Record<string, unknown>> => ({}));
+const enableOnDevices = vi.fn(async (..._args: unknown[]) => ({ devices: [] as unknown[] }));
 let devices: DeviceInfo[] = [];
 vi.mock('../src/lib/api/client', () => ({
   client: {
-    providers: { create: (...args: unknown[]) => create(...(args as [])), oauthKinds: async () => ({ kinds: [] }) },
+    providers: {
+      create: (...args: unknown[]) => create(...args),
+      enableOnDevices: (...args: unknown[]) => enableOnDevices(...args),
+      oauthKinds: async () => ({ kinds: [] }),
+    },
     devices: { list: async () => devices },
   },
 }));
@@ -21,7 +26,7 @@ function device(name: string, connected: boolean, capabilities: Record<string, u
 const claudeRuntime = (authenticated: boolean) => ({ id: 'claude-subscription', name: 'Claude Subscription', authenticated });
 
 afterEach(cleanup);
-beforeEach(() => { create.mockClear(); devices = []; });
+beforeEach(() => { create.mockReset(); create.mockResolvedValue({}); enableOnDevices.mockReset(); devices = []; });
 
 describe('device provider availability', () => {
   it('asks for a device when none is paired', () => {
@@ -75,5 +80,39 @@ describe('connecting a provider', () => {
     expect(options).not.toContain('claude-subscription');
     expect(options).not.toContain('ollama');
     expect(options).toContain('openai-compatible');
+  });
+
+  it('switches Claude on through a signed-in device that has not enabled it yet', async () => {
+    devices = [device('laptop', true, { runtimes: [claudeRuntime(true)] })];
+    create.mockResolvedValue({ id: 'claude-subscription', devices: [{ deviceId: 'laptop', deviceName: 'laptop', enabled: true }] });
+    const onConnected = vi.fn();
+    render(<ProviderConnect onConnected={onConnected} />);
+
+    expect(await screen.findByText(/Connecting switches it on there/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude' }));
+    await waitFor(() => expect(onConnected).toHaveBeenCalled());
+  });
+
+  it('says what the device needs when it refuses', async () => {
+    devices = [device('laptop', true, { runtimes: [claudeRuntime(true)] })];
+    create.mockResolvedValue({ devices: [{ deviceId: 'laptop', deviceName: 'laptop', enabled: false, error: 'provider_sign_in_expired' }] });
+    const onConnected = vi.fn();
+    render(<ProviderConnect onConnected={onConnected} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect Claude' }));
+    expect(await screen.findByText(/Run claude login there, then connect again/)).toBeTruthy();
+    expect(onConnected).not.toHaveBeenCalled();
+  });
+
+  it('asks the devices again when the provider already exists', async () => {
+    devices = [device('laptop', true, { runtimes: [claudeRuntime(true)] })];
+    create.mockRejectedValue(new CrewlyApiError('exists', 409, 'provider_exists'));
+    enableOnDevices.mockResolvedValue({ devices: [{ deviceId: 'laptop', deviceName: 'laptop', enabled: true }] });
+    const onConnected = vi.fn();
+    render(<ProviderConnect onConnected={onConnected} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect Claude' }));
+    await waitFor(() => expect(onConnected).toHaveBeenCalled());
+    expect(enableOnDevices).toHaveBeenCalledWith('claude-subscription');
   });
 });
