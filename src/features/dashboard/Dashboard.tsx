@@ -18,8 +18,11 @@ import { SecretsPanel } from './SecretsPanel';
 import { SkillsPanel } from './SkillsPanel';
 import { ToolsPanel } from './ToolsPanel';
 import { UsagePanel } from './UsagePanel';
+import { CrewlyPanel } from './CrewlyPanel';
+import { MailPanel } from './MailPanel';
+import { servicesApi, type ServicesApi } from './services-api';
 
-type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'server';
+type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'members', label: 'Members' },
@@ -31,6 +34,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'tools', label: 'Tools' },
   { id: 'skills', label: 'Skills' },
   { id: 'secrets', label: 'Secrets' },
+  { id: 'mail', label: 'Mail' },
+  { id: 'crewly', label: 'Crewly' },
   { id: 'server', label: 'Server' },
 ];
 
@@ -68,12 +73,14 @@ function humanUptime(seconds: number): string {
 export function Dashboard({
   api,
   platform = platformApi,
+  services = servicesApi,
   currentUser,
   serverName,
   onClose,
 }: {
   api: DashboardApi;
   platform?: PlatformApi;
+  services?: ServicesApi;
   currentUser: UserAccount;
   serverName: string;
   onClose: () => void;
@@ -351,6 +358,8 @@ export function Dashboard({
       {tab === 'tools' && <ToolsPanel api={platform} />}
       {tab === 'skills' && <SkillsPanel api={platform} />}
       {tab === 'secrets' && <SecretsPanel api={platform} agents={agents} />}
+      {tab === 'mail' && <MailPanel api={services} />}
+      {tab === 'crewly' && <CrewlyPanel api={services} serverName={serverName} />}
 
       {tab === 'agents' && !configuring && (
         <table className="dashboard-table">
