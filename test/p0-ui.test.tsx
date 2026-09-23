@@ -81,8 +81,15 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('Password'), { target: { value: 'test-password-1' } });
   fireEvent.change(page.getByLabelText(/Claim token/), { target: { value: 'test-claim-token' } });
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
-  await page.findByRole('heading', { name: 'Connect a model provider' });
+  // No provider yet is not a gate: first run opens the app, and the provider is
+  // connected from Settings like any other.
+  await page.findByRole('dialog', { name: 'Create an agent' });
+  expect(page.queryByRole('heading', { name: 'Connect a model provider' })).toBeNull();
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
+  fireEvent.click(page.getByRole('button', { name: 'Settings' }));
+  fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
+  fireEvent.click(page.getByRole('button', { name: 'Add' }));
+  await page.findByRole('heading', { name: 'Connect a model provider' });
   fireEvent.change(page.getByLabelText('Provider'), { target: { value: 'openai-compatible' } });
   // The provider ID defaults to the provider kind and only appears once the
   // second-account disclosure is opened.
@@ -92,6 +99,8 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText(/Base URL/), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
   fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
+  await page.findByText('Provider saved.');
+  fireEvent.click(page.getByRole('button', { name: 'Close settings' }));
   // First run goes straight to the agent dialog; there is no interstitial page.
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });

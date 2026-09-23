@@ -26,17 +26,19 @@ const callbackUrl = `${window.location.origin}/`;
 function readPendingState(): string | null {
   try { return window.sessionStorage?.getItem(PENDING_KEY) ?? null; } catch { return null; }
 }
+/** True when the page was loaded by a provider redirecting back with a code this tab is waiting for. */
+export function hasPendingProviderOAuth(): boolean {
+  return Boolean(new URLSearchParams(window.location.search).get('code') && readPendingState());
+}
 function writePendingState(state: string | null): void {
   try {
     if (state === null) window.sessionStorage?.removeItem(PENDING_KEY);
     else window.sessionStorage?.setItem(PENDING_KEY, state);
   } catch { /* the flow still works; the user just cannot resume after a reload */ }
 }
-export function ProviderConnect({ onConnected, onClose, onSkip }: {
+export function ProviderConnect({ onConnected, onClose }: {
   onConnected: () => void;
   onClose?: () => void;
-  /** Offered during first run only: enter the app without a provider yet. */
-  onSkip?: () => void;
 }) {
   const [kind, setKind] = useState<Kind>('openai');
   const [id, setId] = useState('openai');
@@ -139,6 +141,5 @@ export function ProviderConnect({ onConnected, onClose, onSkip }: {
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : 'Save provider'}</button>
     {onClose && <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>}
-    {onSkip && <button type="button" className="link-button" disabled={saving} onClick={onSkip}>Skip for now — look around first</button>}
   </form></div></div>;
 }
