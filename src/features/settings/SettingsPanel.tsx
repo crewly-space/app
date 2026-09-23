@@ -260,9 +260,11 @@ export function SettingsPanel({
         )}
       </div>
       <button className="secondary-button" onClick={() => void gateway.logout()}>Log out</button>
-      {addingProvider && <ProviderConnect onClose={() => setAddingProvider(false)} onConnected={() => {
+      {/* The same full screen first run uses; from a panel it has to cover the
+          app, or it renders inside a 330px column and runs off its edge. */}
+      {addingProvider && <div className="provider-connect-layer"><ProviderConnect onClose={() => setAddingProvider(false)} onConnected={() => {
         setAddingProvider(false); onProvidersChanged(); onNotify('Provider saved.');
-      }} />}
+      }} /></div>}
       {managingProvider && <ProviderCredentials
         provider={managingProvider}
         usedByAgents={agents.filter((agent) => agent.providerId === managingProvider.id).length}

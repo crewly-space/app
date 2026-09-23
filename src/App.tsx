@@ -75,7 +75,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState("launch");
   const [view, setView] = useState<View>("messages");
-  const [panel, setPanel] = useState<Panel>(() => new URLSearchParams(window.location.search).has("pair") ? "settings" : "details");
+  const [panel, setPanel] = useState<Panel>(() => {
+    if (new URLSearchParams(window.location.search).has("pair")) return "settings";
+    // Below 1050px the details panel lays over the conversation rather than
+    // sitting beside it; opening it unasked there hides what was opened.
+    return window.matchMedia("(max-width: 1050px)").matches ? null : "details";
+  });
   const [composer, setComposer] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionSuppressed, setMentionSuppressed] = useState(false);
@@ -346,7 +351,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
       id: `role-${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       label: `@${role}`,
       description: `Role · ${activeAgents.filter((agent) => agent.role === role).length} ${activeAgents.filter((agent) => agent.role === role).length === 1 ? "member" : "members"}`,
-      color: "#8b7cf6",
+      color: "var(--oc-info)",
       kind: "role",
     }),
   );
@@ -355,14 +360,14 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
       id: "everyone",
       label: "@everyone",
       description: "Notify everyone in this conversation",
-      color: "#f05b3e",
+      color: "var(--oc-accent)",
       kind: "everyone",
     },
     {
       id: "here",
       label: "@here",
       description: "Notify agents currently online",
-      color: "#3fb77a",
+      color: "var(--oc-success)",
       kind: "here",
     },
     ...activeAgents.map((agent): MentionOption => ({

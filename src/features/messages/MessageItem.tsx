@@ -217,7 +217,7 @@ export function renderMentions(
       id: `role-${role}`,
       label: `@${role}`,
       description: "Role",
-      color: "#8b7cf6",
+      color: "var(--oc-info)",
       kind: "role",
     }),
   );
@@ -226,14 +226,14 @@ export function renderMentions(
       id: "everyone",
       label: "@everyone",
       description: "Everyone",
-      color: "#f05b3e",
+      color: "var(--oc-accent)",
       kind: "everyone",
     },
     {
       id: "here",
       label: "@here",
       description: "Online now",
-      color: "#3fb77a",
+      color: "var(--oc-success)",
       kind: "here",
     },
     ...agents.map((agent) => ({

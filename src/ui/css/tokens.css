@@ -238,6 +238,12 @@
   /* The same hollow, at the weight a light surface can carry: 0.35 black is
      tuned for a field cut into near-black and reads as a smudge on white. */
   --oc-l-shadow-inset: inset 0 1px 2px rgba(24, 24, 28, 0.07);
+  /* Elevation on white is a soft, cool grey, not the near-black tuned to lift
+     one dark panel off another: at dark-theme strength a dialog on white wears
+     a smear rather than a shadow. */
+  --oc-l-shadow-sm: 0 1px 3px rgba(24, 24, 28, 0.1);
+  --oc-l-shadow: 0 8px 24px rgba(24, 24, 28, 0.12);
+  --oc-l-shadow-lg: 0 24px 72px rgba(24, 24, 28, 0.16);
   --oc-l-field: #f3f3f5;
   --oc-l-field-disabled: #eeeef0;
   --oc-l-line: #d9d9df;
@@ -297,6 +303,9 @@
   --oc-panel-2: var(--oc-l-panel-2);
   --oc-panel-3: var(--oc-l-panel-3);
   --oc-shadow-inset: var(--oc-l-shadow-inset);
+  --oc-shadow-sm: var(--oc-l-shadow-sm);
+  --oc-shadow: var(--oc-l-shadow);
+  --oc-shadow-lg: var(--oc-l-shadow-lg);
   --oc-field: var(--oc-l-field);
   --oc-field-disabled: var(--oc-l-field-disabled);
   --oc-line: var(--oc-l-line);
@@ -353,6 +362,9 @@
     --oc-panel-2: var(--oc-l-panel-2);
     --oc-panel-3: var(--oc-l-panel-3);
     --oc-shadow-inset: var(--oc-l-shadow-inset);
+    --oc-shadow-sm: var(--oc-l-shadow-sm);
+    --oc-shadow: var(--oc-l-shadow);
+    --oc-shadow-lg: var(--oc-l-shadow-lg);
     --oc-field: var(--oc-l-field);
     --oc-field-disabled: var(--oc-l-field-disabled);
     --oc-line: var(--oc-l-line);

@@ -63,6 +63,11 @@ export function DetailsPanel({
       </div>
       {tab === "people" ? (
         <div className="details-content">
+          {!agents.length && (
+            <p className="detail-empty">
+              No agents here yet.{conversation.type === "channel" ? " An admin can add one from the channel's settings." : ""}
+            </p>
+          )}
           {agents.map((agent) => (
             <button
               className="agent-profile"
