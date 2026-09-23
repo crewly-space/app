@@ -28,6 +28,10 @@ export function MessageItem({
 }) {
   const agent = agents.find((item) => item.id === message.author);
   const replied = allMessages.find((item) => item.id === message.replyTo);
+  // Every person's message arrives as "you"; in a group or channel most are not.
+  const someoneElse = message.author === "you" && message.userId && message.userId !== people.me.id
+    ? people.byId.get(message.userId)?.name ?? "Someone"
+    : null;
   return (
     <article className={`message ${message.streaming ? "streaming" : ""}`}>
       {message.author === "you" ? (
@@ -57,7 +61,7 @@ export function MessageItem({
           {agent ? (
             <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
           ) : (
-            <strong>You</strong>
+            <strong>{someoneElse ?? "You"}</strong>
           )}
           {agent && (
             <span

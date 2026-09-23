@@ -1,10 +1,12 @@
 import type { AuthUser, DeviceInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
-import type { AvatarMode } from "@crewly/protocol";
+import type { AvatarMode, ChannelCategory } from "@crewly/protocol";
 import type { Agent, Approval, Conversation, Message, Provider } from "./types";
 
 export type Bootstrap = {
   agents: Agent[];
   conversations: Conversation[];
+  /** Sidebar sections that channels sit in; empty from a server before channels. */
+  channelCategories: ChannelCategory[];
   messages: Message[];
   providers: Provider[];
   approvals: Approval[];

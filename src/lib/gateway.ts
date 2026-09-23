@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, Conversation as ApiConversation, DevicePairingInfo, Message as ApiMessage } from '@crewly/sdk';
+import type { Agent as ApiAgent, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
@@ -17,6 +17,13 @@ function conversationView(conversation: ApiConversation, agents: Agent[]): Conve
       : agents.find((a) => a.id === agentIds[0])?.name ?? 'DM',
     type: conversation.kind, agentIds, preview: '', time: '' };
 }
+/** A channel is a conversation to the rest of the app; the channel rides along for what only channels have. */
+export function channelView(channel: Channel): Conversation {
+  return { id: channel.id, name: channel.name, type: 'channel', channel, preview: '', time: '',
+    agentIds: channel.members.filter((m) => m.participantType === 'agent').map((m) => m.participantId) };
+}
+/** Whether the reader can see a channel's history: any public one, or a private one they are in. */
+const readable = (channel: Channel) => channel.joined || channel.visibility === 'public';
 export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
     author: message.authorType === 'user' ? 'you' : message.authorId,
@@ -39,8 +46,13 @@ export const gateway = {
     ]);
     const agents = await Promise.all(apiAgents.map(async (a) =>
       agentView(a, (await client.memory.listFacts(a.id)).map((f) => f.content))));
-    const conversations = apiConversations.map((c) => conversationView(c, agents));
-    const histories = await Promise.all(apiConversations.map((c) => client.messages.list(c.id, 200)));
+    // A server from before channels has no channel routes; it simply has none.
+    const channelList = await client.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] }));
+    const conversations = [...apiConversations.map((c) => conversationView(c, agents)), ...channelList.channels.map(channelView)];
+    const histories = await Promise.all([
+      ...apiConversations.map((c) => client.messages.list(c.id, 200)),
+      ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
+    ]);
     const messages = histories.flat().map(messageView);
     const providers: Provider[] = apiProviders.map((p) => {
       const local = p.kind === 'claude-subscription' || p.kind === 'ollama';
@@ -71,7 +83,7 @@ export const gateway = {
         status: agent.providerId && reachable.has(agent.providerId) ? ('online' as const) : ('offline' as const),
       };
     });
-    return { agents: withStatuses, conversations, messages, providers,
+    return { agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
       approvals: [], currentUser, users, devices, people };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
@@ -105,8 +117,27 @@ export const gateway = {
     const dm = await client.conversations.createDm({ participantId: agentId, participantType: 'agent' });
     return conversationView(dm, agents);
   },
-  async sendMessage(id: string, body: string, replyToMessageId?: string): Promise<Message> {
-    return messageView(await client.messages.send(id, { body, replyToMessageId }));
+  /** Channels and their categories, with each readable channel's history. */
+  async channels() {
+    const list = await client.channels.list();
+    const histories = await Promise.all(list.channels.filter(readable).map((c) => client.messages.list(c.id, 200)));
+    return { channels: list.channels.map(channelView), categories: list.categories, messages: histories.flat().map(messageView) };
+  },
+  createChannel: (input: CreateChannelInput) => client.channels.create(input).then(channelView),
+  updateChannel: (id: string, input: UpdateChannelInput) => client.channels.update(id, input).then(channelView),
+  joinChannel: (id: string) => client.channels.join(id).then(channelView),
+  leaveChannel: (id: string) => client.channels.leave(id),
+  addChannelMember: (id: string, participantId: string, participantType: 'user' | 'agent') =>
+    client.channels.addMember(id, { participantId, participantType }).then(channelView),
+  removeChannelMember: (id: string, participantId: string, participantType: 'user' | 'agent') =>
+    client.channels.removeMember(id, { participantId, participantType }).then(channelView),
+  setChannelAgentBlocked: (id: string, agentId: string, blocked: boolean) =>
+    (blocked ? client.channels.blockAgent(id, agentId) : client.channels.unblockAgent(id, agentId)).then(channelView),
+  orderChannels: (categoryId: string | null, channelIds: string[]) => client.channels.order(categoryId, channelIds),
+  createChannelCategory: (name: string) => client.channels.createCategory(name),
+  async sendMessage(id: string, body: string, replyToMessageId?: string,
+    mentions: { targetId: string; targetType: 'user' | 'agent' }[] = []): Promise<Message> {
+    return messageView(await client.messages.send(id, { body, replyToMessageId, mentions }));
   },
   async approve(id: string, decision: 'once' | 'always' | 'deny') {
     await client.approvals.respond(id, decision === 'deny' ? 'deny' : 'approve'); return true;

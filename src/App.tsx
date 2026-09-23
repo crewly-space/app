@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Gauge, Settings, UserRound, X } from "lucide-react";
+import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Gauge, Settings, UserRound, X } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { withStatus } from "./lib/agent-status";
 import { RunInspector } from "./features/runs/RunInspector";
@@ -28,12 +28,22 @@ import { SearchDialog } from "./features/search/SearchDialog";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
+import { ChannelDialog } from "./features/channels/ChannelDialog";
 
 const THEME_KEY = "crewly:theme";
 
 const isApple = /mac|iphone|ipad/i.test(navigator.userAgent);
 
 const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
+
+/** Swaps in a fresh read of the channels, keeping DMs, groups and every message already here. */
+function withChannels(current: Bootstrap, next: Awaited<ReturnType<typeof gateway.channels>>): Bootstrap {
+  const known = new Set(current.messages.map((message) => message.id));
+  return { ...current,
+    conversations: [...current.conversations.filter((item) => item.type !== "channel"), ...next.channels],
+    channelCategories: next.categories,
+    messages: [...current.messages, ...next.messages.filter((message) => !known.has(message.id))] };
+}
 
 /**
  * The app, for whichever server is open.
@@ -72,6 +82,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [replying, setReplying] = useState<Message | null>(null);
   const [creating, setCreating] = useState(false);
+  // The channel dialog: {} creates one, { id } manages that one.
+  const [channelDialog, setChannelDialog] = useState<{ id?: string } | null>(null);
   const [profileAgentId, setProfileAgentId] = useState<string | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -110,6 +122,15 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   useEffect(() => {
     let cancelled = false;
     let stopRealtime = () => {};
+    // A reconnect replays every channel change it missed; one refetch covers them all.
+    let channelRefresh: number | undefined;
+    const refreshChannels = () => {
+      window.clearTimeout(channelRefresh);
+      channelRefresh = window.setTimeout(() => {
+        void gateway.channels().then((next) => { if (!cancelled) setData((current) => current && withChannels(current, next)); })
+          .catch(() => {});
+      }, 150);
+    };
     void gateway.bootstrap().then((initial) => {
       if (cancelled) return;
       setData(initial);
@@ -131,9 +152,10 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             : device) };
         }),
         (status) => setData((current) => current && ({ ...current,
-          agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })));
+          agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })),
+        refreshChannels);
     }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
-    return () => { cancelled = true; stopRealtime(); };
+    return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
     // while connected to another would be a lie.
@@ -205,6 +227,13 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
       notify(String(error), "error");
     });
   }, [data, notify]);
+  // Pin whichever conversation is showing. Falling back to "the first one" on
+  // every render meant a reorder, a new channel or a refetch switched rooms
+  // under the reader.
+  useEffect(() => {
+    if (!data?.conversations.length || data.conversations.some((item) => item.id === selected)) return;
+    setSelected(data.conversations[0].id);
+  }, [data, selected]);
   useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(
@@ -297,6 +326,16 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
       mode: data.currentUser.avatarMode ?? "bloop",
     },
   };
+  const canManageChannels = data.currentUser.role === "owner" || data.currentUser.role === "admin";
+  const channel = conversation.channel;
+  const channelRows = (categoryId: string | null) => data.conversations
+    .filter((item) => item.channel && !item.channel.archivedAt && (item.channel.categoryId ?? null) === categoryId)
+    .sort((a, b) => a.channel!.position - b.channel!.position)
+    .map((item) => (
+      <ConversationRow key={item.id} item={item} agents={data.agents}
+        active={view === "messages" && selected === item.id} onClick={() => openConversation(item.id)} />
+    ));
+  const uncategorisedChannels = channelRows(null);
   const pendingApprovals = data.approvals.filter(
     (approval) => !approvalResults[approval.id],
   );
@@ -346,9 +385,26 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     pendingApprovals.length +
     data.conversations.filter((item) => item.unread).length;
 
+  /**
+   * The agents a draft asks for. The server wakes only the agents a message
+   * mentions, outside a DM, so the tokens in the composer have to say who.
+   */
+  function mentionedAgents(editor: HTMLElement | null) {
+    const ids = new Set<string>();
+    editor?.querySelectorAll<HTMLElement>(".mention-token").forEach((token) => {
+      const kind = token.dataset.mentionKind;
+      if (kind === "agent" && token.dataset.mentionId) ids.add(token.dataset.mentionId);
+      if (kind === "everyone") activeAgents.forEach((agent) => ids.add(agent.id));
+      if (kind === "here") activeAgents.filter((agent) => agent.status === "online").forEach((agent) => ids.add(agent.id));
+      if (kind === "role") activeAgents.filter((agent) => `@${agent.role}` === token.dataset.mentionLabel).forEach((agent) => ids.add(agent.id));
+    });
+    return [...ids].map((targetId) => ({ targetId, targetType: "agent" as const }));
+  }
+
   async function send() {
     const value = composer.trim();
     if (!value || sending) return;
+    const mentions = mentionedAgents(composerRef.current);
     stickToBottomRef.current = true;
     setShowJumpToLatest(false);
     composerRef.current?.replaceChildren();
@@ -356,7 +412,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     setReplying(null);
     setSending(true);
     try {
-      const sent = await gateway.sendMessage(conversation.id, value, replying?.id);
+      const sent = await gateway.sendMessage(conversation.id, value, replying?.id, mentions);
       setData((current) => current && { ...current,
         messages: current.messages.some((m) => m.id === sent.id) ? current.messages : [...current.messages, sent] });
     } catch {
@@ -426,6 +482,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     token.contentEditable = "false";
     token.dataset.mentionLabel = option.label;
     token.dataset.mentionKind = option.kind;
+    if (option.agent) token.dataset.mentionId = option.agent.id;
     token.style.setProperty("--mention-color", option.color);
     token.textContent = option.label;
     range.insertNode(token);
@@ -711,6 +768,15 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 />
               ))}
           </SidebarSection>
+          {(uncategorisedChannels.length > 0 || canManageChannels) && (
+            <SidebarSection title="Channels" action={canManageChannels ? () => setChannelDialog({}) : undefined}>
+              {uncategorisedChannels}
+            </SidebarSection>
+          )}
+          {data.channelCategories.map((category) => {
+            const rows = channelRows(category.id);
+            return rows.length > 0 ? <SidebarSection key={category.id} title={category.name}>{rows}</SidebarSection> : null;
+          })}
           <div className="sidebar-footer">
             {/* Provider setup never blocks the app, so the consequence has to stay
                 visible: without one, every agent reply fails at send time. */}
@@ -808,7 +874,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 <Inbox size={18} />
               ) : view === "activity" ? (
                 <Activity size={18} />
-              ) : conversation.type === "group" ? (
+              ) : channel?.visibility === "private" ? (
+                <Lock size={18} />
+              ) : conversation.type !== "dm" ? (
                 <Hash size={18} />
               ) : (
                 <button
@@ -832,9 +900,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     ? "Mentions and requests that need you"
                     : view === "activity"
                       ? "Live work across your crew"
-                      : conversation.type === "group"
-                        ? `${activeAgents.length} agents · you`
-                        : activeAgents[0]?.role}
+                      : channel
+                        ? channel.topic ?? `${channel.members.filter((m) => m.participantType === "user").length} people · ${activeAgents.length} agents`
+                        : conversation.type === "group"
+                          ? `${activeAgents.length} agents · you`
+                          : activeAgents[0]?.role}
                 </span>
               </div>
             </div>
@@ -861,9 +931,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   <button
                     className="icon-button compact"
                     onClick={() =>
-                      notify("More conversation actions are coming soon.")
+                      channel
+                        ? setChannelDialog({ id: conversation.id })
+                        : notify("More conversation actions are coming soon.")
                     }
-                    aria-label="More actions"
+                    aria-label={channel ? "Channel settings" : "More actions"}
                   >
                     <MoreHorizontal size={19} />
                   </button>
@@ -899,12 +971,14 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     ))}
                   </div>
                   <h1>
-                    {conversation.type === "group"
+                    {conversation.type !== "dm"
                       ? `# ${conversation.name}`
                       : conversation.name}
                   </h1>
                   <p>
-                    {conversation.type === "group"
+                    {channel
+                      ? channel.topic ?? `The start of #${channel.name}. Mention an agent in the channel when you want their attention.`
+                      : conversation.type === "group"
                       ? "A shared room for you and your crew. Mention an agent when you want their attention."
                       : `This is the beginning of your conversation with ${conversation.name}.`}
                   </p>
@@ -967,6 +1041,26 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     </button>
                   </div>
                 )}
+                {channel && !channel.canPost ? (
+                  <div className="channel-gate" role="status">
+                    {channel.archivedAt ? (
+                      <span>This channel is archived. Its history stays here, but nobody can post in it.</span>
+                    ) : !channel.joined ? (
+                      <>
+                        <span>You&rsquo;re reading <strong>#{channel.name}</strong>. Join it to post and get its messages live.</span>
+                        <button className="primary-button compact" onClick={async () => {
+                          try {
+                            const joined = await gateway.joinChannel(channel.id);
+                            setData((current) => current && ({ ...current,
+                              conversations: current.conversations.map((item) => item.id === joined.id ? joined : item) }));
+                          } catch (error) { notify(String(error instanceof Error ? error.message : error), "error"); }
+                        }}>Join channel</button>
+                      </>
+                    ) : (
+                      <span>Only {channel.postRole === "owner" ? "the owner" : "admins"} can post in <strong>#{channel.name}</strong>.</span>
+                    )}
+                  </div>
+                ) : (
                 <div className="composer">
                   <div
                     ref={composerRef}
@@ -1019,7 +1113,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                       moveCaretAfter(node);
                       setComposer(readComposer(event.currentTarget));
                     }}
-                    data-placeholder={`Message ${conversation.type === "group" ? "#" : ""}${conversation.name}`}
+                    data-placeholder={`Message ${conversation.type !== "dm" ? "#" : ""}${conversation.name}`}
                     aria-expanded={showMentions}
                     aria-controls={showMentions ? "mention-suggestions" : undefined}
                     aria-autocomplete="list"
@@ -1102,6 +1196,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     </button>
                   </div>
                 </div>
+                )}
               </footer>
             </>
           ) : (
@@ -1176,6 +1271,33 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
               setEditingAgentId(null);
               setProfileAgentId(updated.id);
               notify(`${updated.name}'s profile was updated.`);
+            }}
+          />
+        )}
+        {channelDialog && (
+          <ChannelDialog
+            key={channelDialog.id ?? "new"}
+            channel={data.conversations.find((item) => item.id === channelDialog.id && item.channel)}
+            channels={data.conversations.filter((item) => item.channel)}
+            categories={data.channelCategories}
+            agents={data.agents}
+            people={data.people}
+            canManage={canManageChannels}
+            onClose={() => setChannelDialog(null)}
+            onSaved={(saved) => {
+              setData((current) => current && ({ ...current,
+                conversations: current.conversations.some((item) => item.id === saved.id)
+                  ? current.conversations.map((item) => (item.id === saved.id ? saved : item))
+                  : [...current.conversations, saved] }));
+              // A new channel opens; an edited one stays open for further changes.
+              if (!channelDialog.id) { setChannelDialog(null); openConversation(saved.id); notify(`#${saved.name} is ready.`); }
+              // Sections and order live in the list, not the channel: read it back.
+              void gateway.channels().then((next) => setData((current) => current && withChannels(current, next))).catch(() => {});
+            }}
+            onLeft={(id) => {
+              setChannelDialog(null);
+              void gateway.channels().then((next) => setData((current) => current && withChannels(current, next))).catch(() => {});
+              if (selected === id) setSelected(data.conversations.find((item) => item.id !== id)?.id ?? "launch");
             }}
           />
         )}

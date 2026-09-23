@@ -37,7 +37,7 @@ export function DetailsPanel({
     <aside className="detail-panel" aria-label="Conversation details">
       <header>
         <strong>
-          {conversation.type === "group" ? "Conversation" : "Agent"} details
+          {conversation.type === "channel" ? "Channel" : conversation.type === "group" ? "Conversation" : "Agent"} details
         </strong>
         <button
           className="icon-button compact"

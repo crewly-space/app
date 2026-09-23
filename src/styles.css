@@ -3237,3 +3237,213 @@ body {
 .server-pending-status {
   color: var(--text-muted);
 }
+
+/* ------------------------------------------------------------- channels -- */
+
+/* A public channel the reader has not joined: listed, readable, quieter. */
+.conversation-row.not-joined {
+  color: var(--oc-muted-2);
+}
+.conversation-row.not-joined:hover,
+.conversation-row.not-joined.active {
+  color: var(--oc-muted-strong);
+}
+
+/* Stands in for the composer when the reader cannot post. */
+.channel-gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--oc-space-3);
+  flex-wrap: wrap;
+  border: 1px solid var(--oc-line-strong);
+  background: var(--oc-panel-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--oc-muted-strong);
+  font-size: 13px;
+}
+.channel-gate strong {
+  color: var(--oc-text);
+}
+
+.channel-modal {
+  width: min(560px, 96vw);
+}
+.channel-modal fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--oc-space-2);
+  min-width: 0;
+}
+.channel-modal legend {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: var(--oc-space-2);
+  padding: 0;
+  color: var(--oc-muted-strong);
+  font-size: var(--oc-text-xs);
+  font-weight: 600;
+}
+.channel-modal legend em {
+  color: var(--oc-muted-2);
+  font-size: var(--oc-text-2xs);
+  font-style: normal;
+  font-weight: 450;
+}
+.channel-visibility {
+  grid-template-columns: 1fr 1fr;
+}
+.form .channel-visibility label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 4px 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-muted-strong);
+  cursor: pointer;
+}
+.form .channel-visibility label.selected {
+  border-color: var(--oc-accent-line-strong);
+  background: var(--oc-accent-wash);
+  color: var(--oc-text);
+}
+.channel-visibility input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.channel-visibility label:focus-within {
+  outline: 2px solid var(--oc-accent-ring);
+  outline-offset: 2px;
+}
+.form .channel-visibility label > span {
+  display: grid;
+  gap: 2px;
+}
+.channel-visibility strong {
+  color: var(--oc-text);
+  font-size: 13px;
+}
+.channel-visibility small {
+  color: var(--oc-muted);
+  font-size: 11px;
+  font-weight: 450;
+}
+.channel-visibility:disabled label {
+  cursor: default;
+}
+.form .channel-agents label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--oc-text);
+  font-size: 13px;
+  font-weight: 450;
+}
+.form .channel-agents input {
+  width: auto;
+  min-height: 0;
+  accent-color: var(--oc-accent);
+  box-shadow: none;
+}
+
+.channel-manage {
+  display: grid;
+  gap: var(--oc-space-4);
+  padding: 0 26px 21px;
+}
+.channel-manage section {
+  display: grid;
+  gap: var(--oc-space-2);
+  padding-top: var(--oc-space-4);
+  border-top: 1px solid var(--oc-line-soft);
+}
+.channel-manage h3,
+.channel-manage h4 {
+  margin: 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  color: var(--oc-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.channel-manage h4 {
+  color: var(--oc-muted-strong);
+  font-size: 12px;
+}
+.channel-manage h3 small {
+  color: var(--oc-muted-2);
+  font-weight: 450;
+}
+.channel-manage ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.channel-manage li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  padding: 0 4px 0 8px;
+  border-radius: 7px;
+  color: var(--oc-text);
+  font-size: 13px;
+}
+.channel-manage li:hover {
+  background: var(--oc-panel-2);
+}
+.channel-manage li > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.channel-manage li.blocked {
+  color: var(--oc-muted);
+}
+.channel-manage select {
+  width: 100%;
+  min-height: var(--oc-control-height-sm);
+  padding: 0 var(--oc-space-3);
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: var(--oc-field);
+  color: var(--oc-text);
+  font: inherit;
+  font-size: 13px;
+}
+.channel-order > div {
+  display: flex;
+  gap: var(--oc-space-2);
+}
+.channel-order button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.channel-error {
+  margin: 0 26px 16px;
+}
+.channel-modal footer .channel-footer-start {
+  margin-right: auto;
+}
+@media (max-width: 560px) {
+  .channel-visibility {
+    grid-template-columns: 1fr;
+  }
+  .channel-modal footer {
+    flex-wrap: wrap;
+  }
+}

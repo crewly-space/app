@@ -16,6 +16,7 @@ export function startRealtime(
   onFailure: (error: string) => void,
   onDevice: (presence: DevicePresence) => void = () => {},
   onAgentStatus: (status: AgentStatus) => void = () => {},
+  onChannelsChanged: () => void = () => {},
 ): () => void {
   const token = currentToken();
   if (!token) return () => {};
@@ -28,6 +29,8 @@ export function startRealtime(
     // Replayed on reconnect with everything else since the last seen event, so
     // a status that changed while the socket was down is not lost.
     if (event.type === 'agent.status') onAgentStatus(event.payload as unknown as AgentStatus);
+    // Names only which channel changed; what this reader may see of it comes from a refetch.
+    if (event.type === 'channels.changed') onChannelsChanged();
     // Without these the devices panel only tells the truth on a page load: it
     // shows a freshly paired device as offline, and a stopped one as connected.
     if (event.type === 'device.connected' || event.type === 'device.disconnected') {

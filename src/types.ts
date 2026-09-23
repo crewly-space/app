@@ -1,4 +1,4 @@
-import type { AvatarMode } from "@crewly/protocol";
+import type { AvatarMode, Channel } from "@crewly/protocol";
 
 export type Status = "online" | "thinking" | "offline" | "unknown";
 export type Agent = {
@@ -27,8 +27,10 @@ export type Agent = {
 export type Conversation = {
   id: string;
   name: string;
-  type: "dm" | "group";
+  type: "dm" | "group" | "channel";
   agentIds: string[];
+  /** Set for a channel: who is in it, who may post, where it sits in the sidebar. */
+  channel?: Channel;
   unread?: number;
   preview: string;
   time: string;
