@@ -33,6 +33,8 @@ export type Message = {
   id: string;
   conversationId: string;
   author: string;
+  /** The person who wrote it, when a person did: seeds their avatar. */
+  userId?: string;
   body: string;
   time: string;
   replyTo?: string;

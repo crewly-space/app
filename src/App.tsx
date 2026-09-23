@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Blobatar } from "@blobatar/react";
 import { crewAvatarSvg, crewVariantFor } from "@crewly/ui/crew-avatar";
+import { bloopSvg } from "@crewly/ui/bloop";
 import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
 import type { ModelInfo } from "@crewly/protocol";
 import {
@@ -81,7 +82,7 @@ type Bootstrap = {
 };
 type Panel = "details" | "settings" | null;
 type Toast = { message: string; tone: "info" | "error" };
-type AvatarStyle = "crew" | "blobatar" | "initials";
+type AvatarStyle = "bloop" | "crew" | "blobatar" | "initials";
 type View = "messages" | "inbox" | "activity";
 type CreateAgentInput = Pick<Agent, "name" | "role" | "model" | "runtime"> & {
   providerId: string;
@@ -103,8 +104,8 @@ const AVATAR_STYLE_KEY = "crewly:avatar-style";
 const THEME_KEY = "crewly:theme";
 // Set when someone chooses to look around before connecting a provider, so a
 // reload does not drop them back onto the setup screen they just dismissed.
-const AVATAR_STYLES: readonly AvatarStyle[] = ["crew", "blobatar", "initials"];
-const AvatarStyleContext = createContext<AvatarStyle>("crew");
+const AVATAR_STYLES: readonly AvatarStyle[] = ["bloop", "crew", "blobatar", "initials"];
+const AvatarStyleContext = createContext<AvatarStyle>("bloop");
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -223,10 +224,10 @@ export default function App() {
   const [approvalResults, setApprovalResults] = useState<
     Record<string, string>
   >({});
-  // A saved choice always wins; the crew is the default for everyone else.
+  // A saved choice always wins; Bloop is the default for everyone else.
   const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>(() => {
     const saved = localStorage.getItem(AVATAR_STYLE_KEY);
-    return AVATAR_STYLES.find((style) => style === saved) ?? "crew";
+    return AVATAR_STYLES.find((style) => style === saved) ?? "bloop";
   });
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
@@ -412,6 +413,14 @@ export default function App() {
   const conversationApprovals = data.approvals.filter(
     (approval) => approval.conversationId === conversation.id,
   );
+  // Members cannot list users, so the reader's own name falls back to email.
+  const people = {
+    byId: new Map(data.users.map((user) => [user.id, user.displayName])),
+    me: {
+      id: data.currentUser.id,
+      name: data.users.find((user) => user.id === data.currentUser.id)?.displayName ?? data.currentUser.email,
+    },
+  };
   const pendingApprovals = data.approvals.filter(
     (approval) => !approvalResults[approval.id],
   );
@@ -1030,6 +1039,7 @@ export default function App() {
                     key={message.id}
                     message={message}
                     agents={data.agents}
+                    people={people}
                     allMessages={visibleMessages}
                     onReply={() => setReplying(message)}
                     onAgentClick={openAgentProfile}
@@ -1324,6 +1334,7 @@ export default function App() {
 function MessageItem({
   message,
   agents,
+  people,
   allMessages,
   onReply,
   onAgentClick,
@@ -1331,6 +1342,8 @@ function MessageItem({
 }: {
   message: Message;
   agents: Agent[];
+  /** Who wrote user messages, by user id, for their avatar. */
+  people: { byId: Map<string, string>; me: { id: string; name: string } };
   allMessages: Message[];
   onReply: () => void;
   onAgentClick: (agentId: string) => void;
@@ -1341,7 +1354,10 @@ function MessageItem({
   return (
     <article className={`message ${message.streaming ? "streaming" : ""}`}>
       {message.author === "you" ? (
-        <div className="avatar user-avatar">Y</div>
+        <UserAvatar
+          id={message.userId ?? people.me.id}
+          name={(message.userId && people.byId.get(message.userId)) || people.me.name}
+        />
       ) : (
         <button
           className="avatar-button message-avatar-button"
@@ -1828,7 +1844,7 @@ function SettingsPanel({
             </div>
             {users.map((user) => (
               <div className="setting-row" key={user.id}>
-                <span className="provider-logo small"><UserRound size={16} /></span>
+                <UserAvatar id={user.id} name={user.displayName} size="small" />
                 <div>
                   <strong>{user.displayName}</strong>
                   <span>{user.email}</span>
@@ -1927,11 +1943,35 @@ function SettingsPanel({
             </fieldset>
             <div className="preference-divider" />
             <div className="preference-heading">
-              <strong>Agent avatars</strong>
-              <span>Choose how your crew appears.</span>
+              <strong>Avatars</strong>
+              <span>Choose how your crew and the people on this server appear.</span>
             </div>
             <fieldset className="avatar-options">
               <legend>Avatar style</legend>
+              <label className={avatarStyle === "bloop" ? "selected" : ""}>
+                <input
+                  type="radio"
+                  name="avatar-style"
+                  value="bloop"
+                  checked={avatarStyle === "bloop"}
+                  onChange={() => onAvatarStyleChange("bloop")}
+                />
+                <span className="avatar-option-preview">
+                  {agents.slice(0, 2).map((agent) => (
+                    <Avatar key={agent.id} agent={agent} style="bloop" />
+                  ))}
+                  <span className="avatar avatar-normal avatar-bloop user-avatar" aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: bloopSvg(currentUser.id, "user") }} />
+                </span>
+                <span>
+                  <strong>Bloop</strong>
+                  <small>
+                    One soft face each, for people and agents alike. Agents
+                    wear the antenna.
+                  </small>
+                </span>
+                <i>{avatarStyle === "bloop" && <Check size={13} />}</i>
+              </label>
               <label className={avatarStyle === "crew" ? "selected" : ""}>
                 <input
                   type="radio"
@@ -1996,8 +2036,8 @@ function SettingsPanel({
               </label>
             </fieldset>
             <p className="avatar-privacy-note">
-              Avatars are generated locally and stay consistent for each agent
-              name.
+              Avatars are generated on this device and stay the same for each
+              agent name and each person.
             </p>
           </>
         )}
@@ -2725,14 +2765,20 @@ function Avatar({
   const resolvedStyle = style ?? preferredStyle;
   return (
     <div
-      className={`avatar avatar-${size} ${resolvedStyle === "blobatar" ? "avatar-blobatar" : ""} ${resolvedStyle === "crew" ? "avatar-crew" : ""}`}
+      className={`avatar avatar-${size} ${resolvedStyle === "blobatar" ? "avatar-blobatar" : ""} ${resolvedStyle === "crew" ? "avatar-crew" : ""} ${resolvedStyle === "bloop" ? "avatar-bloop" : ""}`}
       style={
         resolvedStyle === "initials"
           ? { background: agent?.color ?? "#777" }
           : undefined
       }
     >
-      {resolvedStyle === "crew" && agent ? (
+      {resolvedStyle === "bloop" && agent ? (
+        <span
+          aria-hidden="true"
+          // Built from numbers and fixed shapes; the name only seeds them.
+          dangerouslySetInnerHTML={{ __html: bloopSvg(agent.name, "agent") }}
+        />
+      ) : resolvedStyle === "crew" && agent ? (
         <span
           aria-hidden="true"
           // Static markup built from a fixed set of shapes, never from user input.
@@ -2754,6 +2800,36 @@ function Avatar({
         />
       )}
     </div>
+  );
+}
+/**
+ * A person's avatar. People get a Bloop too -- without the antenna and accent
+ * outline that mark an agent -- seeded by their user id so renaming does not
+ * change it. Initials, for anyone who chose them for their crew as well.
+ */
+function UserAvatar({
+  id,
+  name,
+  size = "normal",
+}: {
+  id: string;
+  name: string;
+  size?: "tiny" | "small" | "normal" | "large";
+}) {
+  const style = useContext(AvatarStyleContext);
+  if (style === "initials") {
+    return (
+      <div className={`avatar avatar-${size} user-avatar`} aria-hidden="true">
+        {(name.trim().charAt(0) || "?").toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`avatar avatar-${size} avatar-bloop user-avatar`}
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: bloopSvg(id, "user") }}
+    />
   );
 }
 function BrandMark() {
