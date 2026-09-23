@@ -116,6 +116,17 @@
   --oc-info-text: #aaa0ec;
   --oc-info-panel: #2b2530;
 
+  /* Bloop avatar tones (bloop.ts). Mid-light so the same fill reads on both
+     themes, with the ink below for faces. They are identity colours, not
+     status: nothing about a Bloop's tone means ok, warning or error. */
+  --oc-bloop-tone-0: #f2a38f;
+  --oc-bloop-tone-1: #7fd1c4;
+  --oc-bloop-tone-2: #b9aef7;
+  --oc-bloop-tone-3: #f4cf7e;
+  --oc-bloop-tone-4: #8fc3f2;
+  --oc-bloop-tone-5: #a9dd95;
+  --oc-bloop-ink: var(--oc-l-text);
+
   /* Type. The display face is for headings and the wordmark only. */
   --oc-font-sans:
     "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,

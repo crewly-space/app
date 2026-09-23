@@ -462,13 +462,21 @@ body {
   font-size: 18px;
 }
 .avatar-blobatar,
-.avatar-crew {
+.avatar-crew,
+.avatar-bloop {
   overflow: visible;
 }
-.avatar-crew {
+.avatar-crew,
+.avatar-bloop {
   background: none;
 }
-.avatar-crew > span {
+/* A person shown by initials: neutral, so it never reads as an agent colour. */
+.user-avatar:not(.avatar-bloop) {
+  background: var(--oc-panel-3);
+  color: var(--oc-text);
+}
+.avatar-crew > span,
+.avatar-bloop > span {
   display: block;
   width: 100%;
   height: 100%;
