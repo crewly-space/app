@@ -80,3 +80,14 @@ describe('AgentEditor with a connected provider', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
+
+describe('AgentEditor when a provider connects while it is open', () => {
+  it('adopts the provider and offers its models', async () => {
+    const props = { onClose: () => {}, onSubmit: async () => {}, loadModels: async () => [] };
+    const view = render(<AgentEditor providers={[]} {...props} />);
+    expect(screen.queryByRole('textbox', { name: /Model ID/ })).toBeNull();
+
+    view.rerender(<AgentEditor providers={[connected as Providers[number]]} {...props} />);
+    expect(await screen.findByRole('textbox', { name: /Model ID/ })).toBeTruthy();
+  });
+});

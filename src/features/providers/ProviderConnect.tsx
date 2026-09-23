@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
+import type { DeviceInfo } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
+import { codexRuntimeOn, deviceProviderAvailability, explain, type DeviceProviderKind } from './availability';
 
 // Mirrors the kinds the server accepts. deepseek was missing here even though
 // the server and the docs both list it.
 const kinds = ['openai', 'anthropic', 'openrouter', 'deepseek', 'openai-compatible', 'claude-subscription', 'ollama'] as const;
 type Kind = typeof kinds[number];
+// Device-backed kinds have their own section; the key form only lists these.
+const apiKinds = kinds.filter((item): item is Exclude<Kind, DeviceProviderKind> => item !== 'claude-subscription' && item !== 'ollama');
 
 // The wire values are lowercase ids; showing them raw in a menu reads as an
 // unfinished screen rather than a product.
@@ -51,7 +55,8 @@ export function ProviderConnect({ onConnected, onClose }: {
   // The id only matters when connecting a second account of the same kind, so
   // it stays out of the way until someone asks for it.
   const [showId, setShowId] = useState(false);
-  const [localKinds, setLocalKinds] = useState<string[]>([]);
+  const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
+  const [connectingDevice, setConnectingDevice] = useState<DeviceProviderKind | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -80,23 +85,42 @@ export function ProviderConnect({ onConnected, onClose }: {
       .then((result) => { if (active) setOauthKinds(result.kinds); })
       .catch(() => { /* older server: key entry still works */ });
 
-    void client.devices.list().then((devices) => {
-      if (!active) return;
-      const available = new Set<string>();
-      for (const device of devices) {
-        if (!device.connected) continue;
-        const providers = Array.isArray(device.capabilities.providers) ? device.capabilities.providers : [];
-        for (const provider of providers) {
-          if (provider && typeof provider === 'object' && typeof (provider as { kind?: unknown }).kind === 'string') {
-            available.add((provider as { kind: string }).kind);
-          }
-        }
-      }
-      setLocalKinds([...available]);
-    }).catch(() => { /* remote provider setup remains available */ });
+    void client.devices.list()
+      .then((list) => { if (active) setDevices(list); })
+      .catch(() => { if (active) setDevices([]); /* key-based setup remains available */ });
 
     return () => { active = false; };
   }, [onConnected]);
+
+  // A device-backed provider carries no secret: the server is told which kind
+  // to route through the paired device, and the device does the signing in.
+  const connectThroughDevice = async (deviceKind: DeviceProviderKind): Promise<void> => {
+    setError(''); setConnectingDevice(deviceKind);
+    try {
+      await client.providers.create({ id: deviceKind, kind: deviceKind });
+      onConnected();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not connect through the device');
+    } finally {
+      setConnectingDevice(null);
+    }
+  };
+
+  const deviceOption = (deviceKind: DeviceProviderKind, title: string, subtitle: string) => {
+    const availability = devices ? deviceProviderAvailability(devices, deviceKind) : null;
+    const ready = availability?.state === 'ready';
+    return <div className={`provider-option${ready ? '' : ' unavailable'}`} key={deviceKind}>
+      <div>
+        <strong>{title}</strong> <span>{subtitle}</span>
+        <small>{availability ? explain(deviceKind, availability) : 'Checking your paired devices…'}</small>
+      </div>
+      {ready && <button type="button" className="secondary-button" disabled={connectingDevice !== null}
+        onClick={() => void connectThroughDevice(deviceKind)}>
+        {connectingDevice === deviceKind ? 'Connecting…' : `Connect ${title}`}
+      </button>}
+    </div>;
+  };
+  const codexDevice = devices ? codexRuntimeOn(devices) : null;
 
   const signInToProvider = async (): Promise<void> => {
     setError(''); setConnecting(true);
@@ -113,13 +137,40 @@ export function ProviderConnect({ onConnected, onClose }: {
   return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card form" onSubmit={async (event) => {
     event.preventDefault(); setSaving(true); setError('');
     try {
-      const local = kind === 'claude-subscription' || kind === 'ollama';
-      await client.providers.create({ id, kind, ...(local ? {} : { apiKey: key }), ...(baseUrl ? { baseUrl } : {}) });
+      await client.providers.create({ id, kind, apiKey: key, ...(baseUrl ? { baseUrl } : {}) });
       onConnected();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
     finally { setSaving(false); }
   }}>
-    <h1>Connect a model provider</h1><p>Use a remote API or an available provider on one of your paired devices.</p>
+    <h1>Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p>
+
+    <section className="provider-class" aria-labelledby="provider-class-device">
+      <h2 id="provider-class-device">On your device</h2>
+      <p>Uses a subscription or local model through a paired device. The sign-in stays on the device; this server never sees it.</p>
+      {deviceOption('claude-subscription', 'Claude', 'Pro or Max subscription')}
+      {deviceOption('ollama', 'Ollama', 'Local models')}
+      <div className="provider-option unavailable">
+        <div>
+          <strong>ChatGPT</strong> <span>Plus or Pro subscription</span>
+          <small>{codexDevice
+            ? `Codex is signed in on ${codexDevice} and can run coding work there as a runtime. A ChatGPT subscription can't be used as a chat provider yet.`
+            : "A ChatGPT subscription can't be used as a chat provider yet."}</small>
+        </div>
+      </div>
+    </section>
+
+    <section className="provider-class" aria-labelledby="provider-class-gateway">
+      <h2 id="provider-class-gateway">Crewly Gateway</h2>
+      <div className="provider-option unavailable">
+        <div>
+          <strong>Models through your Crewly account</strong>
+          <small>No keys to manage, billed with your plan. Not available on this server yet.</small>
+        </div>
+      </div>
+    </section>
+
+    <section className="provider-class" aria-labelledby="provider-class-key">
+    <h2 id="provider-class-key">With an API key</h2>
     {oauthKinds.includes('openrouter') && <>
       <button type="button" className="secondary-button full" disabled={connecting} onClick={signInToProvider}>
         {connecting ? 'Connecting…' : 'Sign in with OpenRouter'}
@@ -128,9 +179,8 @@ export function ProviderConnect({ onConnected, onClose }: {
       <p className="oauth-divider"><span>or paste a key</span></p>
     </>}
     <label>Provider<select value={kind} onChange={(e) => { const next = e.target.value as Kind; setKind(next); setId(next); }}>
-      {kinds.filter((item) => item !== 'claude-subscription' && item !== 'ollama' || localKinds.includes(item))
-        .map((item) => <option key={item} value={item}>{kindLabels[item]}</option>)}</select></label>
-    {kind !== 'claude-subscription' && kind !== 'ollama' && <label>API key<input required type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} /></label>}
+      {apiKinds.map((item) => <option key={item} value={item}>{kindLabels[item]}</option>)}</select></label>
+    <label>API key<input required type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} /></label>
     {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
       <small>The root the provider documents for its OpenAI-compatible endpoints, without /chat/completions.</small></label>}
     {showId
@@ -138,6 +188,7 @@ export function ProviderConnect({ onConnected, onClose }: {
           <small>How agents refer to this connection. Change it to add a second {kindLabels[kind]} account.</small>
         </label>
       : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {kindLabels[kind]} provider?</button>}
+    </section>
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : 'Save provider'}</button>
     {onClose && <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>}
