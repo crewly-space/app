@@ -1,0 +1,276 @@
+import { Activity, Check, Folder, Reply, ShieldCheck, X } from "lucide-react";
+import { statusLabel, statusTitle } from "../../lib/agent-status";
+import type { Agent, Approval, Message } from "../../types";
+import type { MentionOption } from "../../app-types";
+import { Avatar, UserAvatar } from "../appearance/Avatar";
+
+export function MessageItem({
+  message,
+  agents,
+  people,
+  allMessages,
+  onReply,
+  onAgentClick,
+  onInspect,
+}: {
+  message: Message;
+  agents: Agent[];
+  /** Who wrote user messages, by user id, for their avatar. */
+  people: { byId: Map<string, string>; me: { id: string; name: string } };
+  allMessages: Message[];
+  onReply: () => void;
+  onAgentClick: (agentId: string) => void;
+  onInspect?: () => void;
+}) {
+  const agent = agents.find((item) => item.id === message.author);
+  const replied = allMessages.find((item) => item.id === message.replyTo);
+  return (
+    <article className={`message ${message.streaming ? "streaming" : ""}`}>
+      {message.author === "you" ? (
+        <UserAvatar
+          id={message.userId ?? people.me.id}
+          name={(message.userId && people.byId.get(message.userId)) || people.me.name}
+        />
+      ) : (
+        <button
+          className="avatar-button message-avatar-button"
+          onClick={() => agent && onAgentClick(agent.id)}
+          aria-label={`Open ${agent?.name ?? "agent"} profile`}
+        >
+          <Avatar agent={agent} />
+        </button>
+      )}
+      <div className="message-content">
+        {replied && (
+          <div className="reply-reference">
+            <Reply size={12} />
+            <strong>{authorName(replied.author, agents)}</strong>
+            <span>{replied.body}</span>
+          </div>
+        )}
+        <div className="message-meta">
+          {agent ? (
+            <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
+          ) : (
+            <strong>You</strong>
+          )}
+          {agent && (
+            <span
+              className={`status ${agent.status}`}
+              role="img"
+              aria-label={statusLabel(agent)}
+              title={statusTitle(agent)}
+            />
+          )}
+          {agent && <em>{agent.role}</em>}
+          <time>{message.time}</time>
+          {agent && onInspect && (
+            <button
+              type="button"
+              className="message-inspect"
+              onClick={onInspect}
+              aria-label={`How ${agent.name} made this reply`}
+              title="Inspect this run"
+            >
+              <Activity size={12} />
+            </button>
+          )}
+        </div>
+        <p>
+          {renderMentions(message.body, agents, onAgentClick)}
+          {message.streaming && <i className="cursor" />}
+        </p>
+        {message.activity && (
+          <div className="runtime-card">
+            <div className="runtime-icon">
+              <Activity size={16} />
+            </div>
+            <div>
+              <strong>{message.activity.label}</strong>
+              <span>{message.activity.detail}</span>
+            </div>
+            <div className="runtime-state">
+              <span className="spinner" /> Live
+            </div>
+          </div>
+        )}
+      </div>
+      <button
+        className="message-reply"
+        onClick={onReply}
+        aria-label={`Reply to ${message.author === "you" ? "your message" : (agent?.name ?? "this message")}`}
+      >
+        <Reply size={15} />
+      </button>
+    </article>
+  );
+}
+
+export function ApprovalMessage({
+  approval,
+  agent,
+  result,
+  onAgentClick,
+  onDecide,
+  onDismiss,
+}: {
+  approval: Approval;
+  agent: Agent;
+  result?: string;
+  onAgentClick: (agentId: string) => void;
+  onDecide: (decision: "once" | "always" | "deny") => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <article className="message approval-message">
+      <button
+        className="avatar-button message-avatar-button"
+        onClick={() => onAgentClick(agent.id)}
+        aria-label={`Open ${agent.name}'s profile`}
+      >
+        <Avatar agent={agent} />
+      </button>
+      <div className="message-content">
+        <div className="message-meta">
+          <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
+          <span
+            className={`status ${agent.status}`}
+            role="img"
+            aria-label={statusLabel(agent)}
+              title={statusTitle(agent)}
+          />
+          <em>{agent.role}</em>
+          <time>{approval.requestedAt}</time>
+        </div>
+        <div className="approval-card">
+          <div className="approval-head">
+            <div className="approval-icon">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <strong>Permission requested</strong>
+              <span>{agent.name} needs your approval</span>
+            </div>
+            <time title="Time remaining">{approval.expiresIn}</time>
+            <button
+              className="approval-dismiss"
+              onClick={onDismiss}
+              aria-label="Dismiss permission request"
+              title="Dismiss"
+            >
+              <X size={15} />
+            </button>
+          </div>
+          <div className="approval-command">
+            <code>{approval.capability}</code>
+            <p>{approval.description}</p>
+            <span>
+              <Folder size={14} /> {approval.workspace}
+            </span>
+          </div>
+          {result ? (
+            <div className="approval-result">
+              <Check size={16} />{" "}
+              {result === "deny"
+                ? "Request denied"
+                : result === "always"
+                  ? "Allowed for this workspace"
+                  : "Allowed once"}
+            </div>
+          ) : (
+            <div className="approval-actions">
+              <button onClick={() => onDecide("deny")}>Deny</button>
+              <button onClick={() => onDecide("always")}>Always allow</button>
+              <button className="approve" onClick={() => onDecide("once")}>
+                Allow once
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function authorName(id: string, agents: Agent[]) {
+  return id === "you"
+    ? "You"
+    : (agents.find((agent) => agent.id === id)?.name ?? "Agent");
+}
+
+export function renderMentions(
+  body: string,
+  agents: Agent[],
+  onAgentClick: (agentId: string) => void,
+) {
+  const roleOptions = Array.from(new Set(agents.map((agent) => agent.role))).map(
+    (role): MentionOption => ({
+      id: `role-${role}`,
+      label: `@${role}`,
+      description: "Role",
+      color: "#8b7cf6",
+      kind: "role",
+    }),
+  );
+  const options: MentionOption[] = [
+    {
+      id: "everyone",
+      label: "@everyone",
+      description: "Everyone",
+      color: "#f05b3e",
+      kind: "everyone",
+    },
+    {
+      id: "here",
+      label: "@here",
+      description: "Online now",
+      color: "#3fb77a",
+      kind: "here",
+    },
+    ...agents.map((agent) => ({
+      id: `agent-${agent.id}`,
+      label: `@${agent.name}`,
+      description: agent.role,
+      color: agent.color,
+      kind: "agent" as const,
+      agent,
+    })),
+    ...roleOptions,
+  ];
+  const escapedLabels = options
+    .map((option) => option.label.slice(1))
+    .sort((a, b) => b.length - a.length)
+    .map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const matcher = new RegExp(
+    `(@(?:${escapedLabels.join("|")}))(?![\\p{L}\\p{N}_-])`,
+    "giu",
+  );
+  return body.split(matcher).map((part, index) => {
+    const option = options.find(
+      (item) => item.label.toLowerCase() === part.toLowerCase(),
+    );
+    if (!option) return part;
+    const mentionStyle = {
+      "--mention-color": option.color,
+    } as React.CSSProperties;
+    return option.agent ? (
+      <button
+        type="button"
+        className={`mention mention-${option.kind}`}
+        style={mentionStyle}
+        key={`${option.id}-${index}`}
+        onClick={() => onAgentClick(option.agent!.id)}
+      >
+        {part}
+      </button>
+    ) : (
+      <mark
+        className={`mention mention-${option.kind}`}
+        style={mentionStyle}
+        key={`${option.id}-${index}`}
+      >
+        {part}
+      </mark>
+    );
+  });
+}

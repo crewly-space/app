@@ -1,0 +1,39 @@
+import type { AuthUser, DeviceInfo, UserAccount } from "@crewly/sdk";
+import type { Agent, Approval, Conversation, Message, Provider } from "./types";
+
+export type Bootstrap = {
+  agents: Agent[];
+  conversations: Conversation[];
+  messages: Message[];
+  providers: Provider[];
+  approvals: Approval[];
+  devices: DeviceInfo[];
+  currentUser: AuthUser;
+  users: UserAccount[];
+};
+
+export type Panel = "details" | "settings" | null;
+
+export type Toast = { message: string; tone: "info" | "error" };
+
+export type AvatarStyle = "bloop" | "crew" | "blobatar" | "initials";
+
+export type View = "messages" | "inbox" | "activity";
+
+export type CreateAgentInput = Pick<Agent, "name" | "role" | "model" | "runtime"> & {
+  providerId: string;
+  memoryEnabled: boolean;
+  workspace?: string;
+  instructions?: string;
+};
+
+export type Theme = "system" | "light" | "dark";
+
+export type MentionOption = {
+  id: string;
+  label: string;
+  description: string;
+  color: string;
+  kind: "agent" | "everyone" | "here" | "role";
+  agent?: Agent;
+};

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentEditor } from '../src/App';
+import { AgentEditor } from '../src/features/agents/AgentEditor';
 import { FirstRunHome, firstRunStep, useFirstRunSkips } from '../src/features/onboarding/FirstRun';
 
 beforeAll(() => {
