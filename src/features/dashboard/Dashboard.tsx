@@ -11,16 +11,31 @@ import type {
   UserRole,
 } from '@crewly/sdk';
 import type { DashboardApi } from './api';
+import { platformApi, type PlatformApi } from './platform-api';
+import { AgentSettings } from './AgentSettings';
+import { RunsPanel } from './RunsPanel';
+import { SecretsPanel } from './SecretsPanel';
+import { SkillsPanel } from './SkillsPanel';
+import { ToolsPanel } from './ToolsPanel';
+import { UsagePanel } from './UsagePanel';
 
-type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'server';
+type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'server';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'members', label: 'Members' },
   { id: 'invites', label: 'Invites' },
   { id: 'agents', label: 'Agents' },
   { id: 'providers', label: 'Providers' },
+  { id: 'usage', label: 'Usage' },
+  { id: 'runs', label: 'Runs' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'secrets', label: 'Secrets' },
   { id: 'server', label: 'Server' },
 ];
+
+/** The sections that need the agent list, to name agents or choose them. */
+const NEEDS_AGENTS: Tab[] = ['agents', 'usage', 'runs', 'secrets'];
 
 /** 128000 reads as noise; 128K is the number people compare. */
 function contextLabel(tokens: number): string {
@@ -52,16 +67,19 @@ function humanUptime(seconds: number): string {
  */
 export function Dashboard({
   api,
+  platform = platformApi,
   currentUser,
   serverName,
   onClose,
 }: {
   api: DashboardApi;
+  platform?: PlatformApi;
   currentUser: UserAccount;
   serverName: string;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('members');
+  const [configuring, setConfiguring] = useState<string | null>(null);
   const [members, setMembers] = useState<UserAccount[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [status, setStatus] = useState<ServerStatus | null>(null);
@@ -101,7 +119,7 @@ export function Dashboard({
   }, [api, canAdminister, run, tab]);
 
   useEffect(() => {
-    if (!canAdminister || tab !== 'agents') return;
+    if (!canAdminister || !NEEDS_AGENTS.includes(tab)) return;
     void run(async () => { setAgents(await api.listAgents()); });
   }, [api, canAdminister, run, tab]);
 
@@ -319,10 +337,25 @@ export function Dashboard({
         </div>
       )}
 
-      {tab === 'agents' && (
+      {tab === 'agents' && configuring && agents.some((agent) => agent.id === configuring) && (
+        <AgentSettings
+          api={platform}
+          agent={agents.find((agent) => agent.id === configuring)!}
+          agents={agents}
+          onBack={() => setConfiguring(null)}
+        />
+      )}
+
+      {tab === 'usage' && <UsagePanel api={platform} agents={agents} />}
+      {tab === 'runs' && <RunsPanel api={platform} agents={agents} />}
+      {tab === 'tools' && <ToolsPanel api={platform} />}
+      {tab === 'skills' && <SkillsPanel api={platform} />}
+      {tab === 'secrets' && <SecretsPanel api={platform} agents={agents} />}
+
+      {tab === 'agents' && !configuring && (
         <table className="dashboard-table">
           <thead>
-            <tr><th>Agent</th><th>Model</th><th>Provider</th></tr>
+            <tr><th>Agent</th><th>Model</th><th>Provider</th><th aria-label="Actions" /></tr>
           </thead>
           <tbody>
             {agents.map((agent) => (
@@ -333,6 +366,11 @@ export function Dashboard({
                 </td>
                 <td>{agent.modelPolicy.defaultModel}</td>
                 <td>{agent.modelPolicy.defaultProviderId}</td>
+                <td className="dashboard-row-actions">
+                  <button type="button" className="text-button" aria-label={`Settings for ${agent.name}`} onClick={() => setConfiguring(agent.id)}>
+                    Runtime, tools & skills
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

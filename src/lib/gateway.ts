@@ -1,6 +1,7 @@
 import type { Agent as ApiAgent, Conversation as ApiConversation, DevicePairingInfo, Message as ApiMessage } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Conversation, Message, Provider } from '../types';
+import { withStatus } from './agent-status';
 
 function agentView(agent: ApiAgent, memory: string[] = []): Agent {
   const [role = '', ...instructions] = agent.personality.split('\n');
@@ -50,13 +51,18 @@ export const gateway = {
     // now refuses a run without one. Reporting every agent as "unknown" told
     // the reader nothing they could act on.
     const reachable = new Set(providers.filter((p) => p.status === 'connected').map((p) => p.id));
-    const withStatus = agents.map((agent) => ({
-      ...agent,
-      status: agent.providerId && reachable.has(agent.providerId)
-        ? ('online' as const)
-        : ('offline' as const),
-    }));
-    return { agents: withStatus, conversations, messages, providers,
+    // The server knows what each agent is doing and why it cannot run; ask it.
+    // A server from before canonical status gets the old estimate instead.
+    const statuses = await client.agents.statuses().then((result) => result.statuses).catch(() => null);
+    const withStatuses = agents.map((agent) => {
+      const canonical = statuses?.find((status) => status.agentId === agent.id);
+      if (canonical) return withStatus(agent, canonical);
+      return {
+        ...agent,
+        status: agent.providerId && reachable.has(agent.providerId) ? ('online' as const) : ('offline' as const),
+      };
+    });
+    return { agents: withStatuses, conversations, messages, providers,
       approvals: [], currentUser, users, devices };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string }): Promise<Agent> {

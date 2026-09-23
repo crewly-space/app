@@ -6,6 +6,12 @@ export type Agent = {
   role: string;
   color: string;
   status: Status;
+  /** The server's canonical status, when it reports one. */
+  presence?: "online" | "idle" | "dnd" | "offline";
+  execution?: "ready" | "working" | "waiting_approval" | "queued" | "error" | "runtime_unavailable" | "provider_unavailable";
+  statusReason?: string;
+  availability?: "auto" | "dnd";
+  activeRunId?: string;
   model: string;
   providerId?: string;
   runtime: string;

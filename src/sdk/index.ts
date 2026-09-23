@@ -9,7 +9,13 @@ export {
   type AuthSetupInput,
   type AuthUser,
 } from './resources/auth.js';
-export { AgentsResource, type CreateAgentInput } from './resources/agents.js';
+export {
+  AgentsResource,
+  type AgentRuntime,
+  type CreateAgentInput,
+  type RuntimePermissionMode,
+  type SetAgentRuntimeInput,
+} from './resources/agents.js';
 export {
   ConversationsResource,
   type AddConversationMemberInput,
@@ -26,7 +32,10 @@ export {
 export {
   ProvidersResource,
   type CreateProviderInput,
+  type ProviderAvailability,
   type ProviderConfigPublic,
+  type ProviderHealth,
+  type ProviderHealthStatus,
 } from './resources/providers.js';
 export {
   RuntimeResource,
@@ -54,6 +63,50 @@ export {
   type ServerLogEntry,
 } from './resources/server.js';
 export {
+  UsageResource,
+  type Budget,
+  type BudgetAction,
+  type BudgetThresholdEvent,
+  type CreateBudgetInput,
+  type ModelPrice,
+  type ProviderCall,
+  type UsageGrouping,
+  type UsageReport,
+  type UsageRow,
+  type UsageTotals,
+} from './resources/usage.js';
+export {
+  RunsResource,
+  type RunEvent,
+  type RunSummary,
+  type RunTrace,
+  type RunTreeNode,
+} from './resources/runs.js';
+export {
+  SecretsResource,
+  type Secret,
+  type SecretAuditEntry,
+  type SecretDependent,
+  type SecretGrant,
+  type SecretGranteeType,
+} from './resources/secrets.js';
+export {
+  McpResource,
+  type AgentToolAssignment,
+  type McpCapability,
+  type McpServer,
+  type McpServerInput,
+  type McpTestResult,
+  type McpTool,
+} from './resources/mcp.js';
+export {
+  SkillsResource,
+  type AgentSkill,
+  type Skill,
+  type SkillConfigField,
+  type SkillInput,
+} from './resources/skills.js';
+export {
   WsClient,
   type WebSocketConnection,
   type WebSocketConstructor,
@@ -62,11 +115,17 @@ export {
 
 export type {
   Agent,
+  AgentExecutionState,
+  AgentPresence,
   AgentRun,
+  AgentStatus,
+  AgentRunStatus,
   ApprovalRequest,
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  ToolCall,
+  ToolDefinition,
   Conversation,
   ConversationSummary,
   MemoryFact,

@@ -1,5 +1,6 @@
 import { client, currentToken } from '../api/client';
 import { messageView } from '../gateway';
+import type { AgentStatus } from '@crewly/sdk';
 import type { Message } from '../../types';
 
 let ws: ReturnType<typeof client.ws> | undefined;
@@ -14,6 +15,7 @@ export function startRealtime(
   onMessage: (message: Message) => void,
   onFailure: (error: string) => void,
   onDevice: (presence: DevicePresence) => void = () => {},
+  onAgentStatus: (status: AgentStatus) => void = () => {},
 ): () => void {
   const token = currentToken();
   if (!token) return () => {};
@@ -23,6 +25,9 @@ export function startRealtime(
     localStorage.setItem(seqKey, String(event.seq));
     if (event.type === 'message.created') onMessage(messageView(event.payload as never));
     if (event.type === 'agent.run.failed') onFailure(String(event.payload.error ?? 'Agent response failed'));
+    // Replayed on reconnect with everything else since the last seen event, so
+    // a status that changed while the socket was down is not lost.
+    if (event.type === 'agent.status') onAgentStatus(event.payload as unknown as AgentStatus);
     // Without these the devices panel only tells the truth on a page load: it
     // shows a freshly paired device as offline, and a stopped one as connected.
     if (event.type === 'device.connected' || event.type === 'device.disconnected') {

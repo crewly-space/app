@@ -48,6 +48,9 @@ import {
   Zap,
 } from "lucide-react";
 import { gateway } from "./lib/gateway";
+import { statusLabel, statusTitle, withStatus } from "./lib/agent-status";
+import { RunInspector } from "./features/runs/RunInspector";
+import { client } from "./lib/api/client";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
 import { Dashboard } from "./features/dashboard/Dashboard";
@@ -64,14 +67,6 @@ import type {
   Message,
   Provider,
 } from "./types";
-
-/** What an agent's availability means to a reader, rather than its enum name. */
-function statusLabel(status: Agent["status"]): string {
-  if (status === "online") return "Ready";
-  if (status === "thinking") return "Working";
-  if (status === "offline") return "No model provider";
-  return "Status unknown";
-}
 
 type Bootstrap = {
   agents: Agent[];
@@ -201,6 +196,8 @@ export default function App() {
     () => window.location.pathname === "/dashboard",
   );
   const [addingServer, setAddingServer] = useState(false);
+  // Which run the inspector shows: the run behind a message, or one picked from its tree.
+  const [inspecting, setInspecting] = useState<{ messageId?: string; runId?: string } | null>(null);
   const [data, setData] = useState<Bootstrap | null>(null);
   const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState("launch");
@@ -267,7 +264,9 @@ export default function App() {
             ? { ...device, connected: presence.connected,
                 lastSeenAt: presence.connected ? new Date().toISOString() : device.lastSeenAt }
             : device) };
-        }));
+        }),
+        (status) => setData((current) => current && ({ ...current,
+          agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })));
     }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); };
     // Switching servers reloads everything: agents, conversations and the
@@ -882,6 +881,18 @@ export default function App() {
           </div>
         )}
 
+        {inspecting && (
+          <div className="dashboard-layer">
+            <RunInspector
+              key={inspecting.runId ?? inspecting.messageId}
+              load={() => (inspecting.runId ? client.runs.get(inspecting.runId) : client.runs.forMessage(inspecting.messageId!))}
+              onClose={() => setInspecting(null)}
+              onOpenRun={(runId) => setInspecting({ runId })}
+              onCancel={async (runId) => { await client.runs.cancel(runId); }}
+            />
+          </div>
+        )}
+
         <main className="conversation">
           <header className="conversation-header">
             <button
@@ -1008,6 +1019,7 @@ export default function App() {
                     allMessages={visibleMessages}
                     onReply={() => setReplying(message)}
                     onAgentClick={openAgentProfile}
+                    onInspect={() => setInspecting({ messageId: message.id })}
                   />
                 ))}
                 {conversationApprovals.map((approval) => {
@@ -1301,12 +1313,14 @@ function MessageItem({
   allMessages,
   onReply,
   onAgentClick,
+  onInspect,
 }: {
   message: Message;
   agents: Agent[];
   allMessages: Message[];
   onReply: () => void;
   onAgentClick: (agentId: string) => void;
+  onInspect?: () => void;
 }) {
   const agent = agents.find((item) => item.id === message.author);
   const replied = allMessages.find((item) => item.id === message.replyTo);
@@ -1341,11 +1355,23 @@ function MessageItem({
             <span
               className={`status ${agent.status}`}
               role="img"
-              aria-label={statusLabel(agent.status)}
+              aria-label={statusLabel(agent)}
+              title={statusTitle(agent)}
             />
           )}
           {agent && <em>{agent.role}</em>}
           <time>{message.time}</time>
+          {agent && onInspect && (
+            <button
+              type="button"
+              className="message-inspect"
+              onClick={onInspect}
+              aria-label={`How ${agent.name} made this reply`}
+              title="Inspect this run"
+            >
+              <Activity size={12} />
+            </button>
+          )}
         </div>
         <p>
           {renderMentions(message.body, agents, onAgentClick)}
@@ -1407,7 +1433,8 @@ function ApprovalMessage({
           <span
             className={`status ${agent.status}`}
             role="img"
-            aria-label={statusLabel(agent.status)}
+            aria-label={statusLabel(agent)}
+              title={statusTitle(agent)}
           />
           <em>{agent.role}</em>
           <time>{approval.requestedAt}</time>
@@ -1531,7 +1558,7 @@ function DetailsPanel({
               <h3>{agent.name}</h3>
               <p>{agent.role}</p>
               <span className="online-label">
-                <i className={`status ${agent.status}`} /> {statusLabel(agent.status)}
+                <i className={`status ${agent.status}`} /> {statusLabel(agent)}
               </span>
               <div className="profile-grid">
                 <span>
@@ -2344,7 +2371,7 @@ function AgentProfileDialog({
               <h3>{agent.name}</h3>
               <p>{agent.role}</p>
               <span className="online-label">
-                <i className={`status ${agent.status}`} /> {agent.status}
+                <i className={`status ${agent.status}`} title={statusTitle(agent)} /> {statusLabel(agent)}
               </span>
             </div>
           </div>
@@ -2707,7 +2734,8 @@ function Avatar({
         <i
           className={`status ${agent.status}`}
           role="img"
-          aria-label={statusLabel(agent.status)}
+          aria-label={statusLabel(agent)}
+              title={statusTitle(agent)}
         />
       )}
     </div>
