@@ -148,6 +148,12 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByText('1 agent use this provider and will stop replying until reconfigured.');
   fireEvent.click(page.getByRole('button', { name: 'Keep provider' }));
 
+  // Your avatar is yours, stored on the server, the same for everyone.
+  fireEvent.click(page.getByRole('button', { name: 'Appearance' }));
+  fireEvent.click(page.getByRole('radio', { name: /Name icon/ }));
+  await waitFor(() => expect(db.prepare('SELECT avatar_mode FROM users WHERE email = ?').get('owner@example.test'))
+    .toEqual({ avatar_mode: 'name' }));
+
   const publicKey = randomBytes(32);
   const deviceId = `dev_${createHash('sha256').update(publicKey).digest('hex').slice(0, 20)}`;
   const pairingResponse = await fetch(`http://127.0.0.1:${serverAddress.port}/api/v1/devices/pairings`, {

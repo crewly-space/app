@@ -17,10 +17,10 @@ import { PairingApproval } from "./features/devices/PairingApproval";
 import { SidebarSection } from "./features/shell/SidebarSection";
 import { Scrim, layers } from "./lib/layers";
 import type { Agent, Approval, Conversation, Message, Provider } from "./types";
-import type { Bootstrap, Panel, Toast, AvatarStyle, View, Theme, MentionOption } from "./app-types";
+import type { Bootstrap, Panel, Toast, View, Theme, MentionOption } from "./app-types";
 import { AgentEditor } from "./features/agents/AgentEditor";
 import { AgentProfileDialog } from "./features/agents/AgentProfileDialog";
-import { AVATAR_STYLE_KEY, AVATAR_STYLES, AvatarStyleContext, Avatar } from "./features/appearance/Avatar";
+import { Avatar } from "./features/appearance/Avatar";
 import { DetailsPanel } from "./features/conversations/DetailsPanel";
 import { UtilityView } from "./features/inbox/UtilityView";
 import { MessageItem, ApprovalMessage, authorName } from "./features/messages/MessageItem";
@@ -86,11 +86,6 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [approvalResults, setApprovalResults] = useState<
     Record<string, string>
   >({});
-  // A saved choice always wins; Bloop is the default for everyone else.
-  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>(() => {
-    const saved = localStorage.getItem(AVATAR_STYLE_KEY);
-    return AVATAR_STYLES.find((style) => style === saved) ?? "bloop";
-  });
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
     return saved === "light" || saved === "dark" ? saved : "system";
@@ -275,7 +270,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   if (!data.conversations.length) return <div className="empty-settings-shell">
     <SettingsPanel
     providers={data.providers} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
-    avatarStyle={avatarStyle} onAvatarStyleChange={updateAvatarStyle} theme={theme} onThemeChange={updateTheme}
+    people={data.people} onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
     onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)}
     onUsersChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)}
     onClose={() => setPanel(null)} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
@@ -292,12 +287,14 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const conversationApprovals = data.approvals.filter(
     (approval) => approval.conversationId === conversation.id,
   );
-  // Members cannot list users, so the reader's own name falls back to email.
+  // Everyone's name and avatar come from the directory, which members can
+  // read too; the reader's own name falls back to their email.
   const people = {
-    byId: new Map(data.users.map((user) => [user.id, user.displayName])),
+    byId: new Map(data.people.map((person) => [person.id, { name: person.displayName, mode: person.avatarMode }])),
     me: {
       id: data.currentUser.id,
-      name: data.users.find((user) => user.id === data.currentUser.id)?.displayName ?? data.currentUser.email,
+      name: data.currentUser.displayName ?? data.currentUser.email,
+      mode: data.currentUser.avatarMode ?? "bloop",
     },
   };
   const pendingApprovals = data.approvals.filter(
@@ -546,9 +543,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     });
   }
 
-  function updateAvatarStyle(style: AvatarStyle) {
-    localStorage.setItem(AVATAR_STYLE_KEY, style);
-    setAvatarStyle(style);
+  async function updateMyAvatar(mode: NonNullable<Agent["avatarMode"]>) {
+    try {
+      await gateway.setMyAvatarMode(mode);
+      setData(await gateway.bootstrap());
+    } catch (error) { notify(String(error), "error"); }
   }
 
   function updateTheme(nextTheme: Theme) {
@@ -601,7 +600,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   }
 
   return (
-    <AvatarStyleContext.Provider value={avatarStyle}>
+    <>
       <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""}`}>
         {registry.multiServer && registry.servers.length > 0 && (
           <ServerRail
@@ -1133,8 +1132,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             agents={data.agents}
             currentUser={data.currentUser}
             users={data.users}
-            avatarStyle={avatarStyle}
-            onAvatarStyleChange={updateAvatarStyle}
+            people={data.people}
+            onAvatarModeChange={updateMyAvatar}
             theme={theme}
             onThemeChange={updateTheme}
             onNotify={notify}
@@ -1206,6 +1205,6 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           </div>
         )}
       </div>
-    </AvatarStyleContext.Provider>
+    </>
   );
 }
