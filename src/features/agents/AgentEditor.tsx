@@ -5,7 +5,8 @@ import { ModelPicker } from "./ModelPicker";
 import { useDialog } from "../../lib/layers";
 import type { Agent, Provider } from "../../types";
 import type { CreateAgentInput } from "../../app-types";
-import { Avatar } from "../appearance/Avatar";
+import { Avatar, AvatarModePicker } from "../appearance/Avatar";
+import type { AvatarMode } from "@crewly/protocol";
 
 export function AgentEditor({
   providers,
@@ -47,6 +48,7 @@ export function AgentEditor({
   const [memoryEnabled, setMemoryEnabled] = useState(
     agent?.memoryEnabled !== false,
   );
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>(agent?.avatarMode ?? "bloop");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
@@ -60,6 +62,7 @@ export function AgentEditor({
   const previewAgent: Agent = {
     id: agent?.id ?? "agent-preview",
     name: name.trim() || "New agent",
+    avatarMode,
     initials: (name.trim().charAt(0) || "N").toUpperCase(),
     role: role.trim() || "Add a clear role",
     color: agent?.color ?? "#7857d8",
@@ -98,6 +101,7 @@ export function AgentEditor({
         providerId,
         runtime,
         memoryEnabled,
+        avatarMode,
         workspace: runtime === "Chat" ? undefined : workspace || undefined,
         instructions: instructions.trim() || undefined,
       });
@@ -190,6 +194,13 @@ export function AgentEditor({
             />
             <small className="field-description">A short title people will recognize in conversations.</small>
           </label>
+          <AvatarModePicker
+            name="agent-avatar"
+            legend="Avatar"
+            value={avatarMode}
+            onChange={setAvatarMode}
+            preview={(mode) => <Avatar agent={previewAgent} mode={mode} />}
+          />
           <div className="form-section-label">How this agent works</div>
           <div className="simple-options">
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>

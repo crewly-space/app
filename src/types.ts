@@ -1,7 +1,11 @@
+import type { AvatarMode } from "@crewly/protocol";
+
 export type Status = "online" | "thinking" | "offline" | "unknown";
 export type Agent = {
   id: string;
   name: string;
+  /** How the agent is drawn, chosen by its owner; the same for everyone. */
+  avatarMode?: AvatarMode;
   initials: string;
   role: string;
   color: string;

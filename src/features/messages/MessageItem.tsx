@@ -1,3 +1,4 @@
+import type { AvatarMode } from "@crewly/protocol";
 import { Activity, Check, Folder, Reply, ShieldCheck, X } from "lucide-react";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
@@ -16,7 +17,10 @@ export function MessageItem({
   message: Message;
   agents: Agent[];
   /** Who wrote user messages, by user id, for their avatar. */
-  people: { byId: Map<string, string>; me: { id: string; name: string } };
+  people: {
+    byId: Map<string, { name: string; mode: AvatarMode }>;
+    me: { id: string; name: string; mode: AvatarMode };
+  };
   allMessages: Message[];
   onReply: () => void;
   onAgentClick: (agentId: string) => void;
@@ -29,7 +33,8 @@ export function MessageItem({
       {message.author === "you" ? (
         <UserAvatar
           id={message.userId ?? people.me.id}
-          name={(message.userId && people.byId.get(message.userId)) || people.me.name}
+          name={(message.userId && people.byId.get(message.userId)?.name) || people.me.name}
+          mode={(message.userId && people.byId.get(message.userId)?.mode) || people.me.mode}
         />
       ) : (
         <button

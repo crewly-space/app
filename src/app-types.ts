@@ -1,4 +1,5 @@
-import type { AuthUser, DeviceInfo, UserAccount } from "@crewly/sdk";
+import type { AuthUser, DeviceInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
+import type { AvatarMode } from "@crewly/protocol";
 import type { Agent, Approval, Conversation, Message, Provider } from "./types";
 
 export type Bootstrap = {
@@ -10,13 +11,13 @@ export type Bootstrap = {
   devices: DeviceInfo[];
   currentUser: AuthUser;
   users: UserAccount[];
+  /** Everyone's name and avatar; empty from a server older than the directory. */
+  people: DirectoryUser[];
 };
 
 export type Panel = "details" | "settings" | null;
 
 export type Toast = { message: string; tone: "info" | "error" };
-
-export type AvatarStyle = "bloop" | "crew" | "blobatar" | "initials";
 
 export type View = "messages" | "inbox" | "activity";
 
@@ -25,6 +26,7 @@ export type CreateAgentInput = Pick<Agent, "name" | "role" | "model" | "runtime"
   memoryEnabled: boolean;
   workspace?: string;
   instructions?: string;
+  avatarMode?: AvatarMode;
 };
 
 export type Theme = "system" | "light" | "dark";

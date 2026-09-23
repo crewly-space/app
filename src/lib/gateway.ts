@@ -6,7 +6,7 @@ import { deviceProviderAvailability, explain, type DeviceProviderKind } from '..
 
 function agentView(agent: ApiAgent, memory: string[] = []): Agent {
   const [role = '', ...instructions] = agent.personality.split('\n');
-  return { id: agent.id, name: agent.name, initials: agent.name[0]?.toUpperCase() ?? '?',
+  return { id: agent.id, name: agent.name, avatarMode: agent.avatarMode ?? 'bloop', initials: agent.name[0]?.toUpperCase() ?? '?',
     role: role || 'Agent', instructions: instructions.join('\n'), color: '#7857d8', status: 'unknown',
     model: agent.modelPolicy.defaultModel, providerId: agent.modelPolicy.defaultProviderId,
     runtime: 'Chat', memoryEnabled: true, memory };
@@ -28,11 +28,14 @@ export const gateway = {
   async bootstrap() {
     const currentUser = await client.auth.me();
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
-    const [apiAgents, apiConversations, apiProviders, users, devices] = await Promise.all([
+    const [apiAgents, apiConversations, apiProviders, users, devices, people] = await Promise.all([
       client.agents.list(), client.conversations.list(),
       canManage ? client.providers.list() : client.providers.listAvailable(),
       canManage ? client.users.list() : Promise.resolve([]),
       client.devices.list(),
+      // Everyone's name and avatar, for drawing who wrote what. A server from
+      // before the directory gives nothing, and people fall back to defaults.
+      client.users.directory().then((result) => result.users).catch(() => []),
     ]);
     const agents = await Promise.all(apiAgents.map(async (a) =>
       agentView(a, (await client.memory.listFacts(a.id)).map((f) => f.content))));
@@ -69,10 +72,10 @@ export const gateway = {
       };
     });
     return { agents: withStatuses, conversations, messages, providers,
-      approvals: [], currentUser, users, devices };
+      approvals: [], currentUser, users, devices, people };
   },
-  async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string }): Promise<Agent> {
-    const api = await client.agents.create({ name: input.name,
+  async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
+    const api = await client.agents.create({ name: input.name, avatarMode: input.avatarMode,
       personality: [input.role, input.instructions ?? ''].join('\n'),
       modelPolicy: { defaultProviderId: input.providerId, defaultModel: input.model } });
     return agentView(api);
@@ -82,7 +85,7 @@ export const gateway = {
     const existing = list.find((a) => a.id === id);
     if (!existing) throw new Error('Agent not found');
     const current = agentView(existing);
-    const updated = await client.agents.update(id, { name: input.name ?? current.name,
+    const updated = await client.agents.update(id, { name: input.name ?? current.name, avatarMode: input.avatarMode,
       personality: [input.role ?? current.role, input.instructions ?? current.instructions ?? ''].join('\n'),
       modelPolicy: { defaultProviderId: input.providerId ?? current.providerId!, defaultModel: input.model ?? current.model } });
     if (input.memory) {
@@ -93,6 +96,10 @@ export const gateway = {
       for (const item of desired) if (!existing.has(item)) await client.memory.createFact(id, { content: item, source: 'manual' });
     }
     return agentView(updated, input.memory ?? current.memory);
+  },
+  /** Changes the signed-in person's own avatar, for everyone on this server. */
+  async setMyAvatarMode(avatarMode: NonNullable<Agent['avatarMode']>): Promise<void> {
+    await client.users.updateMe({ avatarMode });
   },
   async createDm(agentId: string, agents: Agent[]): Promise<Conversation> {
     const dm = await client.conversations.createDm({ participantId: agentId, participantType: 'agent' });

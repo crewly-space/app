@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Blobatar } from "@blobatar/react";
 import { bloopSvg } from "@crewly/ui/bloop";
-import type { AuthUser, DeviceInfo, DevicePairingInfo, UserAccount } from "@crewly/sdk";
+import type { AuthUser, DeviceInfo, DevicePairingInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
 import { Check, Cpu, Laptop, LockKeyhole, Monitor, Moon, Palette, Plus, Settings, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { ProviderConnect } from "../providers/ProviderConnect";
@@ -9,8 +9,9 @@ import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
 import { AddUserDialog } from "./AddUserDialog";
 import type { Agent, Provider } from "../../types";
-import type { AvatarStyle, Theme } from "../../app-types";
-import { Avatar, UserAvatar } from "../appearance/Avatar";
+import type { Theme } from "../../app-types";
+import type { AvatarMode } from "@crewly/protocol";
+import { AvatarModePicker, UserAvatar } from "../appearance/Avatar";
 
 export function SettingsPanel({
   providers,
@@ -18,8 +19,8 @@ export function SettingsPanel({
   agents,
   currentUser,
   users,
-  avatarStyle,
-  onAvatarStyleChange,
+  people,
+  onAvatarModeChange,
   theme,
   onThemeChange,
   onNotify,
@@ -33,8 +34,8 @@ export function SettingsPanel({
   agents: Agent[];
   currentUser: AuthUser;
   users: UserAccount[];
-  avatarStyle: AvatarStyle;
-  onAvatarStyleChange: (style: AvatarStyle) => void;
+  people: DirectoryUser[];
+  onAvatarModeChange: (mode: AvatarMode) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onNotify: (message: string) => void;
@@ -141,7 +142,8 @@ export function SettingsPanel({
             </div>
             {users.map((user) => (
               <div className="setting-row" key={user.id}>
-                <UserAvatar id={user.id} name={user.displayName} size="small" />
+                <UserAvatar id={user.id} name={user.displayName} size="small"
+                  mode={user.avatarMode ?? people.find((person) => person.id === user.id)?.avatarMode} />
                 <div>
                   <strong>{user.displayName}</strong>
                   <span>{user.email}</span>
@@ -240,101 +242,19 @@ export function SettingsPanel({
             </fieldset>
             <div className="preference-divider" />
             <div className="preference-heading">
-              <strong>Avatars</strong>
-              <span>Choose how your crew and the people on this server appear.</span>
+              <strong>Your avatar</strong>
+              <span>How you appear to everyone on this server. Each agent's avatar is chosen in its settings.</span>
             </div>
-            <fieldset className="avatar-options">
-              <legend>Avatar style</legend>
-              <label className={avatarStyle === "bloop" ? "selected" : ""}>
-                <input
-                  type="radio"
-                  name="avatar-style"
-                  value="bloop"
-                  checked={avatarStyle === "bloop"}
-                  onChange={() => onAvatarStyleChange("bloop")}
-                />
-                <span className="avatar-option-preview">
-                  {agents.slice(0, 2).map((agent) => (
-                    <Avatar key={agent.id} agent={agent} style="bloop" />
-                  ))}
-                  <span className="avatar avatar-normal avatar-bloop user-avatar" aria-hidden="true"
-                    dangerouslySetInnerHTML={{ __html: bloopSvg(currentUser.id, "user") }} />
-                </span>
-                <span>
-                  <strong>Bloop</strong>
-                  <small>
-                    One soft face each, for people and agents alike. Agents
-                    wear the antenna.
-                  </small>
-                </span>
-                <i>{avatarStyle === "bloop" && <Check size={13} />}</i>
-              </label>
-              <label className={avatarStyle === "crew" ? "selected" : ""}>
-                <input
-                  type="radio"
-                  name="avatar-style"
-                  value="crew"
-                  checked={avatarStyle === "crew"}
-                  onChange={() => onAvatarStyleChange("crew")}
-                />
-                <span className="avatar-option-preview">
-                  {agents.slice(0, 3).map((agent) => (
-                    <Avatar key={agent.id} agent={agent} style="crew" />
-                  ))}
-                </span>
-                <span>
-                  <strong>Crew</strong>
-                  <small>
-                    Black characters with a red outline, one face per agent
-                    name.
-                  </small>
-                </span>
-                <i>{avatarStyle === "crew" && <Check size={13} />}</i>
-              </label>
-              <label className={avatarStyle === "blobatar" ? "selected" : ""}>
-                <input
-                  type="radio"
-                  name="avatar-style"
-                  value="blobatar"
-                  checked={avatarStyle === "blobatar"}
-                  onChange={() => onAvatarStyleChange("blobatar")}
-                />
-                <span className="avatar-option-preview">
-                  {agents.slice(0, 3).map((agent) => (
-                    <Avatar key={agent.id} agent={agent} style="blobatar" />
-                  ))}
-                </span>
-                <span>
-                  <strong>Blobatar</strong>
-                  <small>
-                    Unique geometric faces generated from each agent's name.
-                  </small>
-                </span>
-                <i>{avatarStyle === "blobatar" && <Check size={13} />}</i>
-              </label>
-              <label className={avatarStyle === "initials" ? "selected" : ""}>
-                <input
-                  type="radio"
-                  name="avatar-style"
-                  value="initials"
-                  checked={avatarStyle === "initials"}
-                  onChange={() => onAvatarStyleChange("initials")}
-                />
-                <span className="avatar-option-preview">
-                  {agents.slice(0, 3).map((agent) => (
-                    <Avatar key={agent.id} agent={agent} style="initials" />
-                  ))}
-                </span>
-                <span>
-                  <strong>Initials</strong>
-                  <small>The classic colored initials used previously.</small>
-                </span>
-                <i>{avatarStyle === "initials" && <Check size={13} />}</i>
-              </label>
-            </fieldset>
+            <AvatarModePicker
+              name="my-avatar"
+              legend="Your avatar"
+              value={currentUser.avatarMode ?? "bloop"}
+              onChange={onAvatarModeChange}
+              preview={(mode) => <UserAvatar id={currentUser.id} name={currentUser.displayName ?? currentUser.email} mode={mode} />}
+            />
             <p className="avatar-privacy-note">
-              Avatars are generated on this device and stay the same for each
-              agent name and each person.
+              Avatars are generated on each device from a name or id. Only
+              the style you choose is stored.
             </p>
           </>
         )}
