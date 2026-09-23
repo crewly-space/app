@@ -75,6 +75,30 @@ export function codexRuntimeOn(devices: DeviceInfo[]): string | null {
   return device?.name ?? null;
 }
 
+/**
+ * Whether connecting from the app can make this work now. A device that is
+ * signed in but has not enabled the provider counts: connecting asks it to.
+ */
+export function connectable(availability: Availability): boolean {
+  return availability.state === 'ready' || availability.state === 'not_enabled';
+}
+
+/** What a device said when asked to switch a provider on, in words. */
+export function explainRefusal(kind: DeviceProviderKind, deviceName: string, code: string | undefined): string {
+  switch (code) {
+    case 'provider_sign_in_expired':
+      return `Claude Code on ${deviceName} isn't signed in. Run claude login there, then connect again.`;
+    case 'runtime_missing':
+      return `Claude Code isn't installed on ${deviceName}. Install it, then connect again.`;
+    case 'device_unavailable':
+      return `${deviceName} didn't answer. Check crewly is running on it, then connect again.`;
+    default:
+      return kind === 'ollama'
+        ? `${deviceName} couldn't reach Ollama. Start Ollama there, then connect again.`
+        : `${deviceName} couldn't switch Claude on. Try again in a moment.`;
+  }
+}
+
 /** What to tell someone about an availability, and what they can do next. */
 export function explain(kind: DeviceProviderKind, availability: Availability): string {
   const product = kind === 'claude-subscription' ? 'your Claude subscription' : 'Ollama';
@@ -91,7 +115,7 @@ export function explain(kind: DeviceProviderKind, availability: Availability): s
       return `Claude Code on ${availability.deviceName} isn't signed in. Run claude login there.`;
     case 'not_enabled':
       return kind === 'ollama'
-        ? `${availability.deviceName} doesn't offer Ollama yet. Run crewly on it and enable Ollama.`
-        : `${availability.deviceName} is signed in to Claude but hasn't enabled it for Crewly. Run crewly on it and choose Claude Subscription.`;
+        ? `Connecting asks ${availability.deviceName} to use its Ollama.`
+        : `Signed in on ${availability.deviceName}. Connecting switches it on there; no key leaves the device.`;
   }
 }

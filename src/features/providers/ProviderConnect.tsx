@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { DeviceInfo } from '@crewly/sdk';
+import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
-import { codexRuntimeOn, deviceProviderAvailability, explain, type DeviceProviderKind } from './availability';
+import { codexRuntimeOn, connectable, deviceProviderAvailability, explain, explainRefusal, type DeviceProviderKind } from './availability';
 
 // Mirrors the kinds the server accepts. deepseek was missing here even though
 // the server and the docs both list it.
@@ -95,12 +95,28 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
   }, [onConnected]);
 
   // A device-backed provider carries no secret: the server is told which kind
-  // to route through the paired device, and the device does the signing in.
+  // to route through the paired device, and asks your devices to switch it on
+  // -- each checks for itself that it is signed in. Connecting again, for a
+  // provider that already exists, just asks the devices again.
   const connectThroughDevice = async (deviceKind: DeviceProviderKind): Promise<void> => {
     setError(''); setConnectingDevice(deviceKind);
     try {
-      await client.providers.create({ id: deviceKind, kind: deviceKind });
-      onConnected();
+      const wasReady = devices ? deviceProviderAvailability(devices, deviceKind).state === 'ready' : false;
+      let outcomes;
+      try {
+        outcomes = (await client.providers.create({ id: deviceKind, kind: deviceKind })).devices ?? [];
+      } catch (reason) {
+        if (!(reason instanceof CrewlyApiError && reason.code === 'provider_exists')) throw reason;
+        outcomes = (await client.providers.enableOnDevices(deviceKind)).devices;
+      }
+      if (wasReady || outcomes.some((outcome) => outcome.enabled)) {
+        onConnected();
+        return;
+      }
+      const refused = outcomes[0];
+      setError(refused
+        ? explainRefusal(deviceKind, refused.deviceName, refused.error)
+        : 'None of your paired devices is online. Start crewly on one, then connect again.');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not connect through the device');
     } finally {
@@ -110,7 +126,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
 
   const deviceOption = (deviceKind: DeviceProviderKind, title: string, subtitle: string) => {
     const availability = devices ? deviceProviderAvailability(devices, deviceKind) : null;
-    const ready = availability?.state === 'ready';
+    const ready = availability ? connectable(availability) : false;
     return <div className={`provider-option${ready ? '' : ' unavailable'}`} key={deviceKind}>
       <div>
         <strong>{title}</strong> <span>{subtitle}</span>
