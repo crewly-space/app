@@ -6,6 +6,7 @@ import { useWork } from './useWork';
 /** What each capability lets this server do, in words. */
 const SERVICES: Array<{ scope: string; label: string }> = [
   { scope: 'mail:send', label: 'Send email through Crewly Mail' },
+  { scope: 'mail:receive', label: 'Receive email replies through Crewly Mail' },
   { scope: 'inference', label: 'Run Crewly AI models' },
   { scope: 'models:read', label: 'List Crewly models' },
   { scope: 'identity', label: 'Sign in with Crewly' },

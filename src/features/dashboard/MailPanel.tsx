@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { MailDelivery, MailOverview, MailProvider, MailSettingsInput } from '@crewly/sdk';
+import type { InboundMail, MailDelivery, MailOverview, MailProvider, MailSettingsInput } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { SendingDomains } from './SendingDomains';
 import { useWork } from './useWork';
@@ -17,6 +17,18 @@ const STATUS_LABELS: Record<MailDelivery['status'], string> = {
   sent: 'Sent',
   retrying: 'Retrying',
   failed: 'Failed',
+};
+
+/** Why an email was not posted, in words. */
+const INBOUND_REASONS: Record<string, string> = {
+  sender_mismatch: 'sent from a different address than the one it was addressed to',
+  sender_not_authenticated: 'the sender failed SPF/DKIM checks',
+  unknown_reply_address: 'the reply address is not known',
+  not_a_participant: 'the person is no longer in the conversation',
+  unknown_user: 'the person no longer has an account',
+  empty_reply: 'the reply had no new text',
+  unknown_route: 'the address no longer routes anywhere',
+  route_target_gone: 'the conversation it routes to is gone',
 };
 
 interface Draft {
@@ -52,6 +64,7 @@ export function MailPanel({ api }: { api: ServicesApi }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deliveries, setDeliveries] = useState<MailDelivery[]>([]);
   const [testTo, setTestTo] = useState('');
+  const [inbound, setInbound] = useState<InboundMail[]>([]);
 
   useEffect(() => {
     void run(async () => {
@@ -59,6 +72,8 @@ export function MailPanel({ api }: { api: ServicesApi }) {
       setOverview(loaded);
       setDraft(draftFrom(loaded));
       setDeliveries(log);
+      // Only a server that receives mail has any; the rest see nothing here.
+      setInbound(await api.inboundMail().catch(() => []));
     });
   }, [api, run]);
 
@@ -150,6 +165,24 @@ export function MailPanel({ api }: { api: ServicesApi }) {
       )}
 
       {overview.settings.provider === 'crewly' && overview.crewlyMailAvailable && <SendingDomains api={api} />}
+
+      {inbound.length > 0 && (
+        <>
+          <h2>Incoming</h2>
+          <table className="dashboard-table">
+            <thead><tr><th>From</th><th>To</th><th>What happened</th></tr></thead>
+            <tbody>
+              {inbound.map((mail) => (
+                <tr key={mail.id}>
+                  <td><strong>{mail.sender}</strong><small>{new Date(mail.receivedAt).toLocaleString()}</small></td>
+                  <td>{mail.kind === 'reply' ? 'Reply' : mail.recipient}</td>
+                  <td>{mail.status === 'delivered' ? 'Posted' : `Not posted: ${INBOUND_REASONS[mail.reason ?? ''] ?? mail.reason}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <h2>Deliveries</h2>
       {deliveries.length === 0 ? (

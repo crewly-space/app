@@ -60,6 +60,7 @@ function services(overrides: Partial<ServicesApi> = {}): ServicesApi {
     checkMailDomain: vi.fn(async () => ({ ...pendingDomain, status: 'verified' as const, failureReason: null })),
     setMailDomainSenders: vi.fn(async (_id, senders) => ({ ...pendingDomain, senders })),
     removeMailDomain: vi.fn(async () => {}),
+    inboundMail: async () => [],
     ...overrides,
   };
 }
@@ -149,5 +150,16 @@ describe('Mail panel', () => {
     fireEvent.change(screen.getByLabelText('Senders on acme.com'), { target: { value: 'crew, support' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save senders' }));
     await waitFor(() => expect(api.setMailDomainSenders).toHaveBeenCalledWith('dom-1', [{ localPart: 'crew' }, { localPart: 'support' }]));
+  });
+
+  it('shows incoming email and why any was not posted', async () => {
+    const api = services({
+      inboundMail: async () => [{
+        id: 'in-1', kind: 'reply', sender: 'mallory@evil.test', recipient: 'reply+k.t@inbound.crewly.test', status: 'rejected',
+        reason: 'sender_mismatch', conversationId: null, messageId: null, receivedAt: '2026-09-23T15:00:00.000Z', processedAt: '2026-09-23T15:00:01.000Z',
+      }],
+    });
+    render(<MailPanel api={api} />);
+    expect(await screen.findByText('Not posted: sent from a different address than the one it was addressed to')).toBeTruthy();
   });
 });
