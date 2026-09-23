@@ -58,7 +58,7 @@ import { serverApi } from "./features/dashboard/api";
 import { useServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ModelPicker } from "./features/agents/ModelPicker";
-import { ProviderConnect } from "./features/providers/ProviderConnect";
+import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
 import { ProviderCredentials } from "./features/providers/ProviderCredentials";
 import type {
   Agent,
@@ -102,7 +102,6 @@ const AVATAR_STYLE_KEY = "crewly:avatar-style";
 const THEME_KEY = "crewly:theme";
 // Set when someone chooses to look around before connecting a provider, so a
 // reload does not drop them back onto the setup screen they just dismissed.
-const PROVIDER_SKIPPED_KEY = "crewly:provider-setup-skipped";
 const AVATAR_STYLES: readonly AvatarStyle[] = ["crew", "blobatar", "initials"];
 const AvatarStyleContext = createContext<AvatarStyle>("crew");
 
@@ -232,10 +231,16 @@ export default function App() {
     const saved = localStorage.getItem(THEME_KEY);
     return saved === "light" || saved === "dark" ? saved : "system";
   });
-  const [providerSkipped, setProviderSkipped] = useState(() => {
-    // Storage can throw outright in a private window or with site data blocked.
-    try { return localStorage.getItem(PROVIDER_SKIPPED_KEY) === "true"; } catch { return false; }
-  });
+  // A provider sign-in navigates away and comes back with a code; only a
+  // mounted ProviderConnect redeems it, so reopen one for the return trip.
+  const [finishingProviderOAuth, setFinishingProviderOAuth] = useState(hasPendingProviderOAuth);
+  // Stable, because ProviderConnect's redeeming effect depends on it and a
+  // re-render mid-redemption would otherwise drop the result.
+  const providerOAuthDone = useCallback(() => {
+    setFinishingProviderOAuth(false);
+    void gateway.bootstrap().then(setData);
+    notify("Provider saved.");
+  }, [notify]);
   const [firstDmFailed, setFirstDmFailed] = useState(false);
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
@@ -346,16 +351,11 @@ export default function App() {
     setData(await gateway.bootstrap());
     notify("Device paired. It can now connect securely.");
   }} />;
-  // Connecting a provider is required before an agent can reply, but it is not
-  // required to look around — holding the whole app behind an API key turns a
-  // first run into a dead end for anyone who does not have one to hand.
-  if (!data.providers.length && !providerSkipped) return <ProviderConnect
-    onConnected={() => void gateway.bootstrap().then(setData)}
-    onSkip={() => {
-      try { localStorage.setItem(PROVIDER_SKIPPED_KEY, "true"); } catch { /* remembered for this tab only */ }
-      setProviderSkipped(true);
-    }}
-  />;
+  if (finishingProviderOAuth) return <ProviderConnect onConnected={providerOAuthDone}
+    onClose={() => setFinishingProviderOAuth(false)} />;
+  // No provider is not a reason to hold the app: the server switcher, settings
+  // and every other action have to stay reachable, and providers are managed
+  // from Settings or the dashboard. The sidebar nudge keeps the gap visible.
   if (!data.conversations.length && panel !== "settings") {
     // A DM is on its way from the effect above; showing "create your first
     // agent" to someone who already has one would be a lie that flashes past.
@@ -812,7 +812,7 @@ export default function App() {
               ))}
           </SidebarSection>
           <div className="sidebar-footer">
-            {/* Skipping provider setup is allowed, so the consequence has to stay
+            {/* Provider setup never blocks the app, so the consequence has to stay
                 visible: without one, every agent reply fails at send time. */}
             {!data.providers.length && (
               <div className="provider-nudge" role="status">
