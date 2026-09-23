@@ -44,7 +44,17 @@ function remembered(): string | null {
   }
 }
 
-export function useServerRegistry(account = cloudUrl ? new CloudAccount(cloudUrl) : null): ServerRegistry {
+/*
+ * One client for the life of the page.
+ *
+ * It used to be built as a default argument, so every render made a new one.
+ * That changed `refresh`, whose effect fetched again, whose result rendered
+ * again: the app asked Cloud for the account about twenty times a second for
+ * as long as it was open, and reconnected to the server on every lap.
+ */
+const defaultAccount = cloudUrl ? new CloudAccount(cloudUrl) : null;
+
+export function useServerRegistry(account = defaultAccount): ServerRegistry {
   const [profile, setProfile] = useState<CloudAccountProfile | null>(null);
   const [servers, setServers] = useState<RegistryServer[]>([]);
   const [selected, setSelected] = useState<RegistryServer | null>(null);
@@ -52,6 +62,12 @@ export function useServerRegistry(account = cloudUrl ? new CloudAccount(cloudUrl
   const [failures, setFailures] = useState<Record<string, string>>({});
   const [epoch, setEpoch] = useState(0);
   const connecting = useRef<string | null>(null);
+  // A refresh hands back a new object for the same server. Connecting again
+  // for that would reload the whole app, so only a different server, or the
+  // same one changing state (becoming ready), is a reason to reconnect.
+  const selectedKey = selected ? `${selected.id}:${selected.status}` : null;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
 
   const refresh = useCallback(async () => {
     if (!account) return;
@@ -72,6 +88,7 @@ export function useServerRegistry(account = cloudUrl ? new CloudAccount(cloudUrl
   // rail rather than thrown away, so a server that cannot be reached looks
   // different from one with nothing in it.
   useEffect(() => {
+    const selected = selectedRef.current;
     if (!account || !selected) return;
     if (connecting.current === selected.id) return;
     connecting.current = selected.id;
@@ -101,7 +118,7 @@ export function useServerRegistry(account = cloudUrl ? new CloudAccount(cloudUrl
       .finally(() => { connecting.current = null; });
 
     return () => { cancelled = true; };
-  }, [account, selected]);
+  }, [account, selectedKey]);
 
   useEffect(() => {
     if (!account || servers.length === 0) return;
