@@ -3164,3 +3164,44 @@ body {
 .dashboard-toggles li { padding: 3px 0; }
 .dashboard-blocked { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--radius-md); font-size: 13px; }
 .dashboard-tabs { flex-wrap: wrap; }
+
+/* Connecting a provider: three kinds of connection, each under its own
+   heading, so a subscription is never presented as if it were an API key. */
+.provider-class {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.provider-class > h2 {
+  margin: 0;
+  font-size: var(--oc-text-md);
+}
+.provider-class > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--oc-text-sm);
+}
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+}
+.provider-option > div {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.provider-option span,
+.provider-option small {
+  color: var(--text-muted);
+  font-size: var(--oc-text-sm);
+}
+.provider-option.unavailable strong {
+  color: var(--text-muted);
+}
