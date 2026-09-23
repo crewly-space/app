@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CrewlyConnection, MailDelivery, MailOverview } from '@crewly/sdk';
+import type { CrewlyConnection, MailDelivery, MailDomain, MailOverview } from '@crewly/sdk';
 import { CrewlyPanel } from '../src/features/dashboard/CrewlyPanel';
 import { MailPanel } from '../src/features/dashboard/MailPanel';
 import type { ServicesApi } from '../src/features/dashboard/services-api';
@@ -36,6 +36,12 @@ const failedDelivery: MailDelivery = {
   createdAt: '2026-09-23T15:00:00.000Z', sentAt: null,
 };
 
+const pendingDomain: MailDomain = {
+  id: 'dom-1', domain: 'acme.com', status: 'pending', failureReason: 'Not found yet: TXT resend._domainkey',
+  records: [{ type: 'TXT', name: 'resend._domainkey.acme.com', value: 'p=MIGf', purpose: 'DKIM' }],
+  senders: [{ localPart: 'crew', name: null }], lastCheckedAt: null, verifiedAt: null, createdAt: '2026-09-23T15:00:00.000Z',
+};
+
 function services(overrides: Partial<ServicesApi> = {}): ServicesApi {
   return {
     crewly: async () => disconnected,
@@ -49,6 +55,11 @@ function services(overrides: Partial<ServicesApi> = {}): ServicesApi {
     testMail: vi.fn(async (to) => ({ ...failedDelivery, id: 'd2', recipient: to, status: 'sent' as const, errorClass: null, lastError: null })),
     deliveries: async () => [],
     retryDelivery: vi.fn(async () => ({ ...failedDelivery, status: 'sent' as const, lastError: null })),
+    mailDomains: async () => [],
+    addMailDomain: vi.fn(async (domain) => ({ ...pendingDomain, domain })),
+    checkMailDomain: vi.fn(async () => ({ ...pendingDomain, status: 'verified' as const, failureReason: null })),
+    setMailDomainSenders: vi.fn(async (_id, senders) => ({ ...pendingDomain, senders })),
+    removeMailDomain: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -120,5 +131,23 @@ describe('Mail panel', () => {
     render(<MailPanel api={services()} />);
     fireEvent.change(await screen.findByLabelText('Provider'), { target: { value: 'crewly' } });
     expect(screen.getByText(/needs this server connected to Crewly/)).toBeTruthy();
+  });
+
+  it('adds a sending domain for Crewly Mail, shows its DNS records, and checks it', async () => {
+    const crewlyOverview: MailOverview = { ...overview, settings: { ...overview.settings, provider: 'crewly' }, crewlyMailAvailable: true };
+    const api = services({ mail: async () => crewlyOverview });
+    render(<MailPanel api={api} />);
+    fireEvent.change(await screen.findByLabelText('Domain'), { target: { value: 'acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add domain' }));
+    expect(await screen.findByText('resend._domainkey.acme.com')).toBeTruthy();
+    expect(screen.getByText('Not found yet: TXT resend._domainkey')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
+    expect(await screen.findByText(/Verified/)).toBeTruthy();
+    expect(screen.queryByText('resend._domainkey.acme.com')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Senders on acme.com'), { target: { value: 'crew, support' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save senders' }));
+    await waitFor(() => expect(api.setMailDomainSenders).toHaveBeenCalledWith('dom-1', [{ localPart: 'crew' }, { localPart: 'support' }]));
   });
 });

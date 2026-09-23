@@ -1,4 +1,4 @@
-import type { CrewlyConnection, MailDelivery, MailOverview, MailSettings, MailSettingsInput } from '@crewly/sdk';
+import type { CrewlyConnection, MailDelivery, MailDomain, MailOverview, MailSender, MailSettings, MailSettingsInput } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
 /**
@@ -18,6 +18,12 @@ export interface ServicesApi {
   testMail(to: string): Promise<MailDelivery>;
   deliveries(): Promise<MailDelivery[]>;
   retryDelivery(id: string): Promise<MailDelivery>;
+
+  mailDomains(): Promise<MailDomain[]>;
+  addMailDomain(domain: string): Promise<MailDomain>;
+  checkMailDomain(id: string): Promise<MailDomain>;
+  setMailDomainSenders(id: string, senders: MailSender[]): Promise<MailDomain>;
+  removeMailDomain(id: string): Promise<void>;
 }
 
 export const servicesApi: ServicesApi = {
@@ -33,4 +39,10 @@ export const servicesApi: ServicesApi = {
   testMail: async (to) => (await client.mail.test(to)).delivery,
   deliveries: async () => (await client.mail.deliveries({ limit: 50 })).deliveries,
   retryDelivery: async (id) => (await client.mail.retry(id)).delivery,
+
+  mailDomains: async () => (await client.mail.domains()).domains,
+  addMailDomain: async (domain) => (await client.mail.addDomain(domain)).domain,
+  checkMailDomain: async (id) => (await client.mail.checkDomain(id)).domain,
+  setMailDomainSenders: async (id, senders) => (await client.mail.setDomainSenders(id, senders)).domain,
+  removeMailDomain: (id) => client.mail.removeDomain(id),
 };

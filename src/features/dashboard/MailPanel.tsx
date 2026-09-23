@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MailDelivery, MailOverview, MailProvider, MailSettingsInput } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
+import { SendingDomains } from './SendingDomains';
 import { useWork } from './useWork';
 
 const PROVIDER_LABELS: Record<MailProvider, string> = {
@@ -147,6 +148,8 @@ export function MailPanel({ api }: { api: ServicesApi }) {
           <button type="submit" className="secondary-button" disabled={busy || !testTo}>Send test</button>
         </form>
       )}
+
+      {overview.settings.provider === 'crewly' && overview.crewlyMailAvailable && <SendingDomains api={api} />}
 
       <h2>Deliveries</h2>
       {deliveries.length === 0 ? (
