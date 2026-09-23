@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { AgentEditor } from '../src/App';
+import { AgentEditor } from '../src/features/agents/AgentEditor';
 import type { ModelInfo } from '../src/protocol';
 
 type Providers = Parameters<typeof AgentEditor>[0]['providers'];
