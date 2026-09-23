@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { statusLabel, statusTitle, withStatus } from "./lib/agent-status";
+import { NotificationsSection } from "./features/notifications/NotificationsSection";
 import { RunInspector } from "./features/runs/RunInspector";
 import { client } from "./lib/api/client";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
@@ -315,6 +316,18 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+  // A link from a notification email (?conversation=<id>) opens that
+  // conversation once it is known here, then leaves the address clean.
+  useEffect(() => {
+    if (!data) return;
+    const url = new URL(window.location.href);
+    const linked = url.searchParams.get("conversation");
+    if (!linked) return;
+    url.searchParams.delete("conversation");
+    window.history.replaceState({}, "", url);
+    if (data.conversations.some((item) => item.id === linked)) openConversation(linked);
+    // Only on arrival: later changes to the data must not reopen it.
+  }, [data !== null]);
   // Someone with agents but no conversation of their own — a member opening the
   // server for the first time, or an owner whose DMs were all cleared — used to
   // land on a page whose only content was a button. Open the DM for them.
@@ -2093,6 +2106,7 @@ function UtilityView({
           <h1>Everything that needs you</h1>
           <p>Approvals and unread conversations, gathered in one place.</p>
         </div>
+        <NotificationsSection onOpenConversation={onOpenConversation} />
         {approvals.length > 0 && (
           <div className="utility-section-title">
             <span>Needs attention</span>
