@@ -45,36 +45,27 @@ describe('the hosted app front door', () => {
     expect(connectToServer).not.toHaveBeenCalled();
   });
 
-  it('points an account with no servers at the dashboard', async () => {
+  it('lets a signed-in account in without reaching any server', async () => {
     gate(account({ servers: async () => [] }));
 
-    expect(await screen.findByRole('heading', { name: 'No servers yet' })).toBeTruthy();
+    expect(await screen.findByText('the chat')).toBeTruthy();
+    expect(connectToServer).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Start the server/)).toBeNull();
   });
 
-  it('opens the account\'s server once it is connected', async () => {
-    connectToServer.mockResolvedValue({ state: 'connected' });
+  it('takes the server the dashboard asked for as the remembered choice', async () => {
+    window.history.replaceState(null, '', '/?server=srv_2');
     gate(account());
 
     expect(await screen.findByText('the chat')).toBeTruthy();
-    expect(connectToServer.mock.calls[0]![0]).toBe(server);
-  });
-
-  it('opens the server the dashboard asked for', async () => {
-    const other = { ...server, id: 'srv_2', name: 'staging' };
-    connectToServer.mockResolvedValue({ state: 'connected' });
-    window.history.replaceState(null, '', '/?server=srv_2');
-    gate(account({ servers: async () => [server, other] }));
-
-    expect(await screen.findByText('the chat')).toBeTruthy();
-    expect(connectToServer.mock.calls[0]![0]).toBe(other);
+    expect(localStorage.getItem('crewly:last-server')).toBe('srv_2');
     expect(window.location.search).toBe('');
   });
 
-  it('says so when the server is still being built', async () => {
-    connectToServer.mockResolvedValue({ state: 'not_ready', status: 'provisioning' });
-    gate(account({ servers: async () => [{ ...server, status: 'provisioning' }] }));
+  it('says Crewly itself is down, not a server, when the account cannot be read', async () => {
+    gate(account({ me: async () => { throw new Error('Cloud returned HTTP 502'); } }));
 
-    expect(await screen.findByText(/This server is provisioning/)).toBeTruthy();
-    expect(screen.queryByText('the chat')).toBeNull();
+    expect(await screen.findByRole('heading', { name: "Can't reach Crewly" })).toBeTruthy();
+    expect(screen.queryByText(/Start the server/)).toBeNull();
   });
 });

@@ -53,4 +53,35 @@ describe('server registry', () => {
     expect(connectToServer).toHaveBeenCalledTimes(1);
     expect(result.current.epoch).toBe(1);
   });
+
+  it('reports no servers as a state of its own, not a failure', async () => {
+    servers.mockResolvedValueOnce([]);
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('no_servers'));
+  });
+
+  it('keeps an unreachable server to that server, and tries it again on request', async () => {
+    connectToServer.mockClear();
+    connectToServer.mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('unreachable'));
+    expect(result.current.account?.email).toBe('a@example.com');
+    expect(result.current.servers).toHaveLength(1);
+
+    act(() => result.current.reconnect());
+    await waitFor(() => expect(result.current.connection.state).toBe('connected'));
+    expect(connectToServer).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks for the server\'s own login when Cloud cannot hand off', async () => {
+    connectToServer.mockResolvedValueOnce({ state: 'needs_local_login' } as never);
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('needs_login'));
+  });
+
+  it('says Cloud is down when the server list cannot be read', async () => {
+    servers.mockRejectedValueOnce(new Error('502'));
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('cloud_unreachable'));
+  });
 });

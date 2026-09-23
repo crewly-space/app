@@ -56,8 +56,9 @@ import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { serverApi } from "./features/dashboard/api";
-import { useServerRegistry } from "./features/servers/useServerRegistry";
+import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
+import { ServerPending } from "./features/servers/ServerPending";
 import { ModelPicker } from "./features/agents/ModelPicker";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
 import { ProviderCredentials } from "./features/providers/ProviderCredentials";
@@ -187,8 +188,23 @@ const useDialog = (onClose: () => void) =>
 const isApple = /mac|iphone|ipad/i.test(navigator.userAgent);
 const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
 
+/**
+ * The app, for whichever server is open.
+ *
+ * Self-hosted, there is one server and it served the page, so it is always
+ * open. Hosted, the account is signed in before this renders but the selected
+ * server may not be open yet -- still being built, offline, wanting its own
+ * login -- and that is shown beside the rail rather than in place of the app.
+ * The workspace mounts only against a connected server: bootstrapping earlier
+ * would ask the page's own origin, which on app.crewly.space is Cloud.
+ */
 export default function App() {
   const registry = useServerRegistry();
+  if (registry.connection.state !== "connected") return <ServerPending registry={registry} />;
+  return <ServerWorkspace registry={registry} />;
+}
+
+function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   // Administering a server is its own screen rather than a panel beside a
   // conversation: suspending somebody is not a chat setting. It has its own
   // address, so it can be opened, linked and left with the back button.
