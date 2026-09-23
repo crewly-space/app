@@ -36,9 +36,11 @@ function writePendingState(state: string | null): void {
     else window.sessionStorage?.setItem(PENDING_KEY, state);
   } catch { /* the flow still works; the user just cannot resume after a reload */ }
 }
-export function ProviderConnect({ onConnected, onClose }: {
+export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }: {
   onConnected: () => void;
   onClose?: () => void;
+  /** First run offers to skip rather than cancel. */
+  closeLabel?: string;
 }) {
   const [kind, setKind] = useState<Kind>('openai');
   const [id, setId] = useState('openai');
@@ -140,6 +142,6 @@ export function ProviderConnect({ onConnected, onClose }: {
       : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {kindLabels[kind]} provider?</button>}
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : 'Save provider'}</button>
-    {onClose && <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>}
+    {onClose && <button type="button" className="secondary-button" onClick={onClose}>{closeLabel}</button>}
   </form></div></div>;
 }

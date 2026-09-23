@@ -81,11 +81,14 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('Password'), { target: { value: 'test-password-1' } });
   fireEvent.change(page.getByLabelText(/Claim token/), { target: { value: 'test-claim-token' } });
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
-  // No provider yet is not a gate: first run opens the app, and the provider is
-  // connected from Settings like any other.
-  await page.findByRole('dialog', { name: 'Create an agent' });
-  expect(page.queryByRole('heading', { name: 'Connect a model provider' })).toBeNull();
+  // First run offers the provider first, but it is not a gate: skipping lands
+  // on the empty server, and the provider is connected from Settings like any
+  // other.
+  await page.findByRole('heading', { name: 'Connect a model provider' });
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
+  fireEvent.click(page.getByRole('button', { name: 'Skip for now' }));
+  await page.findByRole('heading', { name: 'Your server is ready' });
+  expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
   fireEvent.click(page.getByRole('button', { name: 'Add' }));
@@ -101,11 +104,11 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
   await page.findByText('Provider saved.');
   fireEvent.click(page.getByRole('button', { name: 'Close settings' }));
-  // First run goes straight to the agent dialog; there is no interstitial page.
+  // With a provider connected, first run moves on to the agent step by itself.
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
+  fireEvent.change(await dialog.findByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
   const composer = await page.findByRole('combobox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });
