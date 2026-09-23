@@ -841,7 +841,7 @@ export default function App() {
                 }}
               >
                 <Gauge size={17} />
-                <span>Server dashboard</span>
+                <span>Server admin</span>
               </button>
             )}
             <button
