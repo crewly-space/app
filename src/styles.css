@@ -1145,6 +1145,10 @@ body {
 .first-run > header .brand-mark {
   margin-right: auto;
 }
+/* The empty server after a skipped step: centred in what the header leaves. */
+.first-run > .onboarding-body {
+  min-height: calc(100dvh - 58px);
+}
 .modal-layer-plain {
   background: transparent;
   backdrop-filter: none;
