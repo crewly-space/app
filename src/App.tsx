@@ -2275,6 +2275,13 @@ export function AgentEditor({
   // The select below lists only connected providers, so the default has to come from the same list.
   const connectedProviders = providers.filter((p) => p.status === 'connected');
   const [providerId, setProviderId] = useState(agent?.providerId ?? connectedProviders[0]?.id ?? "");
+  // A provider connected while this is open -- from Settings, or a device
+  // coming online -- becomes the choice, rather than leaving the editor
+  // stuck on "connect a provider first" until it is closed and reopened.
+  const firstConnected = connectedProviders[0]?.id;
+  useEffect(() => {
+    if (!providerId && firstConnected) setProviderId(firstConnected);
+  }, [providerId, firstConnected]);
   const [runtime, setRuntime] = useState(agent?.runtime ?? "Chat");
   const [workspace, setWorkspace] = useState(agent?.workspace ?? "");
   const [instructions, setInstructions] = useState(agent?.instructions ?? "");

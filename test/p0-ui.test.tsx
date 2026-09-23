@@ -105,7 +105,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
+  fireEvent.change(await dialog.findByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
   const composer = await page.findByRole('combobox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });

@@ -2,6 +2,7 @@ import type { Agent as ApiAgent, Conversation as ApiConversation, DevicePairingI
 import { client, clearToken } from './api/client';
 import type { Agent, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
+import { deviceProviderAvailability, explain, type DeviceProviderKind } from '../features/providers/availability';
 
 function agentView(agent: ApiAgent, memory: string[] = []): Agent {
   const [role = '', ...instructions] = agent.personality.split('\n');
@@ -39,13 +40,17 @@ export const gateway = {
     const messages = histories.flat().map(messageView);
     const providers: Provider[] = apiProviders.map((p) => {
       const local = p.kind === 'claude-subscription' || p.kind === 'ollama';
-      const localReady = local && devices.some((device) => device.connected
-        && Array.isArray(device.capabilities.providers)
-        && device.capabilities.providers.some((candidate) => candidate && typeof candidate === 'object'
-          && (candidate as { kind?: unknown }).kind === p.kind));
-      return { id: p.id, name: p.kind,
-        detail: local ? localReady ? 'Paired device connected' : 'No connected device' : p.hasApiKey ? 'API key configured' : 'No API key',
-        status: local ? localReady ? 'connected' : 'missing' : p.hasApiKey ? 'connected' : 'missing', local };
+      if (!local) {
+        return { id: p.id, name: p.kind, detail: p.hasApiKey ? 'API key configured' : 'No API key',
+          status: p.hasApiKey ? 'connected' : 'missing', local };
+      }
+      // A device-backed provider is as available as the device behind it. The
+      // agents on it keep their configuration either way; the reason says
+      // what to fix, rather than one "no device" for every way it can fail.
+      const availability = deviceProviderAvailability(devices, p.kind as DeviceProviderKind);
+      return { id: p.id, name: p.kind, local,
+        detail: availability.state === 'ready' ? `Through ${availability.deviceName}` : explain(p.kind as DeviceProviderKind, availability),
+        status: availability.state === 'ready' ? 'connected' : 'missing' };
     });
     // An agent is only as available as the provider behind it, and the server
     // now refuses a run without one. Reporting every agent as "unknown" told
