@@ -3157,6 +3157,7 @@ body {
    offered: hiding it would be worse than explaining it. */
 .server-tab:disabled { cursor: default; opacity: .55; }
 .server-tab-mark { display: grid; place-items: center; width: 100%; height: 100%; }
+.server-tab-icon { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
 .server-tab-kind {
   position: absolute;
   right: -3px;
@@ -3196,6 +3197,8 @@ body {
 .server-tab.add { border-style: dashed; }
 .server-tab-account { margin-top: auto; }
 .server-tab-account .avatar { width: 28px; height: 28px; }
+.server-brand-icon { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+.brand > small { margin-left: auto; color: var(--oc-muted); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
 .account-profile-modal { width: min(560px, 96vw); }
 .account-profile-modal > header { align-items: flex-start; gap: 16px; }
 .account-profile-modal > header > .icon-button { margin-left: auto; }
@@ -3233,6 +3236,33 @@ body {
   font-size: 11px;
 }
 .form-error { color: var(--oc-danger); }
+.branding-icon-editor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  margin: 8px 0 15px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--oc-panel-2);
+}
+.branding-icon-preview {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  overflow: hidden;
+  border-radius: 15px;
+  background: var(--accent);
+  color: var(--oc-text-strong);
+  font-size: 17px;
+  font-weight: 700;
+}
+.branding-icon-preview img { width: 100%; height: 100%; object-fit: cover; }
+.branding-icon-editor > div:last-child { display: grid; gap: 4px; }
+.branding-icon-editor small { color: var(--oc-muted); font-size: 10px; }
+.branding-icon-editor .form-actions { justify-content: flex-start; padding: 0; }
 @media (max-width: 900px) {
   .app-shell.has-rail, .app-shell.has-rail.panel-open { grid-template-columns: 62px minmax(0, 1fr); }
 }

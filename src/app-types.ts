@@ -1,4 +1,4 @@
-import type { AuthUser, DeviceInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
+import type { AuthUser, DeviceInfo, DirectoryUser, ServerBranding, UserAccount } from "@crewly/sdk";
 import type { AvatarMode, ChannelCategory } from "@crewly/protocol";
 import type { Agent, Approval, Conversation, Message, Provider } from "./types";
 import type { Connector } from "@crewly/sdk";
@@ -17,6 +17,7 @@ export type Bootstrap = {
   users: UserAccount[];
   /** Everyone's name and avatar; empty from a server older than the directory. */
   people: DirectoryUser[];
+  serverBranding: ServerBranding;
 };
 
 export type Panel = "details" | "settings" | null;

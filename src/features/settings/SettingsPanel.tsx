@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Blobatar } from "@blobatar/react";
 import { bloopSvg } from "@crewly/ui/bloop";
-import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
-import { Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
+import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, ServerBranding, UserAccount } from "@crewly/sdk";
+import { Building2, Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
@@ -22,6 +22,7 @@ export function SettingsPanel({
   currentUser,
   users,
   people,
+  serverBranding,
   onAvatarModeChange,
   theme,
   onThemeChange,
@@ -30,6 +31,7 @@ export function SettingsPanel({
   onConnectorsChanged,
   onUsersChanged,
   onDevicesChanged,
+  onServerBrandingChanged,
   onClose,
 }: {
   providers: Provider[];
@@ -39,6 +41,7 @@ export function SettingsPanel({
   currentUser: AuthUser;
   users: UserAccount[];
   people: DirectoryUser[];
+  serverBranding: ServerBranding;
   onAvatarModeChange: (mode: AvatarMode) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -47,10 +50,11 @@ export function SettingsPanel({
   onConnectorsChanged: () => Promise<void>;
   onUsersChanged: () => Promise<void>;
   onDevicesChanged: () => Promise<void>;
+  onServerBrandingChanged: (input: { displayName: string; tagline: string; iconDataUrl: string | null }) => Promise<void>;
   onClose: () => void;
 }) {
   const [section, setSection] = useState<
-    "providers" | "connectors" | "members" | "devices" | "appearance"
+    "providers" | "connectors" | "members" | "devices" | "server" | "appearance"
   >("providers");
   const [addingProvider, setAddingProvider] = useState(false);
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
@@ -60,6 +64,11 @@ export function SettingsPanel({
   const [pairingError, setPairingError] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
   const [connectorBusy, setConnectorBusy] = useState(false);
+  const [brandingName, setBrandingName] = useState(serverBranding.displayName);
+  const [brandingTagline, setBrandingTagline] = useState(serverBranding.tagline);
+  const [brandingIcon, setBrandingIcon] = useState<string | null>(serverBranding.iconDataUrl);
+  const [brandingBusy, setBrandingBusy] = useState(false);
+  const [brandingError, setBrandingError] = useState("");
   const canManageServer = currentUser.role === 'owner' || currentUser.role === 'admin';
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -82,6 +91,30 @@ export function SettingsPanel({
       setConnectorBusy(false);
       onNotify("GitHub OAuth is not configured on this server.");
     }
+  };
+  const saveBranding = async () => {
+    setBrandingBusy(true); setBrandingError("");
+    try {
+      await onServerBrandingChanged({ displayName: brandingName.trim(), tagline: brandingTagline.trim(), iconDataUrl: brandingIcon });
+      onNotify("Server identity saved.");
+    } catch (reason) {
+      setBrandingError(reason instanceof Error ? reason.message : "Server identity could not be saved.");
+    } finally { setBrandingBusy(false); }
+  };
+  const chooseBrandingIcon = (file: File | undefined) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/svg+xml'].includes(file.type)) {
+      setBrandingError("Use a PNG, JPEG or SVG icon.");
+      return;
+    }
+    if (file.size > 256 * 1024) {
+      setBrandingError("Icons must be 256 KB or smaller.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => { setBrandingIcon(typeof reader.result === 'string' ? reader.result : null); setBrandingError(""); };
+    reader.onerror = () => setBrandingError("That icon could not be read.");
+    reader.readAsDataURL(file);
   };
   return (
     <aside className="detail-panel settings-panel">
@@ -120,6 +153,12 @@ export function SettingsPanel({
         >
           <Laptop size={16} /> Devices
         </button>
+        {canManageServer && <button
+          className={section === "server" ? "active" : ""}
+          onClick={() => setSection("server")}
+        >
+          <Building2 size={16} /> Server
+        </button>}
         <button
           className={section === "appearance" ? "active" : ""}
           onClick={() => setSection("appearance")}
@@ -267,6 +306,43 @@ export function SettingsPanel({
                 <p>Run <code>crewly connect {window.location.origin}</code> on a computer, then enter its code above.</p>
               </div>
             )}
+          </>
+        ) : section === "server" ? (
+          <>
+            <div className="section-heading">
+              <div>
+                <h3>Server identity</h3>
+                <p>Give this server a name and optional icon. Members can see it; only admins can change it.</p>
+              </div>
+            </div>
+            <label>
+              <span>Display name</span>
+              <input maxLength={60} required value={brandingName} onChange={(event) => setBrandingName(event.target.value)} />
+            </label>
+            <label>
+              <span>Tagline <em>Optional</em></span>
+              <input maxLength={160} value={brandingTagline} onChange={(event) => setBrandingTagline(event.target.value)} placeholder="The team's shared workspace" />
+            </label>
+            <div className="branding-icon-editor">
+              <div className="branding-icon-preview">
+                {brandingIcon ? <img src={brandingIcon} alt="Current server icon" /> : <span>{(brandingName.trim().slice(0, 2) || "C").toUpperCase()}</span>}
+              </div>
+              <div>
+                <strong>Server icon</strong>
+                <small>PNG, JPEG or SVG, up to 256 KB.</small>
+                <div className="form-actions">
+                  <label className="text-button">
+                    Choose icon
+                    <input type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={(event) => chooseBrandingIcon(event.target.files?.[0])} />
+                  </label>
+                  {brandingIcon && <button type="button" className="text-button danger" onClick={() => setBrandingIcon(null)}>Remove</button>}
+                </div>
+              </div>
+            </div>
+            {brandingError && <p className="form-error" role="alert">{brandingError}</p>}
+            <button type="button" className="primary-button" disabled={brandingBusy || !brandingName.trim()} onClick={() => void saveBranding()}>
+              {brandingBusy ? "Saving…" : "Save server identity"}
+            </button>
           </>
         ) : (
           <>

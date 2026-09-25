@@ -318,7 +318,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   if (!data.conversations.length) return <div className="empty-settings-shell">
     <SettingsPanel
     providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
-    people={data.people} onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
+    people={data.people} serverBranding={data.serverBranding} onServerBrandingChanged={updateServerBranding}
+    onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
     onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)}
     onUsersChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)}
     onClose={() => setPanel(null)} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
@@ -633,6 +634,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     }
   }
 
+  async function updateServerBranding(input: { displayName: string; tagline: string; iconDataUrl: string | null }) {
+    const updated = await client.server.updateBranding(input);
+    setData((current) => current && ({ ...current, serverBranding: updated }));
+  }
+
   function updateTheme(nextTheme: Theme) {
     localStorage.setItem(THEME_KEY, nextTheme);
     setTheme(nextTheme);
@@ -694,6 +700,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
             account={registry.account}
             onProfile={() => setProfileOpen(true)}
+            selectedBranding={data.serverBranding}
             unread={registry.unread}
             failures={registry.failures}
           />
@@ -724,8 +731,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         )}
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
-            <BrandMark />
-            <span>Crewly</span>
+            {data.serverBranding.iconDataUrl
+              ? <img className="server-brand-icon" src={data.serverBranding.iconDataUrl} alt="" />
+              : <BrandMark />}
+            <span title={data.serverBranding.tagline || undefined}>{data.serverBranding.displayName}</span>
+            <small>Crewly</small>
             <button
               className="icon-button compact mobile-only"
               onClick={() => setMobileNav(false)}
@@ -886,7 +896,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 role: data.currentUser.role as "owner" | "admin" | "member",
                 createdAt: new Date().toISOString(),
               }}
-              serverName={registry.selected?.name ?? "This server"}
+              serverName={data.serverBranding.displayName}
               onClose={() => {
                 setDashboardOpen(false);
                 history.pushState(null, "", "/");
@@ -1279,6 +1289,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             currentUser={data.currentUser}
             users={data.users}
             people={data.people}
+            serverBranding={data.serverBranding}
+            onServerBrandingChanged={updateServerBranding}
             onAvatarModeChange={updateMyAvatar}
             theme={theme}
             onThemeChange={updateTheme}

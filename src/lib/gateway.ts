@@ -35,7 +35,7 @@ export const gateway = {
   async bootstrap() {
     const currentUser = await client.auth.me();
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
-    const [apiAgents, apiConversations, apiProviders, users, devices, people, apiConnectors] = await Promise.all([
+    const [apiAgents, apiConversations, apiProviders, users, devices, people, apiConnectors, serverBranding] = await Promise.all([
       client.agents.list(), client.conversations.list(),
       canManage ? client.providers.list() : client.providers.listAvailable(),
       canManage ? client.users.list() : Promise.resolve([]),
@@ -44,6 +44,7 @@ export const gateway = {
       // before the directory gives nothing, and people fall back to defaults.
       client.users.directory().then((result) => result.users).catch(() => []),
       canManage ? client.connectors.list().then((result) => result.connectors).catch(() => []) : Promise.resolve([]),
+      client.server.branding().catch(() => ({ displayName: 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null })),
     ]);
     const agents = await Promise.all(apiAgents.map(async (a) =>
       agentView(a, (await client.memory.listFacts(a.id)).map((f) => f.content))));
@@ -85,7 +86,7 @@ export const gateway = {
       };
     });
     return { agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
-      approvals: [], currentUser, users, devices, people, connectors: apiConnectors };
+      approvals: [], currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
     const api = await client.agents.create({ name: input.name, avatarMode: input.avatarMode,

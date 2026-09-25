@@ -68,6 +68,7 @@ export {
 } from './resources/devices.js';
 export {
   ServerResource,
+  type ServerBranding,
   type ServerStatus,
   type ServerLogEntry,
 } from './resources/server.js';

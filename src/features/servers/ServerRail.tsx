@@ -1,4 +1,5 @@
 import { Cloud, HardDrive, Plus, LayoutDashboard } from 'lucide-react';
+import type { ServerBranding } from '@crewly/sdk';
 import type { CloudAccountProfile, RegistryServer } from '../../lib/servers/types';
 import { UserAvatar } from '../appearance/Avatar';
 
@@ -39,6 +40,7 @@ export function ServerRail({
   dashboardUrl,
   account,
   onProfile,
+  selectedBranding,
 }: {
   servers: RegistryServer[];
   selectedId: string | null;
@@ -52,6 +54,7 @@ export function ServerRail({
   dashboardUrl?: string;
   account?: CloudAccountProfile | null;
   onProfile?: () => void;
+  selectedBranding?: ServerBranding;
 }) {
   return (
     <nav className="server-rail" role="tablist" aria-orientation="vertical" aria-label="Servers">
@@ -80,7 +83,13 @@ export function ServerRail({
             disabled={!ready}
             onClick={() => ready && onSelect(server)}
           >
-            <span className="server-tab-mark" aria-hidden="true">{initials(server.name)}</span>
+            <span className="server-tab-mark" aria-hidden="true">
+              {selected && selectedBranding?.iconDataUrl
+                ? <img className="server-tab-icon" src={selectedBranding.iconDataUrl} alt="" />
+                : selected && selectedBranding
+                  ? initials(selectedBranding.displayName)
+                  : initials(server.name)}
+            </span>
             <span className="server-tab-kind" aria-hidden="true">
               {server.kind === 'cloud' ? <Cloud size={11} /> : <HardDrive size={11} />}
             </span>
