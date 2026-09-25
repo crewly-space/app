@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ModelInfo } from "@crewly/protocol";
 import { Check, ChevronDown, Settings, Sparkles, X } from "lucide-react";
 import { ModelPicker } from "./ModelPicker";
+import { providerConnectionLabel } from "../providers/labels";
 import { useDialog } from "../../lib/layers";
 import type { Agent, Provider } from "../../types";
 import type { CreateAgentInput } from "../../app-types";
@@ -204,7 +205,7 @@ export function AgentEditor({
           <div className="form-section-label">How this agent works</div>
           <div className="simple-options">
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-              {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+              {connectedProviders.map((p) => <option key={p.id} value={p.id}>{providerConnectionLabel(p)}</option>)}
             </select></label>
             <ModelPicker providerId={providerId} value={model} onChange={setModel} loadModels={loadModels} />
           </div>

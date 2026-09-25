@@ -12,6 +12,7 @@ import type { Agent, Provider } from "../../types";
 import type { Theme } from "../../app-types";
 import type { AvatarMode } from "@crewly/protocol";
 import { AvatarModePicker, UserAvatar } from "../appearance/Avatar";
+import { providerConnectionLabel } from "../providers/labels";
 
 export function SettingsPanel({
   providers,
@@ -109,14 +110,14 @@ export function SettingsPanel({
               <div className="setting-row" key={provider.id}>
                 <ProviderLogo provider={provider.name} small />
                 <div>
-                  <strong>{provider.name}</strong>
+                  <strong>{providerConnectionLabel(provider)}</strong>
                   <span>{provider.detail}</span>
                 </div>
                 {!canManageServer ? <span className="connected-label"><Check size={13} /> Ready</span> : provider.status === "available" ? (
                   <button
                     className="use-button"
                     onClick={() =>
-                      onNotify(`${provider.name} is ready to use.`)
+                      onNotify(`${providerConnectionLabel(provider)} is ready to use.`)
                     }
                   >
                     Use

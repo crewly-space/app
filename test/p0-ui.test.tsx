@@ -108,7 +108,10 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(await dialog.findByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
+  // The mock provider has no /models, so the picker says so and typing an id
+  // is an explicit choice rather than the default.
+  fireEvent.click(await dialog.findByRole('button', { name: /Enter a model ID instead/ }));
+  fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
   const composer = await page.findByRole('combobox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });

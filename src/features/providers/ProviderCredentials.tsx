@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { client } from '../../lib/api/client';
 import type { Provider } from '../../types';
+import { providerConnectionLabel } from './labels';
 
 export function ProviderCredentials({
   provider,
@@ -34,7 +35,7 @@ export function ProviderCredentials({
       setError(reason instanceof Error ? reason.message : 'Could not update provider');
     } finally { setSaving(false); }
   }}>
-    <h1>Manage {provider.name}</h1>
+    <h1>Manage {providerConnectionLabel(provider)}</h1>
     <p>{local ? 'This provider runs on a paired device. No credential is stored on the server.' : <>Rotate the credential for <strong>{provider.id}</strong>. Existing keys are never shown.</>}</p>
     {!local && <label>New API key<input required type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label>}
     {!local && provider.name === 'openai-compatible' && <label>New base URL <small>(optional)</small><input type="url" autoComplete="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="Leave blank to keep the current URL" /></label>}
@@ -45,7 +46,7 @@ export function ProviderCredentials({
       <button type="button" className="danger-button" onClick={() => setConfirmDelete(true)}>Remove provider</button>
     ) : (
       <div className="danger-confirm" role="alert">
-        <strong>Remove {provider.name}?</strong>
+        <strong>Remove {providerConnectionLabel(provider)}?</strong>
         <p>{usedByAgents > 0
           ? `${usedByAgents} agent${usedByAgents === 1 ? '' : 's'} use this provider and will stop replying until reconfigured.`
           : 'Agents will no longer be able to use this provider.'}</p>
