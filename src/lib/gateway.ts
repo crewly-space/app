@@ -146,6 +146,9 @@ export const gateway = {
   async createUser(input: { displayName: string; email: string; password: string; role: 'member' | 'admin' }) {
     return client.users.create(input);
   },
+  async createInvite(input: { role: 'member' | 'admin'; email?: string }) {
+    return client.users.createInvite(input);
+  },
   async findDevicePairing(code: string): Promise<DevicePairingInfo> {
     return client.devices.pairingByCode(code.trim().toUpperCase());
   },

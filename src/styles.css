@@ -171,6 +171,25 @@ body {
   place-items: center;
   font-size: 9px;
 }
+.channel-empty-state {
+  display: grid;
+  gap: 6px;
+  padding: 5px 8px 2px;
+  color: var(--oc-muted-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.channel-empty-state button {
+  width: fit-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--oc-accent-text);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.channel-empty-state button:hover { color: var(--oc-accent-light); }
 .hash-avatar {
   width: 21px;
   height: 21px;
@@ -3205,6 +3224,7 @@ body {
 /* Choosing a model: a searchable list of what the provider actually offers,
    with the id and context window that people compare them by. */
 .model-picker { display: flex; flex-direction: column; gap: 6px; }
+.model-picker-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .model-picker-label { font-size: 12px; color: var(--oc-muted); }
 .model-picker-label em { font-style: normal; color: var(--oc-muted-2); }
 .model-list { list-style: none; margin: 0; padding: 4px; display: flex; flex-direction: column; gap: 2px;

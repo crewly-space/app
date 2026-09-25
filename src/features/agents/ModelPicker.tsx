@@ -27,6 +27,8 @@ export function ModelPicker({
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [search, setSearch] = useState('');
   const [custom, setCustom] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,19 +41,27 @@ export function ModelPicker({
     }
     let active = true;
     setState('loading');
+    setErrorMessage('');
     loadModels(providerId)
       .then((result) => {
         if (!active) return;
         setModels(result);
         setState('ready');
       })
-      .catch(() => {
+      .catch((reason) => {
         if (!active) return;
         setModels([]);
         setState('failed');
+        setErrorMessage(reason instanceof Error ? reason.message : 'The provider could not list its models.');
       });
     return () => { active = false; };
-  }, [providerId, loadModels]);
+  }, [providerId, loadModels, retry]);
+
+  useEffect(() => {
+    setSearch('');
+    setCustom(false);
+    setRetry(0);
+  }, [providerId]);
 
   const matches = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -67,8 +77,7 @@ export function ModelPicker({
   // model this provider no longer lists: editing its name must never quietly
   // move it onto a different model.
   const unknownModel = Boolean(value) && state === 'ready' && !models.some((model) => model.id === value);
-  const typing =
-    custom || unknownModel || state === 'failed' || (state === 'ready' && models.length === 0);
+  const typing = custom || unknownModel;
   // With no provider chosen there is nothing to search and nothing to type an
   // id against, so neither control is shown.
   const idle = state === 'idle';
@@ -80,13 +89,16 @@ export function ModelPicker({
       {state === 'idle' && (
         <p className="field-description">Connect a provider first, then its models are listed here.</p>
       )}
+      {state === 'loading' && (
+        <p className="field-description">Loading models…</p>
+      )}
       {state === 'failed' && (
         <p role="alert" className="field-description">
-          This provider's model list could not be loaded. Enter a model ID instead.
+          This provider's model list could not be loaded{errorMessage ? `: ${errorMessage}` : '.'} Retry first, or use a custom model ID under Advanced.
         </p>
       )}
       {state === 'ready' && models.length === 0 && (
-        <p className="field-description">This provider listed no models. Enter a model ID instead.</p>
+        <p className="field-description">This provider listed no models. Retry, or use a custom model ID under Advanced.</p>
       )}
       {unknownModel && !custom && (
         <p className="field-description">
@@ -103,7 +115,7 @@ export function ModelPicker({
           onChange={(event) => onChange(event.target.value)}
           placeholder="e.g. gpt-4o-mini or claude-sonnet-5"
         />
-      ) : (
+      ) : state === 'ready' && models.length > 0 ? (
         <>
           <input
             ref={searchRef}
@@ -113,8 +125,7 @@ export function ModelPicker({
             spellCheck={false}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={state === 'loading' ? 'Loading models…' : 'Search models'}
-            disabled={state === 'loading'}
+            placeholder="Search models"
           />
           <ul className="model-list" role="listbox" aria-label="Models">
             {matches.map((model) => (
@@ -137,6 +148,17 @@ export function ModelPicker({
             <p className="field-description">No model matches “{search}”.</p>
           )}
         </>
+      ) : null}
+
+      {!idle && (state === 'failed' || (state === 'ready' && models.length === 0)) && (
+        <div className="model-picker-actions">
+          <button type="button" className="secondary-button compact" onClick={() => { setCustom(false); setRetry((count) => count + 1); }}>
+            Retry model discovery
+          </button>
+          <button type="button" className="text-button" onClick={() => setCustom(true)}>
+            Use a custom model ID
+          </button>
+        </div>
       )}
 
       {state === 'ready' && models.length > 0 && (

@@ -25,7 +25,7 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
       providers={providers}
       onClose={() => {}}
       onSubmit={onSubmit}
-      // No provider behind these tests, so the picker falls back to a typed id.
+  // No provider behind these tests, so the picker uses its explicit custom-id escape hatch.
       loadModels={async () => models}
     />,
   );
@@ -34,6 +34,7 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
   // Without a connected provider there is no model to choose; the editor says
   // so before it asks for one.
   if (providers.some((provider) => provider.status === 'connected')) {
+    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     fireEvent.change(await screen.findByRole('textbox', { name: /Model ID/ }), {
       target: { value: 'test-model' },
     });
@@ -88,6 +89,7 @@ describe('AgentEditor when a provider connects while it is open', () => {
     expect(screen.queryByRole('textbox', { name: /Model ID/ })).toBeNull();
 
     view.rerender(<AgentEditor providers={[connected as Providers[number]]} {...props} />);
+    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     expect(await screen.findByRole('textbox', { name: /Model ID/ })).toBeTruthy();
   });
 });

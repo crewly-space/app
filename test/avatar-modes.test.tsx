@@ -45,6 +45,7 @@ describe('choosing an agent avatar', () => {
       onClose={() => {}} onSubmit={onSubmit} loadModels={async () => []} />);
     fireEvent.change(screen.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
     fireEvent.change(screen.getByRole('textbox', { name: /Role/ }), { target: { value: 'Helper' } });
+    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     fireEvent.change(await screen.findByRole('textbox', { name: /Model ID/ }), { target: { value: 'm' } });
     fireEvent.click(screen.getByRole('radio', { name: /Name icon/ }));
     fireEvent.click(screen.getByRole('button', { name: /Create agent/ }));

@@ -7,7 +7,7 @@ import { gateway } from "../../lib/gateway";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
-import { AddUserDialog } from "./AddUserDialog";
+import { InviteUserDialog } from "./InviteUserDialog";
 import type { Agent, Provider } from "../../types";
 import type { Theme } from "../../app-types";
 import type { AvatarMode } from "@crewly/protocol";
@@ -49,7 +49,7 @@ export function SettingsPanel({
   >("providers");
   const [addingProvider, setAddingProvider] = useState(false);
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
-  const [addingUser, setAddingUser] = useState(false);
+  const [invitingUser, setInvitingUser] = useState(false);
   const [pairingCode, setPairingCode] = useState("");
   const [pairing, setPairing] = useState<DevicePairingInfo | null>(null);
   const [pairingError, setPairingError] = useState("");
@@ -136,8 +136,8 @@ export function SettingsPanel({
                 <h3>People</h3>
                 <p>People who can sign in to this server.</p>
               </div>
-              <button onClick={() => setAddingUser(true)}>
-                <Plus size={15} /> Add
+              <button onClick={() => setInvitingUser(true)}>
+                <Plus size={15} /> Invite
               </button>
             </div>
             {users.map((user) => (
@@ -153,7 +153,7 @@ export function SettingsPanel({
             ))}
             <div className="security-note">
               <LockKeyhole size={15} />
-              <span>Share the temporary password through a secure channel.</span>
+              <span>Invite links let people choose their own password. Manage pending, accepted and revoked invites from Server admin.</span>
             </div>
           </>
         ) : section === "devices" ? (
@@ -273,14 +273,10 @@ export function SettingsPanel({
           await onProvidersChanged(); setManagingProvider(null); onNotify(message);
         }}
       />}
-      {addingUser && <AddUserDialog
+      {invitingUser && <InviteUserDialog
         allowAdmin={currentUser.role === 'owner'}
-        onClose={() => setAddingUser(false)}
-        onCreated={async () => {
-          await onUsersChanged();
-          setAddingUser(false);
-          onNotify('Person added. They can sign in now.');
-        }}
+        onClose={() => setInvitingUser(false)}
+        onCreated={() => onNotify('Invite created. Copy the link and send it to the new member.')}
       />}
     </aside>
   );

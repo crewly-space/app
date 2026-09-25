@@ -77,6 +77,7 @@ describe('when the list cannot be had', () => {
     const onChange = picker({ loadModels: async () => { throw new Error('provider_unavailable'); } });
 
     expect(await screen.findByRole('alert')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /use a custom model id/i }));
     const field = screen.getByRole('textbox', { name: /model id/i });
     fireEvent.change(field, { target: { value: 'some-new-model' } });
     expect(onChange).toHaveBeenCalledWith('some-new-model');
@@ -84,7 +85,20 @@ describe('when the list cannot be had', () => {
 
   it('offers the same escape hatch when the provider simply has no models', async () => {
     picker({ loadModels: async () => [] });
+    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     expect(await screen.findByRole('textbox', { name: /model id/i })).toBeTruthy();
+  });
+
+  it('retries discovery before asking for a custom id', async () => {
+    let attempts = 0;
+    picker({ loadModels: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('temporary outage');
+      return models;
+    } });
+    fireEvent.click(await screen.findByRole('button', { name: /retry model discovery/i }));
+    expect(await screen.findByRole('option', { name: /Claude Opus 5/ })).toBeTruthy();
+    expect(attempts).toBe(2);
   });
 
   it('does not ask a provider that is not there yet', () => {

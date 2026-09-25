@@ -8,6 +8,21 @@ import type { CreateAgentInput } from "../../app-types";
 import { Avatar, AvatarModePicker } from "../appearance/Avatar";
 import type { AvatarMode } from "@crewly/protocol";
 
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
+  deepseek: "DeepSeek",
+  "openai-compatible": "Custom provider",
+  "claude-subscription": "Claude subscription",
+  ollama: "Ollama",
+};
+
+function providerLabel(provider: Provider): string {
+  const label = PROVIDER_LABELS[provider.name] ?? provider.name;
+  return provider.id === provider.name ? label : `${label} · ${provider.id}`;
+}
+
 export function AgentEditor({
   providers,
   agent,
@@ -204,7 +219,7 @@ export function AgentEditor({
           <div className="form-section-label">How this agent works</div>
           <div className="simple-options">
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-              {connectedProviders.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+              {connectedProviders.map((p) => <option key={p.id} value={p.id}>{providerLabel(p)}</option>)}
             </select></label>
             <ModelPicker providerId={providerId} value={model} onChange={setModel} loadModels={loadModels} />
           </div>

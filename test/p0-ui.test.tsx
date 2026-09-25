@@ -125,14 +125,11 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
 
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   fireEvent.click(page.getByRole('button', { name: 'People' }));
-  fireEvent.click(page.getByRole('button', { name: 'Add' }));
-  const personDialog = within(page.getByRole('dialog', { name: 'Add a person' }));
-  fireEvent.change(personDialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Sam' } });
-  fireEvent.change(personDialog.getByRole('textbox', { name: /Email/ }), { target: { value: 'sam@example.test' } });
-  fireEvent.change(personDialog.getByLabelText(/Temporary password/), { target: { value: 'member-password-1' } });
-  fireEvent.click(personDialog.getByRole('button', { name: 'Add person' }));
-  await page.findByText('Person added. They can sign in now.');
-  expect(db.prepare('SELECT email, role FROM users WHERE email = ?').get('sam@example.test')).toEqual({ email: 'sam@example.test', role: 'member' });
+  fireEvent.click(page.getByRole('button', { name: 'Invite' }));
+  const inviteDialog = within(page.getByRole('dialog', { name: 'Invite someone' }));
+  fireEvent.click(inviteDialog.getByRole('button', { name: 'Create invite' }));
+  await inviteDialog.findByRole('textbox', { name: 'Invite link' });
+  expect(db.prepare('SELECT COUNT(*) AS n FROM invites').get()).toEqual({ n: 1 });
 
   fireEvent.click(page.getByRole('button', { name: 'Providers' }));
   fireEvent.click(await page.findByRole('button', { name: 'Manage' }));

@@ -760,7 +760,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 />
               ))}
           </SidebarSection>
-          <SidebarSection title="Groups">
+          <SidebarSection title="Group DMs">
             {data.conversations
               .filter((item) => item.type === "group")
               .map((item) => (
@@ -775,7 +775,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           </SidebarSection>
           {(uncategorisedChannels.length > 0 || canManageChannels) && (
             <SidebarSection title="Channels" action={canManageChannels ? () => setChannelDialog({}) : undefined}>
-              {uncategorisedChannels}
+              {uncategorisedChannels.length > 0 ? uncategorisedChannels : (
+                <div className="channel-empty-state">
+                  <span>No channels yet</span>
+                  {canManageChannels && <button type="button" onClick={() => setChannelDialog({})}>Create your first channel</button>}
+                </div>
+              )}
             </SidebarSection>
           )}
           {data.channelCategories.map((category) => {
