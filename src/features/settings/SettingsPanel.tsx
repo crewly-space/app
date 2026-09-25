@@ -13,6 +13,8 @@ import type { Theme } from "../../app-types";
 import type { AvatarMode } from "@crewly/protocol";
 import { AvatarModePicker, UserAvatar } from "../appearance/Avatar";
 import { providerConnectionLabel } from "../providers/labels";
+import { InvitesManager } from "../people/InvitesManager";
+import { serverInvitesApi } from "../people/api";
 
 export function SettingsPanel({
   providers,
@@ -137,9 +139,6 @@ export function SettingsPanel({
                 <h3>People</h3>
                 <p>People who can sign in to this server.</p>
               </div>
-              <button onClick={() => setAddingUser(true)}>
-                <Plus size={15} /> Add
-              </button>
             </div>
             {users.map((user) => (
               <div className="setting-row" key={user.id}>
@@ -152,10 +151,12 @@ export function SettingsPanel({
                 <span className="device-status-chip">{user.role}</span>
               </div>
             ))}
-            <div className="security-note">
-              <LockKeyhole size={15} />
-              <span>Share the temporary password through a secure channel.</span>
-            </div>
+            <InvitesManager
+              api={serverInvitesApi}
+              allowAdmin={currentUser.role === 'owner'}
+              onNotify={onNotify}
+              onCreateLocalAccount={() => setAddingUser(true)}
+            />
           </>
         ) : section === "devices" ? (
           <>
@@ -280,7 +281,7 @@ export function SettingsPanel({
         onCreated={async () => {
           await onUsersChanged();
           setAddingUser(false);
-          onNotify('Person added. They can sign in now.');
+          onNotify('Local account created. They can sign in now.');
         }}
       />}
     </aside>

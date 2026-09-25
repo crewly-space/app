@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type {
   Agent,
-  Invite,
   ModelInfo,
   ProviderConfigPublic,
   ServerLogEntry,
@@ -19,6 +18,7 @@ import { SkillsPanel } from './SkillsPanel';
 import { ToolsPanel } from './ToolsPanel';
 import { UsagePanel } from './UsagePanel';
 import { CrewlyPanel } from './CrewlyPanel';
+import { InvitesManager } from '../people/InvitesManager';
 import { MailPanel } from './MailPanel';
 import { servicesApi, type ServicesApi } from './services-api';
 
@@ -88,13 +88,11 @@ export function Dashboard({
   const [tab, setTab] = useState<Tab>('members');
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [members, setMembers] = useState<UserAccount[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [logs, setLogs] = useState<ServerLogEntry[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [providers, setProviders] = useState<ProviderConfigPublic[]>([]);
   const [models, setModels] = useState<{ providerId: string; list: ModelInfo[] } | null>(null);
-  const [freshInvite, setFreshInvite] = useState<Invite | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -120,10 +118,6 @@ export function Dashboard({
     void run(async () => { setMembers(await api.listMembers()); });
   }, [api, canAdminister, run]);
 
-  useEffect(() => {
-    if (!canAdminister || tab !== 'invites') return;
-    void run(async () => { setInvites(await api.listInvites()); });
-  }, [api, canAdminister, run, tab]);
 
   useEffect(() => {
     if (!canAdminister || !NEEDS_AGENTS.includes(tab)) return;
@@ -261,86 +255,7 @@ export function Dashboard({
 
       {tab === 'invites' && (
         <div className="dashboard-invites">
-          <div className="dashboard-actions">
-            <button
-              type="button"
-              className="primary-button"
-              disabled={busy}
-              onClick={() => void run(async () => {
-                const invite = await api.createInvite({ role: 'member' });
-                setFreshInvite(invite);
-                setInvites((current) => [invite, ...current]);
-              })}
-            >
-              Create invite
-            </button>
-            {isOwner && (
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => void run(async () => {
-                  const invite = await api.createInvite({ role: 'admin' });
-                  setFreshInvite(invite);
-                  setInvites((current) => [invite, ...current]);
-                })}
-              >
-                Create admin invite
-              </button>
-            )}
-          </div>
-
-          {freshInvite?.code && (
-            <label className="dashboard-fresh-invite">
-              <span>Invite link</span>
-              <input
-                readOnly
-                aria-label="Invite link"
-                value={`${window.location.origin}/join#invite=${freshInvite.code}`}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-              <small className="field-description">
-                Copy it now — the code is stored hashed and cannot be shown again.
-              </small>
-            </label>
-          )}
-
-          <table className="dashboard-table">
-            <thead>
-              <tr><th>Role</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr>
-            </thead>
-            <tbody>
-              {invites.map((invite) => (
-                <tr key={invite.id}>
-                  <td>{invite.role}</td>
-                  <td>{new Date(invite.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    {invite.usedAt
-                      ? 'Used'
-                      : new Date(invite.expiresAt).getTime() < Date.now()
-                        ? 'Expired'
-                        : 'Open'}
-                  </td>
-                  <td>
-                    {!invite.usedAt && (
-                      <button
-                        type="button"
-                        className="text-button danger"
-                        disabled={busy}
-                        aria-label={`Revoke invite ${invite.id}`}
-                        onClick={() => void run(async () => {
-                          await api.revokeInvite(invite.id);
-                          setInvites((current) => current.filter((row) => row.id !== invite.id));
-                        })}
-                      >
-                        Revoke
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <InvitesManager api={api} allowAdmin={isOwner} />
         </div>
       )}
 

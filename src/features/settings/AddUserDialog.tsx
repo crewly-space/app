@@ -25,9 +25,9 @@ export function AddUserDialog({
     <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="add-person-title">
       <header>
         <div>
-          <span className="eyebrow">Server access</span>
-          <h2 id="add-person-title">Add a person</h2>
-          <p>Create a sign-in for this Crewly server.</p>
+          <span className="eyebrow">Advanced · self-hosted only</span>
+          <h2 id="add-person-title">Create a local account</h2>
+          <p>A sign-in that exists only on this server, with a temporary password you hand over. It is not a Crewly account; to invite someone, use Invite instead.</p>
         </div>
         <button type="button" className="icon-button compact" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </header>
@@ -52,7 +52,7 @@ export function AddUserDialog({
       </form>
       <footer>
         <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>
-        <button type="submit" form="add-person-form" className="primary-button" disabled={saving}>{saving ? 'Adding…' : 'Add person'}</button>
+        <button type="submit" form="add-person-form" className="primary-button" disabled={saving}>{saving ? 'Creating…' : 'Create local account'}</button>
       </footer>
     </div>
   </div>;

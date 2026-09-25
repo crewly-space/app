@@ -133,14 +133,19 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
 
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   fireEvent.click(page.getByRole('button', { name: 'People' }));
-  fireEvent.click(page.getByRole('button', { name: 'Add' }));
-  const personDialog = within(page.getByRole('dialog', { name: 'Add a person' }));
-  fireEvent.change(personDialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Sam' } });
-  fireEvent.change(personDialog.getByRole('textbox', { name: /Email/ }), { target: { value: 'sam@example.test' } });
-  fireEvent.change(personDialog.getByLabelText(/Temporary password/), { target: { value: 'member-password-1' } });
-  fireEvent.click(personDialog.getByRole('button', { name: 'Add person' }));
-  await page.findByText('Person added. They can sign in now.');
-  expect(db.prepare('SELECT email, role FROM users WHERE email = ?').get('sam@example.test')).toEqual({ email: 'sam@example.test', role: 'member' });
+  // Invite-first: the admin names the person and their role, never a password
+  // (CRE-112). Mail is off on this test server, so the link is the handover.
+  fireEvent.click(await page.findByRole('button', { name: 'Invite' }));
+  const inviteDialog = within(page.getByRole('dialog', { name: 'Invite a person' }));
+  expect(inviteDialog.queryByLabelText(/password/i)).toBeNull();
+  fireEvent.change(inviteDialog.getByLabelText(/^Email/), { target: { value: 'sam@example.test' } });
+  fireEvent.click(inviteDialog.getByRole('button', { name: 'Send invite' }));
+  const inviteUrl = (await inviteDialog.findByRole('textbox', { name: 'Invite link' })).getAttribute('value')!;
+  expect(inviteUrl).toMatch(/\/join#invite=/);
+  fireEvent.click(inviteDialog.getByRole('button', { name: 'Done' }));
+  expect(await page.findByText('sam@example.test')).toBeTruthy();
+  expect(page.getByText('Pending')).toBeTruthy();
+  expect(db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get('sam@example.test')).toEqual({ n: 0 });
 
   fireEvent.click(page.getByRole('button', { name: 'Providers' }));
   fireEvent.click(await page.findByRole('button', { name: 'Manage' }));
@@ -178,4 +183,22 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByText('Device paired. It can now connect securely.');
   expect(db.prepare('SELECT id, name FROM devices WHERE id = ?').get(deviceId)).toEqual({ id: deviceId, name: 'Work laptop' });
   refreshedView.unmount();
-}, 20_000);
+
+  // Sam opens the link signed out and joins with a password only Sam knows.
+  const { clearToken } = await import('../src/lib/api/client');
+  vi.stubGlobal('Event', win.Event);
+  clearToken();
+  win.history.replaceState(null, '', new URL(inviteUrl).pathname + new URL(inviteUrl).hash);
+  const joinRoot = win.document.createElement('div');
+  win.document.body.appendChild(joinRoot);
+  const joinView = render(React.createElement(UI), { container: joinRoot });
+  await page.findByRole('heading', { name: 'You’re invited' });
+  expect((page.getByLabelText('Email') as HTMLInputElement).value).toBe('sam@example.test');
+  fireEvent.change(page.getByLabelText('Name'), { target: { value: 'Sam' } });
+  fireEvent.change(page.getByLabelText('Password'), { target: { value: 'sams-own-password-1' } });
+  fireEvent.click(page.getByRole('button', { name: 'Create account and join' }));
+  await waitFor(() => expect(win.location.pathname).toBe('/'));
+  expect(db.prepare('SELECT email, role FROM users WHERE email = ?').get('sam@example.test')).toEqual({ email: 'sam@example.test', role: 'member' });
+  expect(db.prepare('SELECT used_at IS NOT NULL AS used FROM invites').get()).toEqual({ used: 1 });
+  joinView.unmount();
+}, 30_000);

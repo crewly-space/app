@@ -3530,3 +3530,18 @@ body {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* Invites: the way people join. A fresh link is shown once, with a copy. */
+.invites-manager { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.invite-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.invite-actions { display: flex; gap: 8px; }
+.invite-fresh { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--oc-line);
+  border-radius: var(--radius-md); background: var(--surface-sunken); }
+.invite-fresh label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.invite-fresh-row { display: flex; gap: 8px; min-width: 0; }
+.invite-fresh-row input { flex: 1; min-width: 0; }
+.invite-fresh p { display: flex; align-items: center; gap: 6px; margin: 0; }
+.invite-advanced { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+.invite-advanced summary { cursor: pointer; }
+.invite-advanced p { margin: 6px 0; }
+.device-status-chip.invite-revoked, .device-status-chip.invite-expired { opacity: 0.7; }
