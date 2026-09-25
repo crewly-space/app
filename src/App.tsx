@@ -128,7 +128,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     let cancelled = false;
     const bootstrapStartedAt = performance.now();
     const recordBootstrapTiming = (status: 'success' | 'error') => {
-      window.dispatchEvent(new CustomEvent('crewly:bootstrap-timing', {
+      // Use the page's constructor rather than the ambient global. The app can
+      // be mounted into another window (the integration test does this with
+      // jsdom), where Node's CustomEvent belongs to a different realm and
+      // cannot be dispatched by that window.
+      window.dispatchEvent(new window.CustomEvent('crewly:bootstrap-timing', {
         detail: { status, durationMs: Math.round(performance.now() - bootstrapStartedAt), serverId: registry.selected?.id ?? null },
       }));
     };

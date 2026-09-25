@@ -47,11 +47,16 @@ export function ModelPicker({
         if (!active) return;
         setModels(result);
         setState('ready');
+        if (result.length === 0) setCustom(true);
       })
       .catch((reason) => {
         if (!active) return;
         setModels([]);
         setState('failed');
+        // Discovery is optional for providers that do not expose /models.
+        // Fall back to an editable ID so onboarding can still finish with a
+        // known model instead of trapping the user in the picker.
+        setCustom(true);
         setErrorMessage(reason instanceof Error ? reason.message : 'The provider could not list its models.');
       });
     return () => { active = false; };
@@ -155,9 +160,9 @@ export function ModelPicker({
           <button type="button" className="secondary-button compact" onClick={() => { setCustom(false); setRetry((count) => count + 1); }}>
             Retry model discovery
           </button>
-          <button type="button" className="text-button" onClick={() => setCustom(true)}>
+          {!typing && <button type="button" className="text-button" onClick={() => setCustom(true)}>
             Use a custom model ID
-          </button>
+          </button>}
         </div>
       )}
 
