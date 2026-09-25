@@ -133,6 +133,35 @@ body {
   padding: 3px;
   cursor: pointer;
 }
+.sidebar-label button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* An empty Channels section says what to do instead of rendering a bare heading. */
+.sidebar-cta {
+  width: 100%;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px dashed var(--oc-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--oc-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sidebar-cta:hover {
+  color: var(--oc-text);
+  border-color: var(--oc-line-strong);
+}
+.sidebar-empty {
+  margin: 2px 9px 6px;
+  color: var(--oc-muted-2);
+  font-size: 12px;
+}
 .conversation-row {
   width: 100%;
   height: 35px;

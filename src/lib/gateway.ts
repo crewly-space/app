@@ -13,7 +13,7 @@ function agentView(agent: ApiAgent, memory: string[] = []): Agent {
 }
 function conversationView(conversation: ApiConversation, agents: Agent[]): Conversation {
   const agentIds = conversation.participants.filter((p) => p.participantType === 'agent').map((p) => p.participantId);
-  return { id: conversation.id, name: conversation.kind === 'group' ? conversation.name ?? 'Group'
+  return { id: conversation.id, name: conversation.kind === 'group' ? conversation.name ?? 'Group DM'
       : agents.find((a) => a.id === agentIds[0])?.name ?? 'DM',
     type: conversation.kind, agentIds, preview: '', time: '' };
 }

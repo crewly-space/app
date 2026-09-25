@@ -218,7 +218,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   // server for the first time, or an owner whose DMs were all cleared — used to
   // land on a page whose only content was a button. Open the DM for them.
   useEffect(() => {
-    if (!data || data.conversations.length || !data.agents.length) return;
+    // Channels are shared rooms, not "a conversation of their own": a server
+    // opening on #general still owes a newcomer their DM.
+    if (!data || data.conversations.some((item) => item.type !== "channel") || !data.agents.length) return;
     if (openingFirstDm.current) return;
     openingFirstDm.current = true;
     const agents = data.agents;
@@ -262,7 +264,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   // No provider is not a reason to hold the app: the server switcher, settings
   // and every other action have to stay reachable, and providers are managed
   // from Settings or the dashboard. The sidebar nudge keeps the gap visible.
-  if (!data.conversations.length && panel !== "settings") {
+  const ownConversations = data.conversations.filter((item) => item.type !== "channel");
+  const hasChannels = data.conversations.length > ownConversations.length;
+  if (!ownConversations.length && panel !== "settings") {
     // A DM is on its way from the effect above; showing "create your first
     // agent" to someone who already has one would be a lie that flashes past.
     if (data.agents.length && !firstDmFailed) return <Loading />;
@@ -275,7 +279,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     if (step === "provider") return <ProviderConnect closeLabel="Skip for now"
       onConnected={() => { void gateway.bootstrap().then(setData); notify("Provider saved."); }}
       onClose={() => firstRun.skip("provider")} />;
-    return <div className="first-run">
+    // Nothing left to set up for this person: with channels to talk in, the
+    // app itself is the useful place, not a page about setting up agents.
+    if (!(step === "home" && hasChannels)) return <div className="first-run">
       <header>
         <BrandMark />
         <button className="text-button" onClick={() => setPanel("settings")}>Settings</button>
@@ -341,6 +347,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         active={view === "messages" && selected === item.id} onClick={() => openConversation(item.id)} />
     ));
   const uncategorisedChannels = channelRows(null);
+  const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);
   const pendingApprovals = data.approvals.filter(
     (approval) => !approvalResults[approval.id],
   );
@@ -760,24 +767,39 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 />
               ))}
           </SidebarSection>
-          <SidebarSection title="Groups">
-            {data.conversations
-              .filter((item) => item.type === "group")
-              .map((item) => (
-                <ConversationRow
-                  key={item.id}
-                  item={item}
-                  agents={data.agents}
-                  active={view === "messages" && selected === item.id}
-                  onClick={() => openConversation(item.id)}
-                />
-              ))}
-          </SidebarSection>
-          {(uncategorisedChannels.length > 0 || canManageChannels) && (
-            <SidebarSection title="Channels" action={canManageChannels ? () => setChannelDialog({}) : undefined}>
-              {uncategorisedChannels}
+          {/* Several people and agents talking outside any channel. Shown only
+              when there are some, and never called what channels are called. */}
+          {data.conversations.some((item) => item.type === "group") && (
+            <SidebarSection title="Group DMs">
+              {data.conversations
+                .filter((item) => item.type === "group")
+                .map((item) => (
+                  <ConversationRow
+                    key={item.id}
+                    item={item}
+                    agents={data.agents}
+                    active={view === "messages" && selected === item.id}
+                    onClick={() => openConversation(item.id)}
+                  />
+                ))}
             </SidebarSection>
           )}
+          <SidebarSection
+            title="Channels"
+            action={() => { setChannelDialog({}); setMobileNav(false); }}
+            actionLabel="Create channel"
+            actionDisabledReason={canManageChannels ? undefined : "Only admins can create channels"}
+          >
+            {uncategorisedChannels}
+            {!hasLiveChannels && (canManageChannels ? (
+              <button className="sidebar-cta" onClick={() => { setChannelDialog({}); setMobileNav(false); }}>
+                <Plus size={15} />
+                <span>Create your first channel</span>
+              </button>
+            ) : (
+              <p className="sidebar-empty">No channels yet. An admin can create one.</p>
+            ))}
+          </SidebarSection>
           {data.channelCategories.map((category) => {
             const rows = channelRows(category.id);
             return rows.length > 0 ? <SidebarSection key={category.id} title={category.name}>{rows}</SidebarSection> : null;

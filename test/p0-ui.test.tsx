@@ -87,7 +87,12 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByRole('heading', { name: 'Connect a model provider' });
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
   fireEvent.click(page.getByRole('button', { name: 'Skip for now' }));
-  await page.findByRole('heading', { name: 'Your server is ready' });
+  // A new server opens on #general, so skipping setup lands in a channel with
+  // a composer rather than on an empty page (CRE-114).
+  await page.findByRole('heading', { name: '# general' });
+  expect(page.getByRole('combobox', { name: 'Message general' })).toBeTruthy();
+  expect(page.queryByText('Groups')).toBeNull();
+  expect(page.getByRole('button', { name: 'Create channel' })).toBeTruthy();
   expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
