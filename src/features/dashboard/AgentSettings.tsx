@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import type {
   Agent,
+  AgentRoutingConfig,
+  AgentRoutingMode,
   AgentRuntime,
   AgentSkill,
   AgentStatus,
   AgentToolAssignment,
+  Channel,
   McpCapability,
   McpServer,
   RuntimeKind,
@@ -27,6 +30,13 @@ const PERMISSIONS: Record<RuntimePermissionMode, string> = {
   auto_edit: 'Edit files freely, ask before running commands',
   read_only: 'Read only',
 };
+
+const ROUTING_MODES: Array<{ id: AgentRoutingMode; label: string; detail: string }> = [
+  { id: 'mention_only', label: 'Mention only', detail: 'Only explicit @mentions wake it in shared conversations.' },
+  { id: 'relevant', label: 'Relevant messages', detail: 'A lightweight profile match filters messages before a run.' },
+  { id: 'always', label: 'Always listen', detail: 'Every allowed shared-conversation message can wake it.' },
+  { id: 'disabled', label: 'Disabled', detail: 'Only direct messages and explicit mentions wake it.' },
+];
 
 /**
  * Everything about one agent that is not its personality: what it runs on,
@@ -56,12 +66,16 @@ export function AgentSettings({
   const [library, setLibrary] = useState<Skill[]>([]);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [delegates, setDelegates] = useState<string[]>([]);
+  const [routing, setRouting] = useState<AgentRoutingConfig | null>(null);
+  const [channels, setChannels] = useState<Channel[]>([]);
 
   useEffect(() => {
     void run(async () => {
-      const [nextStatus, nextRuntime, nextServers, nextTools, nextLibrary, nextSkills, nextDelegates] = await Promise.all([
+      const [nextStatus, nextRuntime, nextRouting, nextChannels, nextServers, nextTools, nextLibrary, nextSkills, nextDelegates] = await Promise.all([
         api.agentStatus(agent.id),
         api.agentRuntime(agent.id),
+        api.agentRouting(agent.id),
+        api.channels().catch(() => []),
         api.mcpServers().catch(() => []),
         api.agentTools(agent.id),
         api.skills(),
@@ -70,6 +84,8 @@ export function AgentSettings({
       ]);
       setStatus(nextStatus);
       setRuntime(nextRuntime);
+      setRouting(nextRouting);
+      setChannels(nextChannels);
       setRuntimeDraft({
         kind: nextRuntime.runtimeKind,
         deviceId: nextRuntime.binding?.deviceId ?? '',
@@ -92,6 +108,10 @@ export function AgentSettings({
     setTools(await api.setAgentTools(agent.id, next, acknowledged));
   });
 
+  const saveRouting = (mode: AgentRoutingMode | 'inherit', conversationId: string | null = null) => run(async () => {
+    setRouting(await api.setAgentRouting(agent.id, { mode, conversationId }));
+  });
+
   return (
     <div className="dashboard-agent">
       <button type="button" className="text-button" onClick={onBack}>← All agents</button>
@@ -111,6 +131,37 @@ export function AgentSettings({
           })} /> Do not disturb
         </label>
         <p className="field-description">Other agents and automations will not wake it. People can still message it directly.</p>
+      </section>
+
+      <section className="dashboard-card">
+        <h3>Message routing</h3>
+        <p className="field-description">Choose when this agent joins shared conversations. Direct messages and explicit @mentions always route unless the channel blocks the agent.</p>
+        <label className="dashboard-form">
+          <span>Default for shared conversations</span>
+          <select aria-label="Default message routing" disabled={busy || !routing} value={routing?.defaultMode ?? 'mention_only'}
+            onChange={(event) => void saveRouting(event.target.value as AgentRoutingMode)}>
+            {ROUTING_MODES.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <p className="field-description">{ROUTING_MODES.find((option) => option.id === routing?.defaultMode)?.detail}</p>
+        {channels.length > 0 && (
+          <fieldset>
+            <legend>Channel overrides</legend>
+            {channels.map((channel) => {
+              const override = routing?.overrides.find((entry) => entry.conversationId === channel.id);
+              return (
+                <label key={channel.id} className="dashboard-form">
+                  <span>{channel.name}</span>
+                  <select aria-label={`Routing in ${channel.name}`} disabled={busy || !routing} value={override?.mode ?? 'inherit'}
+                    onChange={(event) => void saveRouting(event.target.value as AgentRoutingMode | 'inherit', channel.id)}>
+                    <option value="inherit">Use default</option>
+                    {ROUTING_MODES.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                  </select>
+                </label>
+              );
+            })}
+          </fieldset>
+        )}
       </section>
 
       <section className="dashboard-card">

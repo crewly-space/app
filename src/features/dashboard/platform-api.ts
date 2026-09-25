@@ -1,5 +1,6 @@
 import type {
   AgentRuntime,
+  AgentRoutingConfig,
   AgentRun,
   AgentSkill,
   AgentStatus,
@@ -19,6 +20,7 @@ import type {
   SkillInput,
   UsageGrouping,
   UsageReport,
+  Channel,
 } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
@@ -57,6 +59,9 @@ export interface PlatformApi {
 
   agentStatus(agentId: string): Promise<AgentStatus>;
   setAvailability(agentId: string, availability: 'auto' | 'dnd'): Promise<AgentStatus>;
+  agentRouting(agentId: string): Promise<AgentRoutingConfig>;
+  setAgentRouting(agentId: string, input: { mode: AgentRoutingConfig['defaultMode'] | 'inherit'; conversationId?: string | null }): Promise<AgentRoutingConfig>;
+  channels(): Promise<Channel[]>;
   agentRuntime(agentId: string): Promise<AgentRuntime>;
   setAgentRuntime(agentId: string, input: SetAgentRuntimeInput): Promise<AgentRuntime>;
   agentTools(agentId: string): Promise<AgentToolAssignment[]>;
@@ -97,6 +102,9 @@ export const platformApi: PlatformApi = {
 
   agentStatus: (agentId) => client.agents.status(agentId),
   setAvailability: (agentId, availability) => client.agents.setAvailability(agentId, availability),
+  agentRouting: (agentId) => client.agents.routing(agentId),
+  setAgentRouting: (agentId, input) => client.agents.setRouting(agentId, input),
+  channels: async () => (await client.channels.list()).channels,
   agentRuntime: (agentId) => client.agents.runtime(agentId),
   setAgentRuntime: (agentId, input) => client.agents.setRuntime(agentId, input),
   agentTools: async (agentId) => (await client.mcp.agentTools(agentId)).tools,
