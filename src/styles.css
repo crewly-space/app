@@ -2839,6 +2839,34 @@ body {
   .app-shell {
     display: block;
   }
+  /* The desktop server rail must not become a full-height column when the
+     shell changes to a single mobile flow. Keep switching available, but make
+     it a compact strip above the conversation instead. */
+  .app-shell.has-rail,
+  .app-shell.has-rail.panel-open {
+    display: block;
+  }
+  .app-shell.has-rail > .server-rail {
+    position: fixed;
+    z-index: 35;
+    inset: 0 0 auto;
+    height: 54px;
+    box-sizing: border-box;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 6px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .app-shell.has-rail > .server-rail > * {
+    flex: 0 0 auto;
+  }
+  .app-shell.has-rail > .conversation {
+    box-sizing: border-box;
+    padding-top: 54px;
+  }
   .sidebar {
     position: fixed;
     z-index: 45;
