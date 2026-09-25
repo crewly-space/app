@@ -10,6 +10,9 @@ import type {
   RolesCatalog,
   RoleInput,
   ServerRole,
+  Automation,
+  AutomationInput,
+  AutomationRun,
 } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
@@ -40,6 +43,11 @@ export interface DashboardApi {
   removeRole(id: string): Promise<void>;
   assignRole(roleId: string, userId: string): Promise<void>;
   unassignRole(roleId: string, userId: string): Promise<void>;
+  listAutomations(): Promise<Automation[]>;
+  listAutomationRuns(automationId?: string): Promise<AutomationRun[]>;
+  createAutomation(input: AutomationInput): Promise<{ automation: Automation; webhookSecret?: string }>;
+  updateAutomation(id: string, input: AutomationInput): Promise<Automation>;
+  removeAutomation(id: string): Promise<void>;
 }
 
 export const serverApi: DashboardApi = {
@@ -62,4 +70,9 @@ export const serverApi: DashboardApi = {
   removeRole: (id) => client.roles.remove(id),
   assignRole: (roleId, userId) => client.roles.assign(roleId, userId),
   unassignRole: (roleId, userId) => client.roles.unassign(roleId, userId),
+  listAutomations: async () => (await client.automations.list()).automations,
+  listAutomationRuns: async (automationId) => (await client.automations.runs(automationId)).runs,
+  createAutomation: (input) => client.automations.create(input),
+  updateAutomation: (id, input) => client.automations.update(id, input),
+  removeAutomation: (id) => client.automations.remove(id),
 };

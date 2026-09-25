@@ -3568,6 +3568,13 @@ body {
 .role-preview span { color: var(--oc-muted); line-height: 1.5; }
 .role-members { margin-top: 16px; padding: 14px; }
 .role-members h3 { margin: 0 0 5px; font-size: 14px; }
+.automations-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.5fr); gap: 18px; }
+.automations-list { align-self: start; padding: 14px; }
+.automation-list-item { width: 100%; display: grid; gap: 3px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--oc-text); text-align: left; cursor: pointer; }
+.automation-list-item:hover, .automation-list-item.selected { background: var(--oc-line-soft); }
+.automation-list-item small, .automation-run small { color: var(--oc-muted); }
+.automations-editor { min-width: 0; }
+.automation-run { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
 @media (max-width: 720px) {
   .dashboard-tabs {
     display: flex;
@@ -3580,6 +3587,7 @@ body {
 }
 @media (max-width: 900px) {
   .roles-layout { grid-template-columns: 1fr; }
+  .automations-layout { grid-template-columns: 1fr; }
 }
 
 /* The hosted app before a server is open: the rail, and beside it whatever

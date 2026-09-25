@@ -10,6 +10,8 @@ import type {
   UserAccount,
   UserRole,
   RolesCatalog,
+  Automation,
+  AutomationRun,
 } from '@crewly/sdk';
 import type { DashboardApi } from './api';
 import { platformApi, type PlatformApi } from './platform-api';
@@ -23,8 +25,9 @@ import { CrewlyPanel } from './CrewlyPanel';
 import { MailPanel } from './MailPanel';
 import { servicesApi, type ServicesApi } from './services-api';
 import { RolesPanel } from './RolesPanel';
+import { AutomationsPanel } from './AutomationsPanel';
 
-type Tab = 'members' | 'invites' | 'roles' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
+type Tab = 'members' | 'invites' | 'roles' | 'agents' | 'providers' | 'usage' | 'runs' | 'automations' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string }[] }[] = [
   { label: 'People & access', tabs: [
@@ -39,6 +42,7 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string }[] }[] = [
   { label: 'Operations', tabs: [
     { id: 'usage', label: 'Usage' },
     { id: 'runs', label: 'Runs' },
+    { id: 'automations', label: 'Automations' },
   ] },
   { label: 'Services', tabs: [
     { id: 'tools', label: 'Tools' },
@@ -111,6 +115,8 @@ export function Dashboard({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [roleCatalog, setRoleCatalog] = useState<RolesCatalog | null>(null);
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
 
   const canAdminister = currentUser.role === 'owner' || currentUser.role === 'admin';
   const isOwner = currentUser.role === 'owner';
@@ -137,6 +143,10 @@ export function Dashboard({
   useEffect(() => {
     if (!canAdminister || tab !== 'invites') return;
     void run(async () => { setInvites(await api.listInvites()); });
+  }, [api, canAdminister, run, tab]);
+  useEffect(() => {
+    if (!canAdminister || tab !== 'automations') return;
+    void run(async () => { const [rules, runs] = await Promise.all([api.listAutomations(), api.listAutomationRuns()]); setAutomations(rules); setAutomationRuns(runs); });
   }, [api, canAdminister, run, tab]);
   useEffect(() => {
     if (!canAdminister || tab !== 'roles') return;
@@ -294,6 +304,10 @@ export function Dashboard({
           onUnassign={async (roleId, userId) => { await api.unassignRole(roleId, userId); setRoleCatalog(await api.listRoles()); }}
         />
       )}
+      {tab === 'automations' && <AutomationsPanel automations={automations} runs={automationRuns} busy={busy}
+        onCreate={async (input) => { const result = await api.createAutomation(input); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); return result; }}
+        onUpdate={async (id, input) => { const result = await api.updateAutomation(id, input); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); return result; }}
+        onDelete={async (id) => { await api.removeAutomation(id); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); }} />}
 
       {tab === 'invites' && (
         <div className="dashboard-invites">
