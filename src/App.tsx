@@ -858,6 +858,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         {dashboardOpen && (
           <div className="dashboard-layer">
             <Dashboard
+              // Everything administered here belongs to one server; switching
+              // servers starts it fresh rather than showing the last one's state.
+              key={registry.selected?.id ?? "local"}
               api={serverApi}
               currentUser={{
                 id: data.currentUser.id,

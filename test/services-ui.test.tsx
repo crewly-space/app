@@ -93,6 +93,47 @@ describe('Connect Crewly panel', () => {
     expect(await screen.findByText('Not connected. This server runs entirely on its own.')).toBeTruthy();
     expect(api.disconnectCrewly).toHaveBeenCalled();
   });
+
+  it('never shows a raw not-found when the connection cannot be read, and can try again', async () => {
+    const notFound = Object.assign(new Error('That item no longer exists.'), { status: 404 });
+    const crewly = vi.fn().mockRejectedValueOnce(notFound).mockResolvedValue(disconnected);
+    render(<CrewlyPanel api={services({ crewly })} serverName="Acme" />);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/does not offer a Crewly connection/);
+    expect(screen.queryByText('That item no longer exists.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: 'Connect Crewly' })).toBeTruthy();
+  });
+
+  it('offers to reconnect or remove a link Crewly revoked or deleted', async () => {
+    const revoked: CrewlyConnection = { ...connected, status: 'revoked', scopes: [] };
+    const api = services({ crewly: vi.fn(async () => revoked) });
+    render(<CrewlyPanel api={api} serverName="Acme" />);
+    expect(await screen.findByText(/revoked or removed in Crewly/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Connect again' })).toBeTruthy();
+    (api.crewly as ReturnType<typeof vi.fn>).mockResolvedValue(disconnected);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the old link' }));
+    expect(await screen.findByText('Not connected. This server runs entirely on its own.')).toBeTruthy();
+  });
+
+  it('reads the current state back when an action finds its link already gone', async () => {
+    const gone = Object.assign(new Error('That item no longer exists.'), { status: 404 });
+    const crewly = vi.fn().mockResolvedValueOnce(connected).mockResolvedValue({ ...connected, status: 'revoked', scopes: [] });
+    const api = services({ crewly, refreshCrewly: vi.fn(async () => { throw gone; }) });
+    render(<CrewlyPanel api={api} serverName="Acme" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Check again' }));
+    expect(await screen.findByText(/revoked or removed in Crewly/)).toBeTruthy();
+    expect(screen.queryByText('That item no longer exists.')).toBeNull();
+  });
+
+  it('loads the selected server’s connection again when the server changes', async () => {
+    const crewly = vi.fn().mockResolvedValueOnce(connected).mockResolvedValue(disconnected);
+    const { rerender } = render(<CrewlyPanel api={services({ crewly })} serverName="Server A" />);
+    expect(await screen.findByText('inst-1')).toBeTruthy();
+    rerender(<CrewlyPanel api={services({ crewly })} serverName="Server B" />);
+    expect(await screen.findByText('Not connected. This server runs entirely on its own.')).toBeTruthy();
+    expect(screen.queryByText('inst-1')).toBeNull();
+  });
 });
 
 describe('Mail panel', () => {
