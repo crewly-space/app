@@ -3545,3 +3545,101 @@ body {
 .invite-advanced summary { cursor: pointer; }
 .invite-advanced p { margin: 6px 0; }
 .device-status-chip.invite-revoked, .device-status-chip.invite-expired { opacity: 0.7; }
+
+/* ------------------------------------------------------- mobile shell -- */
+/* On a phone the desktop columns do not stack: the server rail and the
+   sidebar become one drawer that slides in from the left, and the
+   conversation owns the whole visual viewport -- header at the top, history
+   scrolling in between, composer above Safari's toolbar and the keyboard.
+   Declared last so it wins over every desktop column rule above. */
+@media (max-width: 720px) {
+  html, body { overflow-x: hidden; }
+  .app-shell,
+  .app-shell.panel-open,
+  .app-shell.has-rail,
+  .app-shell.has-rail.panel-open {
+    display: block;
+    width: 100%;
+  }
+  /* The rail was left in the flow as a block and stacked its servers down the
+     top of the screen, pushing the conversation below the browser chrome. */
+  .app-shell > .server-rail {
+    position: fixed;
+    z-index: 46;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 62px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+  .app-shell.nav-open > .server-rail { transform: translateX(0); }
+  .sidebar {
+    width: min(260px, calc(100vw - 48px));
+    padding-top: max(18px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+  .app-shell.has-rail .sidebar {
+    left: 62px;
+    width: min(260px, calc(100vw - 62px - 32px));
+    /* Parked fully off-screen, not just its own width left of the rail. */
+    transform: translateX(calc(-100% - 62px));
+  }
+  .app-shell.has-rail .sidebar.sidebar-open { transform: translateX(0); }
+  .conversation {
+    width: 100%;
+    height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .conversation-header {
+    height: auto;
+    min-height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  .conversation-title { flex: 1; min-width: 0; }
+  .conversation-title div { min-width: 0; }
+  .conversation-title strong,
+  .conversation-title span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .header-actions { flex: none; }
+  /* An empty conversation starts at the top, under its header, instead of
+     parking its title against the composer. */
+  .message-list.is-empty::before { flex: 0 0 0; }
+  .message-list.is-empty .conversation-intro { padding-top: 22px; }
+  .composer-wrap {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .detail-panel {
+    width: 100%;
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Before a server is open there is no drawer to hide the rail in, so it
+     becomes a strip across the top instead of a column down it. */
+  .app-shell.server-pending {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+  }
+  .app-shell.server-pending > .server-rail {
+    position: static;
+    transform: none;
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .app-shell.server-pending > .server-rail .server-tab { flex: none; }
+  .server-pending-body { padding: 20px 12px; }
+}

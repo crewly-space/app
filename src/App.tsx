@@ -670,12 +670,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
 
   return (
     <>
-      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""}`}>
+      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
         {registry.multiServer && registry.servers.length > 0 && (
           <ServerRail
             servers={registry.servers}
             selectedId={registry.selected?.id ?? null}
-            onSelect={registry.select}
+            onSelect={(id) => { registry.select(id); setMobileNav(false); }}
             onAddServer={() => setAddingServer(true)}
             dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
             unread={registry.unread}
@@ -977,7 +977,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           {view === "messages" ? (
             <>
               <section
-                className="message-list"
+                className={`message-list${visibleMessages.length === 0 && conversationApprovals.length === 0 ? " is-empty" : ""}`}
                 ref={messageListRef}
                 onScroll={(event) => {
                   const list = event.currentTarget;
