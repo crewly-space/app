@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
+import { useLayer } from '../../lib/layers';
+import { ProviderLogo } from './ProviderLogo';
 import { codexRuntimeOn, connectable, deviceProviderAvailability, explain, explainRefusal, type DeviceProviderKind } from './availability';
 
 // Mirrors the kinds the server accepts. deepseek was missing here even though
@@ -10,16 +12,14 @@ type Kind = typeof kinds[number];
 // Device-backed kinds have their own section; the key form only lists these.
 const apiKinds = kinds.filter((item): item is Exclude<Kind, DeviceProviderKind> => item !== 'claude-subscription' && item !== 'ollama');
 
-// The wire values are lowercase ids; showing them raw in a menu reads as an
-// unfinished screen rather than a product.
-const kindLabels: Record<Kind, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  openrouter: 'OpenRouter',
-  deepseek: 'DeepSeek',
-  'openai-compatible': 'OpenAI-compatible endpoint',
-  'claude-subscription': 'Claude Subscription on a paired device',
-  ollama: 'Ollama on a paired device',
+
+/** What each key-based provider is, and what connecting it takes, before anything is asked for. */
+const apiKindInfo: Record<Exclude<Kind, DeviceProviderKind>, { title: string; about: string; needs: string }> = {
+  openai: { title: 'OpenAI', about: 'GPT models, billed per token by OpenAI.', needs: 'An API key from platform.openai.com.' },
+  anthropic: { title: 'Anthropic', about: 'Claude models, billed per token by Anthropic.', needs: 'An API key from console.anthropic.com.' },
+  openrouter: { title: 'OpenRouter', about: 'Models from many labs through one account.', needs: 'An OpenRouter key, or sign in.' },
+  deepseek: { title: 'DeepSeek', about: 'DeepSeek chat and reasoning models.', needs: 'An API key from platform.deepseek.com.' },
+  'openai-compatible': { title: 'Custom endpoint', about: 'Any server that speaks the OpenAI API: vLLM, LM Studio, LiteLLM.', needs: 'Its base URL and a key.' },
 };
 
 const PENDING_KEY = 'crewly:provider-oauth';
@@ -46,8 +46,11 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
   /** First run offers to skip rather than cancel. */
   closeLabel?: string;
 }) {
-  const [kind, setKind] = useState<Kind>('openai');
-  const [id, setId] = useState('openai');
+  // Nothing is asked for until a provider is chosen: credentials belong to
+  // one card, not to a form that sits open for all of them.
+  const [kind, setKind] = useState<Exclude<Kind, DeviceProviderKind> | null>(null);
+  const [id, setId] = useState('');
+  const [connectedKinds, setConnectedKinds] = useState<string[]>([]);
   const [key, setKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [error, setError] = useState('');
@@ -58,6 +61,8 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
   // it stays out of the way until someone asks for it.
   const [showId, setShowId] = useState(false);
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
+  // Escape and focus containment, as for any dialog, when it can be closed.
+  const dialogRef = useLayer<HTMLFormElement>(() => onClose?.(), Boolean(onClose));
   const [connectingDevice, setConnectingDevice] = useState<DeviceProviderKind | null>(null);
 
   useEffect(() => {
@@ -86,6 +91,12 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
       .oauthKinds()
       .then((result) => { if (active) setOauthKinds(result.kinds); })
       .catch(() => { /* older server: key entry still works */ });
+
+    // Which kinds already have a connection, so a card can say so. Members
+    // cannot list providers; the cards then simply carry no badge.
+    void Promise.resolve().then(() => client.providers.list())
+      .then((list) => { if (active) setConnectedKinds(list.map((provider) => provider.kind)); })
+      .catch(() => {});
 
     void client.devices.list()
       .then((list) => { if (active) setDevices(list); })
@@ -139,6 +150,11 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
     </div>;
   };
   const codexDevice = devices ? codexRuntimeOn(devices) : null;
+  // Lead with what works now: a ready device first, otherwise the key-based
+  // providers, and options that cannot be used yet after them.
+  const deviceFirst = devices
+    ? (['claude-subscription', 'ollama'] as const).some((item) => connectable(deviceProviderAvailability(devices, item)))
+    : false;
 
   const signInToProvider = async (): Promise<void> => {
     setError(''); setConnecting(true);
@@ -152,16 +168,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
     }
   };
 
-  return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card form" onSubmit={async (event) => {
-    event.preventDefault(); setSaving(true); setError('');
-    try {
-      await client.providers.create({ id, kind, apiKey: key, ...(baseUrl ? { baseUrl } : {}) });
-      onConnected();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
-    finally { setSaving(false); }
-  }}>
-    <h1>Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p>
-
+  const deviceSection = (
     <section className="provider-class" aria-labelledby="provider-class-device">
       <h2 id="provider-class-device">On your device</h2>
       <p>Uses a subscription or local model through a paired device. The sign-in stays on the device; this server never sees it.</p>
@@ -176,7 +183,71 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
         </div>
       </div>
     </section>
+  );
 
+  return <div className="onboarding"><div className="onboarding-body"><form ref={dialogRef} className="onboarding-card form provider-connect-card"
+    role={onClose ? 'dialog' : undefined} aria-modal={onClose ? true : undefined} aria-labelledby="provider-connect-title"
+    onSubmit={async (event) => {
+    event.preventDefault();
+    if (!kind) return;
+    setSaving(true); setError('');
+    try {
+      await client.providers.create({ id: id.trim() || kind, kind, apiKey: key, ...(baseUrl ? { baseUrl: baseUrl.replace(/\/+$/, '') } : {}) });
+      onConnected();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
+    finally { setSaving(false); }
+  }}>
+    <h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p>
+
+    {deviceFirst && deviceSection}
+    <section className="provider-class" aria-labelledby="provider-class-key">
+    <h2 id="provider-class-key">With an API key</h2>
+    <p>Pay the provider directly. The key is stored encrypted on this server and never shown again.</p>
+    {oauthKinds.includes('openrouter') && !kind && <>
+      <button type="button" className="secondary-button full" disabled={connecting} onClick={signInToProvider}>
+        {connecting ? 'Connecting…' : 'Sign in with OpenRouter'}
+      </button>
+      <small>OpenRouter issues a key for this server. Nothing to copy or paste.</small>
+    </>}
+    {!kind ? (
+      <div className="provider-cards" role="list" aria-label="API providers">
+        {apiKinds.map((item) => {
+          const info = apiKindInfo[item];
+          const already = connectedKinds.includes(item);
+          return <button type="button" role="listitem" key={item} className="provider-card"
+            aria-label={`${info.title}${already ? ' (connected)' : ''}`}
+            onClick={() => { setKind(item); setId(already ? `${item}-2` : item); setShowId(already); setKey(''); setBaseUrl(''); setError(''); }}>
+            <ProviderLogo provider={item} small />
+            <span className="provider-card-text">
+              <strong>{info.title}</strong>
+              <span>{info.about}</span>
+              <small>{info.needs}</small>
+            </span>
+            {already && <span className="provider-card-badge">Connected</span>}
+          </button>;
+        })}
+      </div>
+    ) : (
+      <div className="provider-key-form">
+        <div className="provider-key-form-head">
+          <ProviderLogo provider={kind} small />
+          <strong>{apiKindInfo[kind].title}</strong>
+          <button type="button" className="text-button" onClick={() => { setKind(null); setError(''); }}>Choose another</button>
+        </div>
+        <label>API key<input required autoFocus type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />
+          <small>{apiKindInfo[kind].needs}</small></label>
+        {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          <small>The root the provider documents for its OpenAI-compatible endpoints, without /chat/completions.</small></label>}
+        {showId
+          ? <label>Connection name<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
+              <small>How agents refer to this connection. Use a new one to add a second {apiKindInfo[kind].title} account.</small>
+            </label>
+          : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {apiKindInfo[kind].title} account?</button>}
+        <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : `Connect ${apiKindInfo[kind].title}`}</button>
+      </div>
+    )}
+    </section>
+    {!deviceFirst && deviceSection}
     <section className="provider-class" aria-labelledby="provider-class-gateway">
       <h2 id="provider-class-gateway">Crewly Gateway</h2>
       <div className="provider-option unavailable">
@@ -187,28 +258,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
       </div>
     </section>
 
-    <section className="provider-class" aria-labelledby="provider-class-key">
-    <h2 id="provider-class-key">With an API key</h2>
-    {oauthKinds.includes('openrouter') && <>
-      <button type="button" className="secondary-button full" disabled={connecting} onClick={signInToProvider}>
-        {connecting ? 'Connecting…' : 'Sign in with OpenRouter'}
-      </button>
-      <small>OpenRouter issues a key for this server. Nothing to copy or paste.</small>
-      <p className="oauth-divider"><span>or paste a key</span></p>
-    </>}
-    <label>Provider<select value={kind} onChange={(e) => { const next = e.target.value as Kind; setKind(next); setId(next); }}>
-      {apiKinds.map((item) => <option key={item} value={item}>{kindLabels[item]}</option>)}</select></label>
-    <label>API key<input required type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} /></label>
-    {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-      <small>The root the provider documents for its OpenAI-compatible endpoints, without /chat/completions.</small></label>}
-    {showId
-      ? <label>Provider ID<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
-          <small>How agents refer to this connection. Change it to add a second {kindLabels[kind]} account.</small>
-        </label>
-      : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {kindLabels[kind]} provider?</button>}
-    </section>
     {error && <p role="alert">{error}</p>}
-    <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : 'Save provider'}</button>
     {onClose && <button type="button" className="secondary-button" onClick={onClose}>{closeLabel}</button>}
   </form></div></div>;
 }

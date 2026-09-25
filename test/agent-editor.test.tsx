@@ -44,28 +44,32 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
 const createButton = () => screen.getByRole('button', { name: /Create agent/ });
 
 describe('AgentEditor without a usable provider', () => {
-  it('tells the user to connect a provider instead of ignoring the click', async () => {
+  it('does not offer to create an agent that has nothing to run on, and says why', async () => {
     const onSubmit = await openEditor([]);
 
+    expect((createButton() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(createButton());
-
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
+    expect(screen.getByRole('status').textContent).toMatch(/no provider is connected/i);
   });
 
-  it('says the same when the only provider is not connected', async () => {
-    const onSubmit = await openEditor([missing]);
-
-    fireEvent.click(createButton());
-
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
+  it('treats a provider that is not connected the same as none', async () => {
+    await openEditor([missing]);
+    expect((createButton() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('warns before submitting, so the empty provider list is not a surprise', async () => {
+  it('lets an admin connect one right here instead of sending them to Settings', async () => {
+    const onProvidersChanged = vi.fn(async () => {});
+    render(<AgentEditor providers={[]} onClose={() => {}} onSubmit={vi.fn()} onProvidersChanged={onProvidersChanged}
+      loadModels={async () => []} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Connect a provider' }));
+    expect(await screen.findByRole('dialog', { name: 'Connect a model provider' })).toBeTruthy();
+  });
+
+  it('tells a member to ask an admin, since they cannot connect one', async () => {
     await openEditor([]);
-
-    expect(screen.getByText(/no connected provider/i)).toBeTruthy();
+    expect(screen.getByText(/ask an admin/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect a provider' })).toBeNull();
   });
 });
 

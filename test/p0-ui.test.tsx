@@ -98,15 +98,15 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
   fireEvent.click(page.getByRole('button', { name: 'Add' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });
-  fireEvent.change(page.getByLabelText('Provider'), { target: { value: 'openai-compatible' } });
+  fireEvent.click(page.getByRole('listitem', { name: 'Custom endpoint' }));
   // The provider ID defaults to the provider kind and only appears once the
   // second-account disclosure is opened.
   fireEvent.click(page.getByRole('button', { name: /Connecting another/ }));
-  // The label wraps a hint, so its text is not exactly "Provider ID".
-  fireEvent.change(await page.findByLabelText(/Provider ID/), { target: { value: 'mock' } });
-  fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
+  // The label wraps a hint, so its text is not exactly "Connection name".
+  fireEvent.change(await page.findByLabelText(/^Connection name/), { target: { value: 'mock' } });
+  fireEvent.change(page.getByLabelText(/^API key/), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText(/Base URL/), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
-  fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
+  fireEvent.click(page.getByRole('button', { name: 'Connect Custom endpoint' }));
   await page.findByText('Provider saved.');
   fireEvent.click(page.getByRole('button', { name: 'Close settings' }));
   // With a provider connected, first run moves on to the agent step by itself.

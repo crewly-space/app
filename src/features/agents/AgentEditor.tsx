@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ModelInfo } from "@crewly/protocol";
 import { Check, ChevronDown, Settings, Sparkles, X } from "lucide-react";
 import { ModelPicker } from "./ModelPicker";
+import { ProviderConnect } from "../providers/ProviderConnect";
 import { providerConnectionLabel } from "../providers/labels";
 import { useDialog } from "../../lib/layers";
 import type { Agent, Provider } from "../../types";
@@ -16,6 +17,7 @@ export function AgentEditor({
   onClose,
   onSubmit,
   loadModels,
+  onProvidersChanged,
 }: {
   agent?: Agent;
   providers: Provider[];
@@ -25,6 +27,11 @@ export function AgentEditor({
   onSubmit: (agent: CreateAgentInput) => Promise<void>;
   /** The provider's model list. Injected so a test needs no provider behind it. */
   loadModels?: (providerId: string) => Promise<ModelInfo[]>;
+  /**
+   * Reloads the provider list after one is connected from inside this
+   * dialog. Given only to people who may connect providers.
+   */
+  onProvidersChanged?: () => Promise<unknown>;
 }) {
   const dialogRef = useDialog(onClose);
   const [name, setName] = useState(agent?.name ?? "");
@@ -51,6 +58,7 @@ export function AgentEditor({
   );
   const [avatarMode, setAvatarMode] = useState<AvatarMode>(agent?.avatarMode ?? "bloop");
   const [saving, setSaving] = useState(false);
+  const [connectingProvider, setConnectingProvider] = useState(false);
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
   const roleRef = useRef<HTMLInputElement>(null);
@@ -85,7 +93,7 @@ export function AgentEditor({
     // The provider comes first: without one there is no model list to choose
     // from, so asking for a model would be asking for something impossible.
     if (!providerId) {
-      setError("Connect a provider in Settings before creating an agent.");
+      setError("Connect a provider before creating an agent.");
       return;
     }
     if (!model.trim()) {
@@ -209,7 +217,17 @@ export function AgentEditor({
             </select></label>
             <ModelPicker providerId={providerId} value={model} onChange={setModel} loadModels={loadModels} />
           </div>
-          {!connectedProviders.length && <small className="field-description">No connected provider. Connect one in Settings first.</small>}
+          {!connectedProviders.length && (
+            <div className="agent-editor-no-provider" role="status">
+              <span>An agent needs a model to think with. No provider is connected yet.</span>
+              {onProvidersChanged
+                ? <button type="button" className="secondary-button" onClick={() => setConnectingProvider(true)}>Connect a provider</button>
+                : <span>Ask an admin to connect one.</span>}
+            </div>
+          )}
+          {connectedProviders.length > 0 && onProvidersChanged && (
+            <button type="button" className="text-button" onClick={() => setConnectingProvider(true)}>Connect another provider</button>
+          )}
           <button
             type="button"
             className="advanced-toggle"
@@ -241,7 +259,8 @@ export function AgentEditor({
             type="submit"
             form="agent-editor-form"
             className="primary-button"
-            disabled={saving}
+            // Nothing to run it on: say so up front instead of failing on submit.
+            disabled={saving || (!editing && !connectedProviders.length)}
           >
             {saving
               ? editing
@@ -254,6 +273,16 @@ export function AgentEditor({
           </button>
         </footer>
       </div>
+      {connectingProvider && onProvidersChanged && (
+        // Straight back here once connected: the new provider becomes the
+        // choice and its models load, with no detour through Settings.
+        <div className="provider-connect-layer">
+          <ProviderConnect
+            onClose={() => setConnectingProvider(false)}
+            onConnected={() => { void onProvidersChanged().finally(() => setConnectingProvider(false)); }}
+          />
+        </div>
+      )}
     </div>
   );
 }

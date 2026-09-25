@@ -3643,3 +3643,51 @@ body {
   .app-shell.server-pending > .server-rail .server-tab { flex: none; }
   .server-pending-body { padding: 20px 12px; }
 }
+
+/* Key-based providers as cards: what each is and what it needs, and only
+   the chosen one asks for credentials. */
+.provider-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.provider-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  position: relative;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.provider-card:hover { border-color: var(--oc-line-strong); }
+.provider-card-text { display: grid; gap: 3px; min-width: 0; }
+.provider-card-text span,
+.provider-card-text small { color: var(--oc-muted); font-size: var(--oc-text-sm); }
+.provider-card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--oc-accent-soft);
+  color: var(--oc-text);
+  font-size: 10px;
+}
+.provider-key-form { display: grid; gap: 12px; }
+.provider-key-form-head { display: flex; align-items: center; gap: 10px; }
+.provider-key-form-head .text-button { margin-left: auto; }
+.provider-connect-card { width: min(640px, 94vw); max-width: 100%; }
+.agent-editor-no-provider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-sm);
+}

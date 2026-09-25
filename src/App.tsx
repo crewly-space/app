@@ -288,7 +288,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
       </header>
       {step === "agent" ? (
-        <AgentEditor firstRun providers={data.providers} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
+        <AgentEditor firstRun providers={data.providers} onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
           const agent = await gateway.createAgent(input);
           const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
           setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
@@ -1272,6 +1272,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           <AgentEditor
             onClose={() => setCreating(false)}
             providers={data.providers}
+            onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined}
             onSubmit={async (input) => {
               const created = await gateway.createAgent(input);
               const dm = await gateway.createDm(created.id, [...data.agents, created]);
