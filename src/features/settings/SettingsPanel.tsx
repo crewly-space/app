@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Blobatar } from "@blobatar/react";
 import { bloopSvg } from "@crewly/ui/bloop";
-import type { AuthUser, DeviceInfo, DevicePairingInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
-import { Check, Cpu, Laptop, LockKeyhole, Monitor, Moon, Palette, Plus, Settings, Sun, UserRound, X } from "lucide-react";
+import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
+import { Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
+import { client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
@@ -15,6 +16,7 @@ import { AvatarModePicker, UserAvatar } from "../appearance/Avatar";
 
 export function SettingsPanel({
   providers,
+  connectors,
   devices,
   agents,
   currentUser,
@@ -25,11 +27,13 @@ export function SettingsPanel({
   onThemeChange,
   onNotify,
   onProvidersChanged,
+  onConnectorsChanged,
   onUsersChanged,
   onDevicesChanged,
   onClose,
 }: {
   providers: Provider[];
+  connectors: Connector[];
   devices: DeviceInfo[];
   agents: Agent[];
   currentUser: AuthUser;
@@ -40,12 +44,13 @@ export function SettingsPanel({
   onThemeChange: (theme: Theme) => void;
   onNotify: (message: string) => void;
   onProvidersChanged: () => Promise<void>;
+  onConnectorsChanged: () => Promise<void>;
   onUsersChanged: () => Promise<void>;
   onDevicesChanged: () => Promise<void>;
   onClose: () => void;
 }) {
   const [section, setSection] = useState<
-    "providers" | "members" | "devices" | "appearance"
+    "providers" | "connectors" | "members" | "devices" | "appearance"
   >("providers");
   const [addingProvider, setAddingProvider] = useState(false);
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
@@ -54,7 +59,30 @@ export function SettingsPanel({
   const [pairing, setPairing] = useState<DevicePairingInfo | null>(null);
   const [pairingError, setPairingError] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
+  const [connectorBusy, setConnectorBusy] = useState(false);
   const canManageServer = currentUser.role === 'owner' || currentUser.role === 'admin';
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const code = query.get("code");
+    const state = query.get("state");
+    if (query.get("connector") !== "github" || !code || !state || !canManageServer) return;
+    setConnectorBusy(true);
+    void client.connectors.completeGitHubOAuth({ code, state }).then(async () => {
+      window.history.replaceState({}, "", window.location.pathname);
+      await onConnectorsChanged();
+      onNotify("GitHub connected.");
+    }).catch(() => onNotify("GitHub could not be connected.")).finally(() => setConnectorBusy(false));
+  }, [canManageServer, onConnectorsChanged, onNotify]);
+  const connectGitHub = async () => {
+    setConnectorBusy(true);
+    try {
+      const pending = await client.connectors.startGitHubOAuth({ callbackUrl: `${window.location.origin}/?connector=github` });
+      window.location.assign(pending.authorizeUrl);
+    } catch {
+      setConnectorBusy(false);
+      onNotify("GitHub OAuth is not configured on this server.");
+    }
+  };
   return (
     <aside className="detail-panel settings-panel">
       <header>
@@ -74,6 +102,12 @@ export function SettingsPanel({
         >
           <Cpu size={16} /> Providers
         </button>
+        {canManageServer && <button
+          className={section === "connectors" ? "active" : ""}
+          onClick={() => setSection("connectors")}
+        >
+          <Plug size={16} /> Connectors
+        </button>}
         {canManageServer && <button
             className={section === "members" ? "active" : ""}
             onClick={() => setSection("members")}
@@ -128,6 +162,29 @@ export function SettingsPanel({
               <LockKeyhole size={15} />
               <span>Provider credentials are stored on the Crewly server.</span>
             </div>
+          </>
+        ) : section === "connectors" ? (
+          <>
+            <div className="section-heading">
+              <div>
+                <h3>Connectors</h3>
+                <p>External services with explicit, auditable capabilities.</p>
+              </div>
+              <button onClick={() => void connectGitHub()} disabled={connectorBusy}><GitBranch size={15} /> Connect GitHub</button>
+            </div>
+            {connectors.map((connector) => (
+              <div className="connector-card" key={connector.id}>
+                <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || "GitHub"}</strong><span>{connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
+                <p>{connector.scopes.length ? `Scopes: ${connector.scopes.join(", ")}` : "No permissions granted yet."}</p>
+                <small>Capabilities are not available to agents until an explicit policy grant is added.</small>
+                <div className="connector-card-actions">
+                  <button className="text-button" onClick={() => void client.connectors.refresh(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}><RefreshCw size={13} /> Refresh</button>
+                  <button className="text-button danger" onClick={() => void client.connectors.revoke(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}>Disconnect</button>
+                </div>
+              </div>
+            ))}
+            {!connectors.length && <div className="empty-state"><Plug size={24} /><strong>No connectors connected</strong><p>Connect GitHub here; MCP tools and AI providers remain separate settings.</p></div>}
+            <div className="local-note"><LockKeyhole size={15} /><span>Connectors use encrypted server credentials. Tokens and secrets never return to the browser.</span></div>
           </>
         ) : section === "members" ? (
           <>

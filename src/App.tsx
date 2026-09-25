@@ -315,9 +315,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
 
   if (!data.conversations.length) return <div className="empty-settings-shell">
     <SettingsPanel
-    providers={data.providers} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
+    providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
     people={data.people} onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
-    onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)}
+    onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)}
     onUsersChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)}
     onClose={() => setPanel(null)} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
 
@@ -1251,6 +1251,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         {panel === "settings" && (
           <SettingsPanel
             providers={data.providers}
+            connectors={data.connectors}
             devices={data.devices}
             agents={data.agents}
             currentUser={data.currentUser}
@@ -1261,6 +1262,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             onThemeChange={updateTheme}
             onNotify={notify}
             onProvidersChanged={() => gateway.bootstrap().then(setData)}
+            onConnectorsChanged={() => gateway.bootstrap().then(setData)}
             onUsersChanged={() => gateway.bootstrap().then(setData)}
             onDevicesChanged={() => gateway.bootstrap().then(setData)}
             onClose={() => setPanel(null)}

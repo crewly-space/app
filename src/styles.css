@@ -1139,6 +1139,54 @@ body {
   color: var(--oc-muted);
   font-size: 11px;
 }
+.connector-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 11px;
+  background: var(--oc-panel-2);
+}
+.connector-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.connector-card-heading > div {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+.connector-card-heading span:not(.connector-status),
+.connector-card p,
+.connector-card small {
+  color: var(--oc-muted-2);
+  font-size: 11px;
+}
+.connector-card p {
+  margin: 11px 0 4px;
+}
+.connector-card small {
+  display: block;
+  line-height: 1.45;
+}
+.connector-status {
+  color: var(--oc-success-text);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.connector-status:not(.connected) {
+  color: var(--oc-danger-text);
+}
+.connector-card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 11px;
+}
+.connector-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .device-card {
   border: 1px solid var(--line);
   border-radius: 10px;
