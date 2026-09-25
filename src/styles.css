@@ -3154,17 +3154,45 @@ body {
 .dashboard { max-width: 940px; margin: 0 auto; padding: 28px 22px 60px; }
 .dashboard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .dashboard-head h1 { margin: 2px 0 0; font-size: 22px; }
-.dashboard-tabs { display: flex; gap: 4px; margin: 18px 0 14px; border-bottom: 1px solid var(--line); }
+.dashboard-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin: 18px 0 14px;
+  padding: 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-panel-2);
+}
+.dashboard-nav-group {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 5px;
+}
+.dashboard-nav-group + .dashboard-nav-group { border-left: 1px solid var(--line-soft); }
+.dashboard-nav-group-label {
+  padding: 4px 8px 6px;
+  color: var(--oc-muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 .dashboard-tabs button {
-  padding: 8px 12px;
+  width: 100%;
+  padding: 7px 8px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 7px;
   background: transparent;
   color: var(--oc-muted);
+  text-align: left;
   font-size: 13px;
   cursor: pointer;
 }
-.dashboard-tabs button.selected { color: var(--text); border-bottom-color: var(--accent); }
+.dashboard-tabs button:hover { background: var(--oc-panel-3); color: var(--oc-text); }
+.dashboard-tabs button.selected { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--oc-text); font-weight: 650; }
 .dashboard-error { color: var(--accent); font-size: 13px; }
 .dashboard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dashboard-table th {
@@ -3304,7 +3332,16 @@ body {
 .dashboard-toggles { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
 .dashboard-toggles li { padding: 3px 0; }
 .dashboard-blocked { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--oc-radius-md); font-size: 13px; }
-.dashboard-tabs { flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .dashboard-tabs {
+    display: flex;
+    overflow-x: auto;
+    align-items: stretch;
+    scrollbar-width: thin;
+  }
+  .dashboard-nav-group { flex: 0 0 142px; }
+  .dashboard-nav-group + .dashboard-nav-group { border-left: 1px solid var(--line-soft); }
+}
 
 /* The hosted app before a server is open: the rail, and beside it whatever
    the selected server is doing. */
