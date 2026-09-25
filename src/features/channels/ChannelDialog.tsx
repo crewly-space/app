@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Ban, Hash, Lock, UserMinus, X } from "lucide-react";
 import type { ChannelCategory, ChannelPostRole, ChannelVisibility } from "@crewly/protocol";
 import type { DirectoryUser } from "@crewly/sdk";
@@ -54,10 +54,15 @@ export function ChannelDialog({
   const [addingAgents, setAddingAgents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const inFlight = useRef(false);
   const editable = canManage;
   const title = current ? `#${current.name}` : "Create a channel";
 
   async function run<T>(action: () => Promise<T>): Promise<T | undefined> {
+    // React state updates are batched; two clicks in the same turn can both
+    // pass the disabled check before the first request starts.
+    if (inFlight.current) return undefined;
+    inFlight.current = true;
     setBusy(true);
     setError("");
     try {
@@ -66,6 +71,7 @@ export function ChannelDialog({
       setError(explain(reason));
       return undefined;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }

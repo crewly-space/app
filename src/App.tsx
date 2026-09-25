@@ -93,6 +93,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
+  const [joiningChannelId, setJoiningChannelId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const notify = useCallback(
     (message: string, tone: Toast["tone"] = "info") =>
@@ -1072,12 +1073,15 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     ) : !channel.joined ? (
                       <>
                         <span>You&rsquo;re reading <strong>#{channel.name}</strong>. Join it to post and get its messages live.</span>
-                        <button className="primary-button compact" onClick={async () => {
+                        <button className="primary-button compact" disabled={joiningChannelId === channel.id} onClick={async () => {
+                          if (joiningChannelId === channel.id) return;
+                          setJoiningChannelId(channel.id);
                           try {
                             const joined = await gateway.joinChannel(channel.id);
                             setData((current) => current && ({ ...current,
                               conversations: current.conversations.map((item) => item.id === joined.id ? joined : item) }));
                           } catch (error) { notify(String(error instanceof Error ? error.message : error), "error"); }
+                          finally { setJoiningChannelId(null); }
                         }}>Join channel</button>
                       </>
                     ) : (
