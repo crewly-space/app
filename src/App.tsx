@@ -11,6 +11,7 @@ import { serverApi } from "./features/dashboard/api";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ServerPending } from "./features/servers/ServerPending";
+import { hasWorkspace, readWorkspace, writeWorkspace } from "./lib/boot-cache";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
 import { FirstRunHome, firstRunStep, useFirstRunSkips } from "./features/onboarding/FirstRun";
 import { PairingApproval } from "./features/devices/PairingApproval";
@@ -57,11 +58,18 @@ function withChannels(current: Bootstrap, next: Awaited<ReturnType<typeof gatewa
  */
 export default function App() {
   const registry = useServerRegistry();
-  if (registry.connection.state !== "connected") return <ServerPending registry={registry} />;
-  return <ServerWorkspace registry={registry} />;
+  const serverKey = registry.selected?.id ?? "local";
+  const connected = registry.connection.state === "connected";
+  // A server shown before stays on screen while it reconnects -- its last
+  // known sidebar and conversation, marked as such -- instead of the whole
+  // workspace being torn down for a loading page (CRE-101). A server never
+  // shown yet, or one that failed, gets the pending screen beside the rail.
+  const reconnecting = registry.connection.state === "connecting" && hasWorkspace(serverKey);
+  if (!connected && !reconnecting) return <ServerPending registry={registry} />;
+  return <ServerWorkspace key={serverKey} serverKey={serverKey} connected={connected} registry={registry} />;
 }
 
-function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
+function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerRegistry; serverKey: string; connected: boolean }) {
   // Administering a server is its own screen rather than a panel beside a
   // conversation: suspending somebody is not a chat setting. It has its own
   // address, so it can be opened, linked and left with the back button.
@@ -71,9 +79,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [addingServer, setAddingServer] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
   const [inspecting, setInspecting] = useState<{ messageId?: string; runId?: string } | null>(null);
-  const [data, setData] = useState<Bootstrap | null>(null);
+  const cached = readWorkspace<Bootstrap>(serverKey);
+  const [data, setData] = useState<Bootstrap | null>(cached?.data ?? null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [loadError, setLoadError] = useState('');
-  const [selected, setSelected] = useState("launch");
+  // Each server reopens on the conversation that was open there.
+  const [selected, setSelected] = useState(cached?.selected ?? "launch");
   const [view, setView] = useState<View>("messages");
   const [panel, setPanel] = useState<Panel>(() => {
     if (new URLSearchParams(window.location.search).has("pair")) return "settings";
@@ -125,6 +136,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
+    // Not asked until the server is connected: before then there is no
+    // session for it, and the last known state is what is on screen.
+    if (!connected) return;
     let cancelled = false;
     let stopRealtime = () => {};
     // A reconnect replays every channel change it missed; one refetch covers them all.
@@ -159,12 +173,16 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         (status) => setData((current) => current && ({ ...current,
           agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })),
         refreshChannels);
-    }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
+    }).catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error)); });
     return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
     // while connected to another would be a lie.
-  }, [registry.epoch]);
+  }, [registry.epoch, connected, bootAttempt]);
+  // Remember what this server looked like, for switching back to it.
+  useEffect(() => {
+    if (data) writeWorkspace(serverKey, data, selected);
+  }, [data, selected, serverKey]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
@@ -250,7 +268,27 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  if (!data) return loadError ? <div role="alert">{loadError}</div> : <Loading />;
+  if (!data) {
+    const serverName = registry.selected?.name;
+    const retry = () => { setLoadError(""); setBootAttempt((value) => value + 1); };
+    const content = loadError ? (
+      <div className="onboarding-body"><div className="onboarding-card form">
+        <h1>{serverName ? `${serverName} couldn't be opened` : "Crewly couldn't be opened"}</h1>
+        <p role="alert">{loadError}</p>
+        <button className="primary-button" type="button" onClick={retry}>Try again</button>
+      </div></div>
+    ) : <Loading embedded={registry.multiServer} phase={serverName ? `Opening ${serverName}…` : "Opening your crew…"} onRetry={retry} />;
+    // Hosted, the rail stays while one server loads, so the others are still a click away.
+    if (!registry.multiServer || !registry.servers.length) return content;
+    return <div className="app-shell server-pending">
+      <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
+        onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+        unread={registry.unread} failures={registry.failures} />
+      <main className="server-pending-main">{content}</main>
+      {addingServer && <AddServerDialog onClose={() => setAddingServer(false)}
+        onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
+    </div>;
+  }
   const pairingCode = new URLSearchParams(window.location.search).get("pair");
   if (pairingCode) return <PairingApproval code={pairingCode} onApproved={async () => {
     const url = new URL(window.location.href);
@@ -891,6 +929,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         )}
 
         <main className="conversation">
+          {!connected && (
+            <div className="server-switching" role="status">
+              Showing {registry.selected?.name ?? "this server"} as you left it. Connecting…
+            </div>
+          )}
           <header className="conversation-header">
             <button
               className="icon-button compact mobile-only"
@@ -1095,7 +1138,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   <div
                     ref={composerRef}
                     className="composer-editor"
-                    contentEditable={!sending}
+                    contentEditable={!sending && connected}
                     suppressContentEditableWarning
                     onInput={(event) => {
                       setComposer(readComposer(event.currentTarget));
@@ -1214,7 +1257,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     <span>Shift + Enter for new line</span>
                     <button
                       className="send"
-                      disabled={!composer.trim() || sending}
+                      disabled={!composer.trim() || sending || !connected}
                       onClick={() => void send()}
                       aria-label="Send message"
                     >
