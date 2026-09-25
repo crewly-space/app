@@ -1,6 +1,7 @@
 import { CrewlyClient } from '@crewly/sdk';
 import { clientFor, readServerToken, storeServerToken } from '../servers/session';
 import type { RegistryServer } from '../servers/types';
+import { APP_VERSION } from '../../version';
 
 /**
  * Where a single-server app keeps its session.
@@ -13,7 +14,7 @@ const TOKEN_KEY = 'crewly:session';
 
 /** The server the app is currently showing; null in standalone mode. */
 let active: RegistryServer | null = null;
-let standalone = new CrewlyClient({ baseUrl: window.location.origin });
+let standalone = new CrewlyClient({ baseUrl: window.location.origin, clientVersion: APP_VERSION });
 
 function current(): CrewlyClient {
   return active ? clientFor(active).client : standalone;

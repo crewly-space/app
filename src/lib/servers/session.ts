@@ -1,4 +1,5 @@
 import { CrewlyClient } from '@crewly/sdk';
+import { APP_VERSION } from '../../version';
 import type { RegistryServer } from './types';
 
 /**
@@ -55,7 +56,7 @@ export function clientFor(server: RegistryServer): ServerConnection {
   if (existing) return existing;
 
   const endpoint = server.endpoint ?? window.location.origin;
-  const client = new CrewlyClient({ baseUrl: endpoint });
+  const client = new CrewlyClient({ baseUrl: endpoint, clientVersion: APP_VERSION });
   const token = readServerToken(server.id);
   if (token) client.setToken(token);
   const connection: ServerConnection = { id: server.id, endpoint, client };
