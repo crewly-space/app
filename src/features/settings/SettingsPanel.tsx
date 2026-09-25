@@ -4,6 +4,7 @@ import { bloopSvg } from "@crewly/ui/bloop";
 import type { AuthUser, DeviceInfo, DevicePairingInfo, DirectoryUser, UserAccount } from "@crewly/sdk";
 import { Check, Cpu, Laptop, LockKeyhole, Monitor, Moon, Palette, Plus, Settings, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
+import { useDialog } from "../../lib/layers";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
@@ -31,6 +32,7 @@ export function SettingsPanel({
   onUsersChanged,
   onDevicesChanged,
   onClose,
+  serverName,
 }: {
   providers: Provider[];
   devices: DeviceInfo[];
@@ -46,6 +48,8 @@ export function SettingsPanel({
   onUsersChanged: () => Promise<void>;
   onDevicesChanged: () => Promise<void>;
   onClose: () => void;
+  /** The server being administered, so nobody mistakes a server setting for their own. */
+  serverName?: string;
 }) {
   const [section, setSection] = useState<
     "providers" | "members" | "devices" | "appearance"
@@ -58,10 +62,24 @@ export function SettingsPanel({
   const [pairingError, setPairingError] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
   const canManageServer = currentUser.role === 'owner' || currentUser.role === 'admin';
+  const dialogRef = useDialog(onClose);
+  const navButton = (id: typeof section, icon: React.ReactNode, label: string) => (
+    <button
+      type="button"
+      className={section === id ? "active" : ""}
+      aria-current={section === id ? "page" : undefined}
+      onClick={() => setSection(id)}
+    >
+      {icon} {label}
+    </button>
+  );
   return (
-    <aside className="detail-panel settings-panel">
+    <div className="modal-layer settings-layer" onMouseDown={(event) => {
+      if (event.currentTarget === event.target) onClose();
+    }}>
+    <div ref={dialogRef} className="settings-panel settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <header>
-        <strong>Settings</strong>
+        <strong id="settings-title">Settings</strong>
         <button
           className="icon-button compact"
           onClick={onClose}
@@ -70,32 +88,24 @@ export function SettingsPanel({
           <X size={18} />
         </button>
       </header>
-      <div className="settings-nav">
-        <button
-          className={section === "providers" ? "active" : ""}
-          onClick={() => setSection("providers")}
-        >
-          <Cpu size={16} /> Providers
-        </button>
-        {canManageServer && <button
-            className={section === "members" ? "active" : ""}
-            onClick={() => setSection("members")}
-          >
-            <UserRound size={16} /> People
-          </button>}
-        <button
-          className={section === "devices" ? "active" : ""}
-          onClick={() => setSection("devices")}
-        >
-          <Laptop size={16} /> Devices
-        </button>
-        <button
-          className={section === "appearance" ? "active" : ""}
-          onClick={() => setSection("appearance")}
-        >
-          <Palette size={16} /> Appearance
-        </button>
-      </div>
+      <div className="settings-body">
+      {/* Two kinds of setting, kept apart so it is always clear which one is
+          changing: this person's own, or the server everyone shares. */}
+      <nav className="settings-nav" aria-label="Settings sections">
+        <div className="settings-nav-group">
+          <span className="settings-nav-label">Your account</span>
+          <span className="settings-nav-hint">{currentUser.email}</span>
+          {navButton("appearance", <Palette size={16} />, "Appearance")}
+          {navButton("devices", <Laptop size={16} />, "Devices")}
+        </div>
+        <div className="settings-nav-group">
+          <span className="settings-nav-label">This server</span>
+          {serverName && <span className="settings-nav-hint">{serverName}</span>}
+          {navButton("providers", <Cpu size={16} />, "Providers")}
+          {canManageServer && navButton("members", <UserRound size={16} />, "People")}
+        </div>
+        <button type="button" className="text-button settings-logout" onClick={() => void gateway.logout()}>Log out</button>
+      </nav>
       <div className="settings-content">
         {section === "providers" ? (
           <>
@@ -261,7 +271,7 @@ export function SettingsPanel({
           </>
         )}
       </div>
-      <button className="secondary-button" onClick={() => void gateway.logout()}>Log out</button>
+      </div>
       {/* The same full screen first run uses; from a panel it has to cover the
           app, or it renders inside a 330px column and runs off its edge. */}
       {addingProvider && <div className="provider-connect-layer"><ProviderConnect onClose={() => setAddingProvider(false)} onConnected={() => {
@@ -284,6 +294,7 @@ export function SettingsPanel({
           onNotify('Local account created. They can sign in now.');
         }}
       />}
-    </aside>
+    </div>
+    </div>
   );
 }

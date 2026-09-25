@@ -142,6 +142,14 @@ describe('the server dashboard', () => {
     expect(await screen.findAllByText('Revoked')).toHaveLength(2);
   });
 
+  it('groups server administration by job instead of one row of equal tabs', async () => {
+    open();
+    for (const group of ['People & access', 'Agents & AI', 'Integrations', 'Usage & operations']) {
+      expect(await screen.findByRole('tablist', { name: group })).toBeTruthy();
+    }
+    expect(screen.getAllByRole('tab')).toHaveLength(12);
+  });
+
   it('reports what the server is doing and what failed', async () => {
     open();
     fireEvent.click(await screen.findByRole('tab', { name: /server/i }));

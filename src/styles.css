@@ -3691,3 +3691,125 @@ body {
   color: var(--oc-muted);
   font-size: var(--oc-text-sm);
 }
+
+/* ------------------------------------------------------------ settings -- */
+/* Settings is a dialog, not a 330px rail: navigation on the left, grouped by
+   whose setting it is, and a readable content column. Full screen on phones. */
+.settings-layer { z-index: 35; }
+.settings-modal {
+  --surface: var(--oc-panel);
+  width: min(880px, 100%);
+  height: min(680px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--oc-line);
+  border-radius: 16px;
+  box-shadow: var(--oc-shadow-lg);
+  overflow: hidden;
+}
+.settings-modal > header {
+  height: 58px;
+  flex: none;
+  padding: 0 14px 0 20px;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+}
+.settings-modal > header strong { flex: 1; font-size: 15px; }
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.settings-modal .settings-nav {
+  margin: 0;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-right: 1px solid var(--line-soft);
+  overflow-y: auto;
+}
+.settings-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.settings-nav-label {
+  padding: 0 10px;
+  color: var(--oc-muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.settings-nav-hint {
+  padding: 0 10px 6px;
+  color: var(--oc-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .settings-nav button { width: 100%; font-size: 13px; }
+.settings-modal .settings-nav .settings-logout { margin-top: auto; justify-content: flex-start; padding: 7px 10px; }
+.settings-modal .settings-content {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 22px 26px 28px;
+}
+.settings-modal .settings-content > * { max-width: 620px; }
+@media (max-width: 720px) {
+  .settings-layer { padding: 0; align-items: stretch; }
+  .settings-modal {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+  .settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-modal .settings-nav {
+    flex-direction: row;
+    gap: 14px;
+    overflow-x: auto;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .settings-nav-group { flex-direction: row; align-items: center; flex: none; }
+  .settings-nav-hint { display: none; }
+  .settings-modal .settings-nav button { width: auto; white-space: nowrap; }
+  .settings-modal .settings-content { padding: 18px 16px max(24px, env(safe-area-inset-bottom)); }
+}
+
+/* Server admin sections, grouped by job rather than twelve equal tabs. */
+.dashboard-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 18px;
+  margin: 18px 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-nav-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dashboard-nav-label {
+  color: var(--oc-muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dashboard-nav .dashboard-tabs { margin: 0; border-bottom: 0; flex-wrap: wrap; }
+/* Dashboard forms use the kit's fields, without the dialog form's padding. */
+.dashboard-form.form { padding: 0; }
+.dashboard-empty {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 18px;
+  padding: 16px 18px;
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius-md);
+  color: var(--oc-muted);
+  font-size: 13px;
+}
+.dashboard-empty strong { color: var(--oc-text); }
+.dashboard-empty p { margin: 0; line-height: 1.55; }

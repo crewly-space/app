@@ -308,7 +308,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   }
 
   if (!data.conversations.length) return <div className="empty-settings-shell">
-    <SettingsPanel
+    <SettingsPanel serverName={registry.selected?.name}
     providers={data.providers} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
     people={data.people} onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
     onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)}
@@ -1251,7 +1251,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           />
         )}
         {panel === "settings" && (
-          <SettingsPanel
+          <SettingsPanel serverName={registry.selected?.name}
             providers={data.providers}
             devices={data.devices}
             agents={data.agents}

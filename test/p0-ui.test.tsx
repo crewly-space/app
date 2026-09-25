@@ -95,6 +95,12 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   expect(page.getByRole('button', { name: 'Create channel' })).toBeTruthy();
   expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
+  // Settings is a dialog with the person's own settings kept apart from the
+  // server's (CRE-102), and Log out lives with the account, not under every tab.
+  const settingsDialog = await page.findByRole('dialog', { name: 'Settings' });
+  expect(within(settingsDialog).getByText('Your account')).toBeTruthy();
+  expect(within(settingsDialog).getByText('This server')).toBeTruthy();
+  expect(within(settingsDialog).getAllByRole('button', { name: 'Log out' })).toHaveLength(1);
   fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
   fireEvent.click(page.getByRole('button', { name: 'Add' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });

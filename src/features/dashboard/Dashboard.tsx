@@ -24,19 +24,18 @@ import { servicesApi, type ServicesApi } from './services-api';
 
 type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'members', label: 'Members' },
-  { id: 'invites', label: 'Invites' },
-  { id: 'agents', label: 'Agents' },
-  { id: 'providers', label: 'Providers' },
-  { id: 'usage', label: 'Usage' },
-  { id: 'runs', label: 'Runs' },
-  { id: 'tools', label: 'Tools' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'secrets', label: 'Secrets' },
-  { id: 'mail', label: 'Mail' },
-  { id: 'crewly', label: 'Crewly' },
-  { id: 'server', label: 'Server' },
+/*
+ * Twelve equal tabs in one row said nothing about how they relate, and ran
+ * off the edge at laptop widths. Grouped, a person looks for the job to do.
+ */
+const GROUPS: { label: string; tabs: { id: Tab; label: string }[] }[] = [
+  { label: 'People & access', tabs: [{ id: 'members', label: 'Members' }, { id: 'invites', label: 'Invites' }] },
+  { label: 'Agents & AI', tabs: [
+    { id: 'agents', label: 'Agents' }, { id: 'providers', label: 'Providers' },
+    { id: 'tools', label: 'Tools' }, { id: 'skills', label: 'Skills' },
+  ] },
+  { label: 'Integrations', tabs: [{ id: 'mail', label: 'Mail' }, { id: 'crewly', label: 'Crewly' }, { id: 'secrets', label: 'Secrets' }] },
+  { label: 'Usage & operations', tabs: [{ id: 'usage', label: 'Usage' }, { id: 'runs', label: 'Runs' }, { id: 'server', label: 'Server' }] },
 ];
 
 /** The sections that need the agent list, to name agents or choose them. */
@@ -164,20 +163,27 @@ export function Dashboard({
         <button className="icon-button" onClick={onClose} aria-label="Close the dashboard"><X size={18} /></button>
       </header>
 
-      <div className="dashboard-tabs" role="tablist" aria-label="Dashboard sections">
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === entry.id}
-            className={tab === entry.id ? 'selected' : ''}
-            onClick={() => setTab(entry.id)}
-          >
-            {entry.label}
-          </button>
+      <nav className="dashboard-nav" aria-label="Dashboard sections">
+        {GROUPS.map((group) => (
+          <div className="dashboard-nav-group" key={group.label}>
+            <span className="dashboard-nav-label">{group.label}</span>
+            <div className="dashboard-tabs" role="tablist" aria-label={group.label}>
+              {group.tabs.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === entry.id}
+                  className={tab === entry.id ? 'selected' : ''}
+                  onClick={() => setTab(entry.id)}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-      </div>
+      </nav>
 
       {error && <p role="alert" className="dashboard-error">{error}</p>}
 

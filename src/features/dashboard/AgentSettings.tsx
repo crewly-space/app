@@ -141,7 +141,7 @@ export function AgentSettings({
               </ol>
             </div>
           ) : (
-            <div className="dashboard-form">
+            <div className="dashboard-form form">
               <select aria-label="Device" value={runtimeDraft.deviceId}
                 onChange={(event) => setRuntimeDraft((current) => ({ ...current, deviceId: event.target.value, workspaceId: '' }))}>
                 <option value="">Choose a device…</option>

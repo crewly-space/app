@@ -110,7 +110,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
       <p className="field-description">{STATUS_TEXT[connection.status]}</p>
 
       {(connection.status === 'disconnected' || connection.status === 'revoked') && (
-        <form className="dashboard-form" onSubmit={(event) => {
+        <form className="dashboard-form form" onSubmit={(event) => {
           event.preventDefault();
           void act(() => api.connectCrewly({ name: serverName, scopes: requested }));
         }}>
