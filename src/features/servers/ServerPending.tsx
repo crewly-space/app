@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AuthGate } from '../auth/AuthGate';
 import { AddServerDialog } from './AddServerDialog';
 import { ServerRail } from './ServerRail';
@@ -16,8 +16,17 @@ const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_U
  */
 export function ServerPending({ registry }: { registry: ServerRegistry }) {
   const [adding, setAdding] = useState(false);
+  const [slow, setSlow] = useState(false);
   const { selected, connection } = registry;
   const refresh = () => void registry.refresh().catch(() => {});
+
+  useEffect(() => {
+    const waiting = connection.state === 'loading' || connection.state === 'connecting';
+    setSlow(false);
+    if (!waiting) return;
+    const timer = window.setTimeout(() => setSlow(true), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [connection.state, selected?.id]);
 
   let body: ReactNode;
   switch (connection.state) {
@@ -59,7 +68,15 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
       break;
     default:
       body = <div className="server-pending-body">
-        <p className="server-pending-status">{selected ? `Opening ${selected.name}…` : 'Loading your servers…'}</p>
+        <div className="server-switch-skeleton" role="status" aria-live="polite">
+          <div className="server-switch-skeleton-mark"><span /><span /><span /></div>
+          <div className="server-switch-skeleton-lines"><i /><i /><i /></div>
+          <p className="server-pending-status">{selected ? `Opening ${selected.name}…` : 'Loading your servers…'}</p>
+          {slow && <div className="server-pending-retry">
+            <p>{selected ? 'This server is taking longer than expected.' : 'Crewly is taking longer than expected.'}</p>
+            <button className="secondary-button" type="button" onClick={selected ? registry.reconnect : refresh}>Try again</button>
+          </div>}
+        </div>
       </div>;
   }
 

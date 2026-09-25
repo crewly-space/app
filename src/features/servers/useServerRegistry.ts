@@ -6,6 +6,7 @@ import type { CloudAccountProfile, RegistryServer } from '../../lib/servers/type
 import { watchBackgroundServers } from './unread';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
+const REGISTRY_CACHE_KEY = 'crewly:server-registry';
 
 /**
  * Where Cloud lives, decided at build time.
@@ -65,6 +66,34 @@ function remembered(): string | null {
   }
 }
 
+interface RegistryCache {
+  profile: CloudAccountProfile;
+  servers: RegistryServer[];
+  selectedId: string | null;
+}
+
+function readCache(): RegistryCache | null {
+  try {
+    const raw = localStorage.getItem(REGISTRY_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<RegistryCache>;
+    if (!parsed.profile || !Array.isArray(parsed.servers)) return null;
+    return {
+      profile: parsed.profile,
+      servers: parsed.servers,
+      selectedId: typeof parsed.selectedId === 'string' ? parsed.selectedId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(profile: CloudAccountProfile, servers: RegistryServer[], selectedId: string | null): void {
+  try {
+    localStorage.setItem(REGISTRY_CACHE_KEY, JSON.stringify({ profile, servers, selectedId } satisfies RegistryCache));
+  } catch { /* storage can be refused; the network remains authoritative */ }
+}
+
 /*
  * One client for the life of the page.
  *
@@ -76,9 +105,16 @@ function remembered(): string | null {
 const defaultAccount = cloudUrl ? new CloudAccount(cloudUrl) : null;
 
 export function useServerRegistry(account = defaultAccount): ServerRegistry {
-  const [profile, setProfile] = useState<CloudAccountProfile | null>(null);
-  const [servers, setServers] = useState<RegistryServer[]>([]);
-  const [selected, setSelected] = useState<RegistryServer | null>(null);
+  const [cached] = useState(readCache);
+  const [profile, setProfile] = useState<CloudAccountProfile | null>(cached?.profile ?? null);
+  const [servers, setServers] = useState<RegistryServer[]>(cached?.servers ?? []);
+  const [selected, setSelected] = useState<RegistryServer | null>(() => {
+    if (!cached) return null;
+    return cached.servers.find((server) => server.id === (cached.selectedId ?? remembered()))
+      ?? cached.servers.find((server) => server.status === 'ready')
+      ?? cached.servers[0]
+      ?? null;
+  });
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [failures, setFailures] = useState<Record<string, string>>({});
   const [epoch, setEpoch] = useState(0);
@@ -102,9 +138,12 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
     setLoaded(true);
     setCloudDown(false);
     setSelected((current) => {
-      if (current) return list.find((server) => server.id === current.id) ?? current;
-      const preferred = list.find((server) => server.id === remembered());
-      return preferred ?? list.find((server) => server.status === 'ready') ?? list[0] ?? null;
+      const preferred = list.find((server) => server.id === (current?.id ?? remembered()))
+        ?? list.find((server) => server.status === 'ready')
+        ?? list[0]
+        ?? null;
+      if (me) writeCache(me, list, preferred?.id ?? null);
+      return preferred;
     });
   }, [account]);
 
@@ -172,6 +211,13 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
 
   const select = useCallback((server: RegistryServer) => {
     remember(server.id);
+    try {
+      const raw = localStorage.getItem(REGISTRY_CACHE_KEY);
+      if (raw) {
+        const current = JSON.parse(raw) as Partial<RegistryCache>;
+        localStorage.setItem(REGISTRY_CACHE_KEY, JSON.stringify({ ...current, selectedId: server.id }));
+      }
+    } catch { /* storage can be refused; selection still works for this session */ }
     setSelected(server);
   }, []);
 

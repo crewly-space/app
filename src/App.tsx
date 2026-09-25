@@ -126,6 +126,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
 
   useEffect(() => {
     let cancelled = false;
+    const bootstrapStartedAt = performance.now();
+    const recordBootstrapTiming = (status: 'success' | 'error') => {
+      window.dispatchEvent(new CustomEvent('crewly:bootstrap-timing', {
+        detail: { status, durationMs: Math.round(performance.now() - bootstrapStartedAt), serverId: registry.selected?.id ?? null },
+      }));
+    };
     let stopRealtime = () => {};
     // A reconnect replays every channel change it missed; one refetch covers them all.
     let channelRefresh: number | undefined;
@@ -137,6 +143,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
       }, 150);
     };
     void gateway.bootstrap().then((initial) => {
+      recordBootstrapTiming('success');
       if (cancelled) return;
       setData(initial);
       // Replay events after history loads so a reply arriving during bootstrap
@@ -159,7 +166,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         (status) => setData((current) => current && ({ ...current,
           agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })),
         refreshChannels);
-    }).catch((error) => { if (!cancelled) setLoadError(String(error)); });
+    }).catch((error) => { recordBootstrapTiming('error'); if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
