@@ -348,6 +348,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         active={view === "messages" && selected === item.id} onClick={() => openConversation(item.id)} />
     ));
   const uncategorisedChannels = channelRows(null);
+  const directConversations = data.conversations.filter((item) => item.type === "dm");
+  const groupConversations = data.conversations.filter((item) => item.type === "group");
   const pendingApprovals = data.approvals.filter(
     (approval) => !approvalResults[approval.id],
   );
@@ -616,7 +618,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     try {
       await gateway.setMyAvatarMode(mode);
       setData(await gateway.bootstrap());
-    } catch (error) { notify(String(error), "error"); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save your avatar style.";
+      notify(message === "Some of those details are not valid. Check the form and try again."
+        ? "That avatar style could not be saved. Choose one of the displayed options and try again."
+        : message, "error");
+    }
   }
 
   function updateTheme(nextTheme: Theme) {
@@ -751,13 +758,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
               <span>Activity</span>
             </button>
           </nav>
-          <SidebarSection
+          {directConversations.length > 0 && <SidebarSection
             title="Direct messages"
             action={() => setCreating(true)}
           >
-            {data.conversations
-              .filter((item) => item.type === "dm")
-              .map((item) => (
+            {directConversations.map((item) => (
                 <ConversationRow
                   key={item.id}
                   item={item}
@@ -766,11 +771,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   onClick={() => openConversation(item.id)}
                 />
               ))}
-          </SidebarSection>
-          <SidebarSection title="Group DMs">
-            {data.conversations
-              .filter((item) => item.type === "group")
-              .map((item) => (
+          </SidebarSection>}
+          {groupConversations.length > 0 && <SidebarSection title="Group DMs">
+            {groupConversations.map((item) => (
                 <ConversationRow
                   key={item.id}
                   item={item}
@@ -779,7 +782,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   onClick={() => openConversation(item.id)}
                 />
               ))}
-          </SidebarSection>
+          </SidebarSection>}
           {(uncategorisedChannels.length > 0 || canManageChannels) && (
             <SidebarSection title="Channels" action={canManageChannels ? () => setChannelDialog({}) : undefined}>
               {uncategorisedChannels.length > 0 ? uncategorisedChannels : (
