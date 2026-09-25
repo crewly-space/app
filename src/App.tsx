@@ -30,6 +30,7 @@ import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
 import { ChannelDialog } from "./features/channels/ChannelDialog";
 import { AccountProfileDialog } from "./features/account/AccountProfileDialog";
+import type { Attachment as ApiAttachment } from "@crewly/sdk";
 
 const THEME_KEY = "crewly:theme";
 
@@ -84,6 +85,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     return window.matchMedia("(max-width: 1050px)").matches ? null : "details";
   });
   const [composer, setComposer] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<ApiAttachment[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionSuppressed, setMentionSuppressed] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
@@ -125,6 +128,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
@@ -197,6 +201,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     stickToBottomRef.current = true;
     setShowJumpToLatest(false);
   }, [selected]);
+  useEffect(() => {
+    const foreign = pendingAttachments.filter((attachment) => attachment.conversationId !== selected);
+    if (!foreign.length) return;
+    setPendingAttachments((current) => current.filter((attachment) => attachment.conversationId === selected));
+    void Promise.all(foreign.map((attachment) => gateway.removeAttachment(attachment.id).catch(() => {})));
+  }, [pendingAttachments, selected]);
   useEffect(() => {
     const list = messageListRef.current;
     if (!list || view !== "messages" || !stickToBottomRef.current) return;
@@ -423,9 +433,32 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     return [...ids].map((targetId) => ({ targetId, targetType: "agent" as const }));
   }
 
+  async function addAttachments(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!files.length || uploadingAttachment) return;
+    const remaining = 10 - pendingAttachments.length;
+    if (remaining < files.length) notify("A message can contain at most 10 attachments.", "error");
+    const selectedFiles = files.slice(0, Math.max(0, remaining));
+    if (!selectedFiles.length) return;
+    setUploadingAttachment(true);
+    try {
+      for (const file of selectedFiles) {
+        const attachment = await gateway.uploadAttachment(conversation.id, file);
+        setPendingAttachments((current) => [...current, attachment]);
+      }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Attachment upload failed.", "error");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
   async function send() {
     const value = composer.trim();
-    if (!value || sending) return;
+    if ((!value && !pendingAttachments.length) || sending) return;
+    const replyToMessageId = replying?.id;
+    const attachmentIds = pendingAttachments.map((attachment) => attachment.id);
     const mentions = mentionedAgents(composerRef.current);
     stickToBottomRef.current = true;
     setShowJumpToLatest(false);
@@ -434,15 +467,17 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     setReplying(null);
     setSending(true);
     try {
-      const sent = await gateway.sendMessage(conversation.id, value, replying?.id, mentions);
+      const sent = await gateway.sendMessage(conversation.id, value, replyToMessageId, mentions, attachmentIds);
       setData((current) => current && { ...current,
         messages: current.messages.some((m) => m.id === sent.id) ? current.messages : [...current.messages, sent] });
+      setPendingAttachments([]);
     } catch {
       notify(
         "Message could not be delivered. Your draft was restored.",
         "error",
       );
       setComposer(value);
+      setReplying(replyToMessageId ? replying : null);
       requestAnimationFrame(() => {
         if (composerRef.current && !composerRef.current.innerText.trim()) {
           composerRef.current.textContent = value;
@@ -1053,6 +1088,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     onReply={() => setReplying(message)}
                     onAgentClick={openAgentProfile}
                     onInspect={() => setInspecting({ messageId: message.id })}
+                    onAttachmentDownload={(id, filename) => {
+                      void gateway.downloadAttachment(id, filename).catch((error) => notify(error instanceof Error ? error.message : "Attachment download failed.", "error"));
+                    }}
                   />
                 ))}
                 {conversationApprovals.map((approval) => {
@@ -1219,17 +1257,15 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   <div className="composer-tools">
                     <div>
                       <button
-                        onClick={() =>
-                          notify("Attachments are coming in the next preview.")
-                        }
+                        onClick={() => attachmentInputRef.current?.click()}
+                        disabled={uploadingAttachment || sending || pendingAttachments.length >= 10}
                         aria-label="Add attachment"
                       >
                         <Plus size={18} />
                       </button>
                       <button
-                        onClick={() =>
-                          notify("File uploads are coming in the next preview.")
-                        }
+                        onClick={() => attachmentInputRef.current?.click()}
+                        disabled={uploadingAttachment || sending || pendingAttachments.length >= 10}
                         aria-label="Attach file"
                       >
                         <Paperclip size={17} />
@@ -1244,7 +1280,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                     <span>Shift + Enter for new line</span>
                     <button
                       className="send"
-                      disabled={!composer.trim() || sending}
+                      disabled={(!composer.trim() && !pendingAttachments.length) || sending || uploadingAttachment}
                       onClick={() => void send()}
                       aria-label="Send message"
                     >
@@ -1255,6 +1291,35 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                       )}
                     </button>
                   </div>
+                  <input
+                    ref={attachmentInputRef}
+                    className="attachment-input"
+                    type="file"
+                    multiple
+                    onChange={(event) => void addAttachments(event)}
+                    aria-label="Choose attachments"
+                  />
+                  {pendingAttachments.length > 0 && (
+                    <div className="pending-attachments" aria-label="Pending attachments">
+                      {pendingAttachments.map((attachment) => (
+                        <div className="pending-attachment" key={attachment.id}>
+                          <Paperclip size={13} />
+                          <span title={attachment.filename}>{attachment.filename}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
+                              void gateway.removeAttachment(attachment.id).catch(() => {});
+                            }}
+                            aria-label={`Remove ${attachment.filename}`}
+                            title="Remove attachment"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 )}
               </footer>

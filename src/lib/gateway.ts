@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
+import type { Agent as ApiAgent, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
@@ -29,6 +29,7 @@ export function messageView(message: ApiMessage): Message {
     author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
     body: message.body, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    attachments: message.attachments ?? [],
     replyTo: message.replyToMessageId ?? undefined };
 }
 export const gateway = {
@@ -138,8 +139,33 @@ export const gateway = {
   orderChannels: (categoryId: string | null, channelIds: string[]) => client.channels.order(categoryId, channelIds),
   createChannelCategory: (name: string) => client.channels.createCategory(name),
   async sendMessage(id: string, body: string, replyToMessageId?: string,
-    mentions: { targetId: string; targetType: 'user' | 'agent' }[] = []): Promise<Message> {
-    return messageView(await client.messages.send(id, { body, replyToMessageId, mentions }));
+    mentions: { targetId: string; targetType: 'user' | 'agent' }[] = [], attachmentIds: string[] = []): Promise<Message> {
+    return messageView(await client.messages.send(id, { body, replyToMessageId, mentions, attachmentIds }));
+  },
+  async uploadAttachment(conversationId: string, file: File): Promise<ApiAttachment> {
+    const dataBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error ?? new Error('Could not read attachment'));
+      reader.onload = () => {
+        const result = String(reader.result ?? '');
+        const comma = result.indexOf(',');
+        resolve(comma === -1 ? result : result.slice(comma + 1));
+      };
+      reader.readAsDataURL(file);
+    });
+    return client.attachments.upload({ conversationId, filename: file.name, mimeType: file.type || 'application/octet-stream', dataBase64 });
+  },
+  removeAttachment: (id: string) => client.attachments.remove(id),
+  async downloadAttachment(id: string, filename: string): Promise<void> {
+    const blob = await client.attachments.download(id);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   },
   async approve(id: string, decision: 'once' | 'always' | 'deny') {
     await client.approvals.respond(id, decision === 'deny' ? 'deny' : 'approve'); return true;

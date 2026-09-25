@@ -404,6 +404,58 @@ body {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+.message-attachments {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  max-width: 520px;
+}
+.message-attachment {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  background: var(--oc-panel-2);
+  border-radius: 8px;
+  color: var(--oc-muted-strong);
+}
+.message-attachment-info {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.message-attachment-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.message-attachment-info small {
+  color: var(--oc-muted-2);
+  font-size: 9px;
+}
+.message-attachment-download,
+.pending-attachment button {
+  border: 0;
+  background: transparent;
+  color: var(--oc-muted);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.message-attachment-download {
+  width: 26px;
+  height: 26px;
+}
+.message-attachment-download:hover,
+.pending-attachment button:hover {
+  color: var(--oc-text);
+  background: var(--oc-line-soft);
+}
 .message mark {
   background: var(--accent-soft);
   color: var(--oc-accent-text);
@@ -801,6 +853,10 @@ body {
   background: var(--oc-line-soft);
   color: var(--oc-muted-strong);
 }
+.composer-tools button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .composer-tools span {
   margin-left: auto;
   font-size: 9px;
@@ -823,6 +879,37 @@ body {
   background: var(--oc-line);
   color: var(--oc-muted-2);
   cursor: default;
+}
+.attachment-input {
+  display: none;
+}
+.pending-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.pending-attachment {
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 5px 4px 7px;
+  border: 1px solid var(--oc-accent-line);
+  background: var(--oc-accent-panel);
+  color: var(--oc-accent-text);
+  border-radius: 6px;
+  font-size: 10px;
+}
+.pending-attachment > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pending-attachment button {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
 }
 .reply-banner {
   height: 31px;

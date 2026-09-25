@@ -1,5 +1,5 @@
 import type { AvatarMode } from "@crewly/protocol";
-import { Activity, Check, Folder, Reply, ShieldCheck, X } from "lucide-react";
+import { Activity, Check, Download, Folder, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
 import type { MentionOption } from "../../app-types";
@@ -13,6 +13,7 @@ export function MessageItem({
   onReply,
   onAgentClick,
   onInspect,
+  onAttachmentDownload,
 }: {
   message: Message;
   agents: Agent[];
@@ -25,6 +26,7 @@ export function MessageItem({
   onReply: () => void;
   onAgentClick: (agentId: string) => void;
   onInspect?: () => void;
+  onAttachmentDownload: (id: string, filename: string) => void;
 }) {
   const agent = agents.find((item) => item.id === message.author);
   const replied = allMessages.find((item) => item.id === message.replyTo);
@@ -89,6 +91,28 @@ export function MessageItem({
           {renderMentions(message.body, agents, onAgentClick)}
           {message.streaming && <i className="cursor" />}
         </p>
+        {message.attachments.length > 0 && (
+          <div className="message-attachments" aria-label="Message attachments">
+            {message.attachments.map((attachment) => (
+              <div className="message-attachment" key={attachment.id}>
+                <Paperclip size={15} />
+                <span className="message-attachment-info">
+                  <strong title={attachment.filename}>{attachment.filename}</strong>
+                  <small>{formatBytes(attachment.sizeBytes)} · {attachment.mimeType}</small>
+                </span>
+                <button
+                  type="button"
+                  className="message-attachment-download"
+                  onClick={() => onAttachmentDownload(attachment.id, attachment.filename)}
+                  aria-label={`Download ${attachment.filename}`}
+                  title="Download attachment"
+                >
+                  <Download size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {message.activity && (
           <div className="runtime-card">
             <div className="runtime-icon">
@@ -113,6 +137,12 @@ export function MessageItem({
       </button>
     </article>
   );
+}
+
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function ApprovalMessage({

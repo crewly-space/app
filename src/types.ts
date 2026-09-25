@@ -1,4 +1,5 @@
 import type { AvatarMode, Channel } from "@crewly/protocol";
+import type { Attachment as ApiAttachment } from "@crewly/sdk";
 
 export type Status = "online" | "thinking" | "offline" | "unknown";
 export type Agent = {
@@ -43,6 +44,7 @@ export type Message = {
   userId?: string;
   body: string;
   time: string;
+  attachments: ApiAttachment[];
   replyTo?: string;
   streaming?: boolean;
   activity?: { label: string; detail: string; state: "running" | "done" };
