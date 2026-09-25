@@ -7,6 +7,9 @@ import type {
   ServerStatus,
   UserAccount,
   UserRole,
+  RolesCatalog,
+  RoleInput,
+  ServerRole,
 } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
@@ -31,6 +34,12 @@ export interface DashboardApi {
   listProviders(): Promise<ProviderConfigPublic[]>;
   listModels(providerId: string): Promise<ModelInfo[]>;
   removeProvider(providerId: string): Promise<void>;
+  listRoles(): Promise<RolesCatalog>;
+  createRole(input: RoleInput): Promise<ServerRole>;
+  updateRole(id: string, input: RoleInput): Promise<ServerRole>;
+  removeRole(id: string): Promise<void>;
+  assignRole(roleId: string, userId: string): Promise<void>;
+  unassignRole(roleId: string, userId: string): Promise<void>;
 }
 
 export const serverApi: DashboardApi = {
@@ -47,4 +56,10 @@ export const serverApi: DashboardApi = {
   listProviders: () => client.providers.list(),
   listModels: (providerId) => client.providers.listModels(providerId),
   removeProvider: (providerId) => client.providers.delete(providerId),
+  listRoles: () => client.roles.list(),
+  createRole: (input) => client.roles.create(input),
+  updateRole: (id, input) => client.roles.update(id, input),
+  removeRole: (id) => client.roles.remove(id),
+  assignRole: (roleId, userId) => client.roles.assign(roleId, userId),
+  unassignRole: (roleId, userId) => client.roles.unassign(roleId, userId),
 };

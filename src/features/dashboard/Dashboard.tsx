@@ -9,6 +9,7 @@ import type {
   ServerStatus,
   UserAccount,
   UserRole,
+  RolesCatalog,
 } from '@crewly/sdk';
 import type { DashboardApi } from './api';
 import { platformApi, type PlatformApi } from './platform-api';
@@ -21,13 +22,15 @@ import { UsagePanel } from './UsagePanel';
 import { CrewlyPanel } from './CrewlyPanel';
 import { MailPanel } from './MailPanel';
 import { servicesApi, type ServicesApi } from './services-api';
+import { RolesPanel } from './RolesPanel';
 
-type Tab = 'members' | 'invites' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
+type Tab = 'members' | 'invites' | 'roles' | 'agents' | 'providers' | 'usage' | 'runs' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string }[] }[] = [
   { label: 'People & access', tabs: [
     { id: 'members', label: 'Members' },
     { id: 'invites', label: 'Invites' },
+    { id: 'roles', label: 'Roles' },
   ] },
   { label: 'Workspace', tabs: [
     { id: 'agents', label: 'Agents' },
@@ -107,6 +110,7 @@ export function Dashboard({
   const [freshInvite, setFreshInvite] = useState<Invite | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [roleCatalog, setRoleCatalog] = useState<RolesCatalog | null>(null);
 
   const canAdminister = currentUser.role === 'owner' || currentUser.role === 'admin';
   const isOwner = currentUser.role === 'owner';
@@ -133,6 +137,10 @@ export function Dashboard({
   useEffect(() => {
     if (!canAdminister || tab !== 'invites') return;
     void run(async () => { setInvites(await api.listInvites()); });
+  }, [api, canAdminister, run, tab]);
+  useEffect(() => {
+    if (!canAdminister || tab !== 'roles') return;
+    void run(async () => { setRoleCatalog(await api.listRoles()); });
   }, [api, canAdminister, run, tab]);
 
   useEffect(() => {
@@ -272,6 +280,19 @@ export function Dashboard({
             })}
           </tbody>
         </table>
+      )}
+
+      {tab === 'roles' && roleCatalog && (
+        <RolesPanel
+          catalog={roleCatalog}
+          members={members}
+          busy={busy}
+          onCreate={async (input) => { const role = await api.createRole(input); setRoleCatalog(await api.listRoles()); return role; }}
+          onUpdate={async (id, input) => { const role = await api.updateRole(id, input); setRoleCatalog(await api.listRoles()); return role; }}
+          onDelete={async (id) => { await api.removeRole(id); setRoleCatalog(await api.listRoles()); }}
+          onAssign={async (roleId, userId) => { await api.assignRole(roleId, userId); setRoleCatalog(await api.listRoles()); }}
+          onUnassign={async (roleId, userId) => { await api.unassignRole(roleId, userId); setRoleCatalog(await api.listRoles()); }}
+        />
       )}
 
       {tab === 'invites' && (

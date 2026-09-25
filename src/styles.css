@@ -3543,6 +3543,31 @@ body {
 .dashboard-toggles { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
 .dashboard-toggles li { padding: 3px 0; }
 .dashboard-blocked { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--oc-radius-md); font-size: 13px; }
+.roles-layout { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.5fr); gap: 18px; }
+.roles-list { align-self: start; padding: 14px; }
+.role-list-item {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--oc-text);
+  text-align: left;
+  cursor: pointer;
+}
+.role-list-item:hover, .role-list-item.selected { background: var(--oc-line-soft); }
+.role-list-item small { color: var(--oc-muted); }
+.roles-editor { min-width: 0; }
+.permission-choice { display: flex !important; align-items: flex-start; gap: 8px; padding: 7px 0 !important; }
+.permission-choice input { margin-top: 3px; }
+.permission-choice span { display: grid; gap: 2px; }
+.permission-choice small { color: var(--oc-muted); }
+.role-preview { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--line-soft); border-radius: var(--oc-radius-md); font-size: 12px; }
+.role-preview span { color: var(--oc-muted); line-height: 1.5; }
+.role-members { margin-top: 16px; padding: 14px; }
+.role-members h3 { margin: 0 0 5px; font-size: 14px; }
 @media (max-width: 720px) {
   .dashboard-tabs {
     display: flex;
@@ -3552,6 +3577,9 @@ body {
   }
   .dashboard-nav-group { flex: 0 0 142px; }
   .dashboard-nav-group + .dashboard-nav-group { border-left: 1px solid var(--line-soft); }
+}
+@media (max-width: 900px) {
+  .roles-layout { grid-template-columns: 1fr; }
 }
 
 /* The hosted app before a server is open: the rail, and beside it whatever
