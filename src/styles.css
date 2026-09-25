@@ -3813,3 +3813,73 @@ body {
 }
 .dashboard-empty strong { color: var(--oc-text); }
 .dashboard-empty p { margin: 0; line-height: 1.55; }
+
+/* ------------------------------------------------------- boot skeleton -- */
+/* The shape of the shell while it loads: the page never sits blank. */
+.boot-skeleton {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 246px minmax(0, 1fr);
+  background: var(--bg);
+}
+.boot-skeleton.embedded { min-height: 100%; height: 100%; }
+.boot-skeleton-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 14px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--oc-panel);
+}
+.boot-skeleton-sidebar .brand-mark { margin: 0 6px 10px; }
+.boot-skeleton-main { display: grid; grid-template-rows: 65px minmax(0, 1fr) auto auto; min-width: 0; }
+.boot-skeleton-header { display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--line-soft); }
+.boot-skeleton-messages {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 24px max(30px, calc((100% - 760px) / 2));
+}
+.boot-skeleton-status { display: grid; place-items: center; padding: 8px 16px; min-height: 36px; }
+.boot-skeleton-phase { color: var(--oc-muted); font-size: 12px; opacity: 0; transition: opacity 0.3s ease; }
+.boot-skeleton-phase.shown { opacity: 1; }
+.boot-skeleton-slow { display: grid; justify-items: center; gap: 8px; text-align: center; font-size: 13px; color: var(--oc-muted); }
+.boot-skeleton-slow strong { color: var(--oc-text); }
+.boot-skeleton-composer {
+  height: 72px;
+  margin: 8px max(30px, calc((100% - 760px) / 2)) 20px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--oc-panel);
+}
+.bone {
+  display: block;
+  height: 12px;
+  width: 62%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--oc-panel-2) 0%, var(--oc-panel-3) 50%, var(--oc-panel-2) 100%);
+  background-size: 200% 100%;
+  animation: bone-shimmer 1.6s ease-in-out infinite;
+}
+.bone.wide { width: 86%; }
+.bone.short { width: 34%; }
+@keyframes bone-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bone { animation: none; }
+  .boot-skeleton-phase { transition: none; }
+}
+@media (max-width: 720px) {
+  .boot-skeleton { grid-template-columns: minmax(0, 1fr); }
+  .boot-skeleton-sidebar { display: none; }
+}
+/* While a server this app has shown before reconnects, its last known state
+   is on screen and says so; sending waits for the connection. */
+.server-switching {
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--oc-panel);
+  color: var(--oc-muted);
+  font-size: 12px;
+}

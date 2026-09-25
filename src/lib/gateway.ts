@@ -31,28 +31,57 @@ export function messageView(message: ApiMessage): Message {
     body: message.body, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     replyTo: message.replyToMessageId ?? undefined };
 }
+/** How long the last bootstraps took, newest last. Read from the console as `crewlyBootTimings`. */
+export const bootTimings: Array<{ at: string; firstRoundMs: number; secondRoundMs: number }> = [];
+function recordBootTiming(timing: { firstRoundMs: number; secondRoundMs: number }): void {
+  bootTimings.push({ at: new Date().toISOString(), ...timing });
+  if (bootTimings.length > 20) bootTimings.shift();
+  (globalThis as { crewlyBootTimings?: typeof bootTimings }).crewlyBootTimings = bootTimings;
+  try {
+    performance.measure?.('crewly:bootstrap', { start: 0, duration: timing.firstRoundMs + timing.secondRoundMs });
+  } catch { /* measuring is best effort */ }
+}
+
 export const gateway = {
+  /*
+   * Everything one server's workspace needs, in two rounds instead of five.
+   *
+   * The first round asks for everything that does not depend on anything
+   * else -- who is signed in, agents, conversations, channels, devices,
+   * statuses -- at once. The second asks for what does: the lists only an
+   * admin may read, each agent's memory, and each conversation's history.
+   * How long each round took is recorded, so a slow start can be measured.
+   */
   async bootstrap() {
-    const currentUser = await client.auth.me();
-    const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
-    const [apiAgents, apiConversations, apiProviders, users, devices, people] = await Promise.all([
-      client.agents.list(), client.conversations.list(),
-      canManage ? client.providers.list() : client.providers.listAvailable(),
-      canManage ? client.users.list() : Promise.resolve([]),
+    const started = performance.now();
+    const [currentUser, apiAgents, apiConversations, devices, people, channelList, statuses] = await Promise.all([
+      client.auth.me(),
+      client.agents.list(),
+      client.conversations.list(),
       client.devices.list(),
       // Everyone's name and avatar, for drawing who wrote what. A server from
       // before the directory gives nothing, and people fall back to defaults.
       client.users.directory().then((result) => result.users).catch(() => []),
+      // A server from before channels has no channel routes; it simply has none.
+      client.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] })),
+      // The server knows what each agent is doing and why it cannot run; ask it.
+      // A server from before canonical status gets the old estimate instead.
+      client.agents.statuses().then((result) => result.statuses).catch(() => null),
     ]);
-    const agents = await Promise.all(apiAgents.map(async (a) =>
-      agentView(a, (await client.memory.listFacts(a.id)).map((f) => f.content))));
-    // A server from before channels has no channel routes; it simply has none.
-    const channelList = await client.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] }));
+    const firstRound = performance.now();
+    const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
+    const [apiProviders, users, memories, histories] = await Promise.all([
+      canManage ? client.providers.list() : client.providers.listAvailable(),
+      canManage ? client.users.list() : Promise.resolve([]),
+      Promise.all(apiAgents.map((a) => client.memory.listFacts(a.id))),
+      Promise.all([
+        ...apiConversations.map((c) => client.messages.list(c.id, 200)),
+        ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
+      ]),
+    ]);
+    recordBootTiming({ firstRoundMs: firstRound - started, secondRoundMs: performance.now() - firstRound });
+    const agents = apiAgents.map((a, index) => agentView(a, memories[index]!.map((f) => f.content)));
     const conversations = [...apiConversations.map((c) => conversationView(c, agents)), ...channelList.channels.map(channelView)];
-    const histories = await Promise.all([
-      ...apiConversations.map((c) => client.messages.list(c.id, 200)),
-      ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
-    ]);
     const messages = histories.flat().map(messageView);
     const providers: Provider[] = apiProviders.map((p) => {
       const local = p.kind === 'claude-subscription' || p.kind === 'ollama';
@@ -72,9 +101,6 @@ export const gateway = {
     // now refuses a run without one. Reporting every agent as "unknown" told
     // the reader nothing they could act on.
     const reachable = new Set(providers.filter((p) => p.status === 'connected').map((p) => p.id));
-    // The server knows what each agent is doing and why it cannot run; ask it.
-    // A server from before canonical status gets the old estimate instead.
-    const statuses = await client.agents.statuses().then((result) => result.statuses).catch(() => null);
     const withStatuses = agents.map((agent) => {
       const canonical = statuses?.find((status) => status.agentId === agent.id);
       if (canonical) return withStatus(agent, canonical);

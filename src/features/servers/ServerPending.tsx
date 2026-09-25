@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { AuthGate } from '../auth/AuthGate';
 import { AddServerDialog } from './AddServerDialog';
 import { ServerRail } from './ServerRail';
+import { Loading } from '../shell/BrandMark';
 import type { ServerRegistry } from './useServerRegistry';
 
 const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_URL;
@@ -58,9 +59,8 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
       body = <AuthGate key={selected?.id} server={selected?.name ?? 'this server'} onReady={registry.reconnect} />;
       break;
     default:
-      body = <div className="server-pending-body">
-        <p className="server-pending-status">{selected ? `Opening ${selected.name}…` : 'Loading your servers…'}</p>
-      </div>;
+      // The shape of the workspace about to open, beside a rail that stays put.
+      body = <Loading embedded phase={selected ? `Opening ${selected.name}…` : 'Loading your servers…'} onRetry={registry.reconnect} />;
   }
 
   return <div className="app-shell server-pending">
