@@ -1,5 +1,6 @@
 import { Cloud, HardDrive, Plus, LayoutDashboard } from 'lucide-react';
-import type { RegistryServer } from '../../lib/servers/types';
+import type { CloudAccountProfile, RegistryServer } from '../../lib/servers/types';
+import { UserAvatar } from '../appearance/Avatar';
 
 /** A server that is still being built, or gone, cannot be opened. */
 function openable(server: RegistryServer): boolean {
@@ -36,6 +37,8 @@ export function ServerRail({
   unread = {},
   failures = {},
   dashboardUrl,
+  account,
+  onProfile,
 }: {
   servers: RegistryServer[];
   selectedId: string | null;
@@ -47,6 +50,8 @@ export function ServerRail({
   failures?: Record<string, string>;
   /** The account's dashboard -- workspaces, billing, servers -- when hosted. */
   dashboardUrl?: string;
+  account?: CloudAccountProfile | null;
+  onProfile?: () => void;
 }) {
   return (
     <nav className="server-rail" role="tablist" aria-orientation="vertical" aria-label="Servers">
@@ -91,6 +96,17 @@ export function ServerRail({
         <a className="server-tab add" href={dashboardUrl} aria-label="Dashboard" title="Dashboard: workspaces, servers and billing">
           <span className="server-tab-mark" aria-hidden="true"><LayoutDashboard size={16} /></span>
         </a>
+      )}
+      {account && onProfile && (
+        <button
+          type="button"
+          className="server-tab server-tab-account"
+          aria-label="Open profile and account settings"
+          title={`${account.displayName} — profile and account settings`}
+          onClick={onProfile}
+        >
+          <span className="server-tab-mark"><UserAvatar id={account.id} name={account.displayName} mode={account.avatarMode} size="small" /></span>
+        </button>
       )}
     </nav>
   );

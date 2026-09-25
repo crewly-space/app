@@ -29,6 +29,7 @@ import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
 import { ChannelDialog } from "./features/channels/ChannelDialog";
+import { AccountProfileDialog } from "./features/account/AccountProfileDialog";
 
 const THEME_KEY = "crewly:theme";
 
@@ -69,6 +70,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     () => window.location.pathname === "/admin",
   );
   const [addingServer, setAddingServer] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
   const [inspecting, setInspecting] = useState<{ messageId?: string; runId?: string } | null>(null);
   const [data, setData] = useState<Bootstrap | null>(null);
@@ -690,6 +692,8 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             onSelect={registry.select}
             onAddServer={() => setAddingServer(true)}
             dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+            account={registry.account}
+            onProfile={() => setProfileOpen(true)}
             unread={registry.unread}
             failures={registry.failures}
           />
@@ -698,6 +702,24 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           <AddServerDialog
             onClose={() => setAddingServer(false)}
             onAdded={() => { setAddingServer(false); void registry.refresh(); }}
+          />
+        )}
+        {profileOpen && registry.account && registry.accountClient && (
+          <AccountProfileDialog
+            account={registry.account}
+            cloud={registry.accountClient}
+            onClose={() => setProfileOpen(false)}
+            onSaved={(profile) => {
+              setProfileOpen(false);
+              notify("Profile saved.");
+              void registry.refresh().catch(() => {});
+              // Keep the currently open server in sync as well. This endpoint
+              // changes identity fields only; its local role and memberships
+              // remain authoritative.
+              void client.users.updateMe({ displayName: profile.displayName, avatarMode: profile.avatarMode })
+                .then(() => gateway.bootstrap().then(setData))
+                .catch(() => {});
+            }}
           />
         )}
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AuthGate } from '../auth/AuthGate';
 import { AddServerDialog } from './AddServerDialog';
 import { ServerRail } from './ServerRail';
+import { AccountProfileDialog } from '../account/AccountProfileDialog';
 import type { ServerRegistry } from './useServerRegistry';
 
 const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_URL;
@@ -16,6 +17,7 @@ const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_U
  */
 export function ServerPending({ registry }: { registry: ServerRegistry }) {
   const [adding, setAdding] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [slow, setSlow] = useState(false);
   const { selected, connection } = registry;
   const refresh = () => void registry.refresh().catch(() => {});
@@ -89,6 +91,8 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
       dashboardUrl={dashboardUrl}
       unread={registry.unread}
       failures={registry.failures}
+      account={registry.account}
+      onProfile={() => setProfileOpen(true)}
     />
     <main className="server-pending-main">
       {connection.state === 'needs_login' || connection.state === 'loading' || connection.state === 'connecting'
@@ -99,6 +103,14 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
       <AddServerDialog
         onClose={() => setAdding(false)}
         onAdded={() => { setAdding(false); refresh(); }}
+      />
+    )}
+    {profileOpen && registry.account && registry.accountClient && (
+      <AccountProfileDialog
+        account={registry.account}
+        cloud={registry.accountClient}
+        onClose={() => setProfileOpen(false)}
+        onSaved={() => { setProfileOpen(false); refresh(); }}
       />
     )}
   </div>;

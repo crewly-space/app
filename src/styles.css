@@ -3194,6 +3194,45 @@ body {
 }
 .server-tab.failed .server-tab-state { background: var(--oc-danger); }
 .server-tab.add { border-style: dashed; }
+.server-tab-account { margin-top: auto; }
+.server-tab-account .avatar { width: 28px; height: 28px; }
+.account-profile-modal { width: min(560px, 96vw); }
+.account-profile-modal > header { align-items: flex-start; gap: 16px; }
+.account-profile-modal > header > .icon-button { margin-left: auto; }
+.account-profile-preview {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--oc-panel-2);
+}
+.account-profile-preview > div:last-child { display: grid; gap: 3px; }
+.account-profile-preview span { color: var(--oc-muted); font-size: 11px; }
+.account-auth-methods {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+.account-auth-methods > div:first-child { display: grid; gap: 3px; }
+.account-auth-methods > div:first-child span { color: var(--oc-muted); font-size: 10px; }
+.account-auth-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.account-auth-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--oc-field);
+  color: var(--oc-text-strong);
+  font-size: 11px;
+}
+.form-error { color: var(--oc-danger); }
 @media (max-width: 900px) {
   .app-shell.has-rail, .app-shell.has-rail.panel-open { grid-template-columns: 62px minmax(0, 1fr); }
 }

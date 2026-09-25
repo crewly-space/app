@@ -38,6 +38,7 @@ export interface ServerRegistry {
   /** False on a self-hosted install with no Cloud behind it. */
   multiServer: boolean;
   account: CloudAccountProfile | null;
+  accountClient: CloudAccount | null;
   servers: RegistryServer[];
   selected: RegistryServer | null;
   /** The selected server's state; always connected on a self-hosted install. */
@@ -233,6 +234,7 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
     () => ({
       multiServer: Boolean(account),
       account: profile,
+      accountClient: account,
       servers,
       selected,
       connection,

@@ -111,6 +111,23 @@ describe('connecting to a server', () => {
 });
 
 describe('the cloud account', () => {
+  it('updates the global profile with the Cloud session cookie', async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.method).toBe('PATCH');
+      expect(init?.credentials).toBe('include');
+      expect(init?.headers).toMatchObject({ 'content-type': 'application/json' });
+      expect(init?.body).toBe(JSON.stringify({ displayName: 'Ada', avatarMode: 'name' }));
+      return new Response(JSON.stringify({ account: {
+        id: 'user-1', email: 'ada@example.com', displayName: 'Ada', isOperator: false,
+        avatarMode: 'name', authMethods: ['password'],
+      } }), { status: 200 });
+    });
+    const account = new CloudAccount('https://cloud.crewly.space', fetchImpl as unknown as typeof fetch);
+    await expect(account.updateProfile({ displayName: 'Ada', avatarMode: 'name' })).resolves.toMatchObject({
+      displayName: 'Ada', avatarMode: 'name',
+    });
+  });
+
   it('lists the servers the account can open', async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(JSON.stringify({ servers: [cloudServer, selfHosted] }), { status: 200 }),

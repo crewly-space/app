@@ -1,3 +1,4 @@
+import type { AvatarMode } from '@crewly/protocol';
 import type { CloudAccountProfile, RegistryServer } from '../servers/types';
 
 /**
@@ -36,6 +37,21 @@ export class CloudAccount {
   async servers(): Promise<RegistryServer[]> {
     const body = await this.get<{ servers: RegistryServer[] }>('/api/v1/account/servers');
     return body?.servers ?? [];
+  }
+
+  async updateProfile(input: { displayName?: string; avatarMode?: AvatarMode }): Promise<CloudAccountProfile> {
+    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}/api/v1/account`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(String((body as { error?: unknown }).error ?? `Cloud returned HTTP ${response.status}`));
+    }
+    const body = (await response.json()) as { account: CloudAccountProfile };
+    return body.account;
   }
 
   /**

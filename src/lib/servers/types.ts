@@ -1,3 +1,5 @@
+import type { AvatarMode } from '@crewly/protocol';
+
 /**
  * One server an account can open, as Crewly Cloud describes it.
  *
@@ -23,4 +25,7 @@ export type CloudAccountProfile = {
   email: string;
   displayName: string;
   isOperator: boolean;
+  avatarMode?: AvatarMode;
+  /** Provider ids plus `password`, never provider subjects or tokens. */
+  authMethods?: string[];
 };
