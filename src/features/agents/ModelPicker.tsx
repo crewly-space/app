@@ -160,9 +160,9 @@ export function ModelPicker({
           <button type="button" className="secondary-button compact" onClick={() => { setCustom(false); setRetry((count) => count + 1); }}>
             Retry model discovery
           </button>
-          {!typing && <button type="button" className="text-button" onClick={() => setCustom(true)}>
+          <button type="button" className="text-button" onClick={() => setCustom(true)}>
             Use a custom model ID
-          </button>}
+          </button>
         </div>
       )}
 
