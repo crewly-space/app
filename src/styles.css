@@ -730,15 +730,16 @@ body {
   border: 1px solid var(--oc-line-strong);
   background: var(--oc-panel-2);
   border-radius: 12px;
-  padding: 11px 12px 9px;
-  box-shadow: var(--oc-shadow-sm);
+  padding: 8px 10px 7px;
+  box-shadow: none;
 }
 .composer:focus-within {
-  border-color: var(--oc-line-hover);
+  border-color: var(--oc-accent-line);
+  box-shadow: 0 0 0 2px var(--oc-accent-soft);
 }
 .composer-editor {
   width: 100%;
-  min-height: 25px;
+  min-height: 24px;
   max-height: 120px;
   overflow-y: auto;
   color: var(--oc-text);
@@ -747,6 +748,7 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   caret-color: var(--text);
+  outline: none;
 }
 .composer-editor:empty::before {
   content: attr(data-placeholder);
@@ -776,7 +778,9 @@ body {
 .composer-tools {
   display: flex;
   align-items: center;
-  margin-top: 5px;
+  margin-top: 7px;
+  padding-top: 5px;
+  border-top: 1px solid var(--oc-line-soft);
 }
 .composer-tools > div {
   display: flex;
@@ -809,6 +813,9 @@ body {
 }
 .composer-tools button.send {
   margin-left: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   background: var(--accent);
   color: var(--oc-on-accent);
 }
