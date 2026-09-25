@@ -2850,11 +2850,11 @@ body {
     position: fixed;
     z-index: 35;
     inset: 0 0 auto;
-    height: 54px;
+    height: calc(54px + env(safe-area-inset-top));
     box-sizing: border-box;
     flex-direction: row;
     justify-content: flex-start;
-    padding: 6px 12px;
+    padding: env(safe-area-inset-top) 12px 6px;
     overflow-x: auto;
     overflow-y: hidden;
     border-right: 0;
@@ -2865,7 +2865,7 @@ body {
   }
   .app-shell.has-rail > .conversation {
     box-sizing: border-box;
-    padding-top: 54px;
+    padding-top: calc(54px + env(safe-area-inset-top));
   }
   .sidebar {
     position: fixed;
