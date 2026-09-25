@@ -1147,6 +1147,7 @@ body {
   align-items: center;
   gap: 4px;
 }
+.section-heading-actions { display: flex; flex: none !important; gap: 6px; }
 .setting-row {
   display: grid;
   grid-template-columns: 34px 1fr auto;

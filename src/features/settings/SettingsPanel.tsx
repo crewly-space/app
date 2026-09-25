@@ -74,13 +74,15 @@ export function SettingsPanel({
     const query = new URLSearchParams(window.location.search);
     const code = query.get("code");
     const state = query.get("state");
-    if (query.get("connector") !== "github" || !code || !state || !canManageServer) return;
+    const provider = query.get("connector");
+    if (!provider || !["github", "linear"].includes(provider) || !code || !state || !canManageServer) return;
     setConnectorBusy(true);
-    void client.connectors.completeGitHubOAuth({ code, state }).then(async () => {
+    const complete = provider === "linear" ? client.connectors.completeLinearOAuth({ code, state }) : client.connectors.completeGitHubOAuth({ code, state });
+    void complete.then(async () => {
       window.history.replaceState({}, "", window.location.pathname);
       await onConnectorsChanged();
-      onNotify("GitHub connected.");
-    }).catch(() => onNotify("GitHub could not be connected.")).finally(() => setConnectorBusy(false));
+      onNotify(`${provider === "linear" ? "Linear" : "GitHub"} connected.`);
+    }).catch(() => onNotify(`${provider === "linear" ? "Linear" : "GitHub"} could not be connected.`)).finally(() => setConnectorBusy(false));
   }, [canManageServer, onConnectorsChanged, onNotify]);
   const connectGitHub = async () => {
     setConnectorBusy(true);
@@ -90,6 +92,16 @@ export function SettingsPanel({
     } catch {
       setConnectorBusy(false);
       onNotify("GitHub OAuth is not configured on this server.");
+    }
+  };
+  const connectLinear = async () => {
+    setConnectorBusy(true);
+    try {
+      const pending = await client.connectors.startLinearOAuth({ callbackUrl: `${window.location.origin}/?connector=linear` });
+      window.location.assign(pending.authorizeUrl);
+    } catch {
+      setConnectorBusy(false);
+      onNotify("Linear OAuth is not configured on this server.");
     }
   };
   const saveBranding = async () => {
@@ -209,11 +221,11 @@ export function SettingsPanel({
                 <h3>Connectors</h3>
                 <p>External services with explicit, auditable capabilities.</p>
               </div>
-              <button onClick={() => void connectGitHub()} disabled={connectorBusy}><GitBranch size={15} /> Connect GitHub</button>
+              <div className="section-heading-actions"><button onClick={() => void connectGitHub()} disabled={connectorBusy}><GitBranch size={15} /> Connect GitHub</button><button onClick={() => void connectLinear()} disabled={connectorBusy}><Plug size={15} /> Connect Linear</button></div>
             </div>
             {connectors.map((connector) => (
               <div className="connector-card" key={connector.id}>
-                <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || "GitHub"}</strong><span>{connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
+                <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || (connector.provider === "linear" ? "Linear" : "GitHub")}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
                 <p>{connector.scopes.length ? `Scopes: ${connector.scopes.join(", ")}` : "No permissions granted yet."}</p>
                 <small>Capabilities are not available to agents until an explicit policy grant is added.</small>
                 <div className="connector-card-actions">
@@ -222,7 +234,7 @@ export function SettingsPanel({
                 </div>
               </div>
             ))}
-            {!connectors.length && <div className="empty-state"><Plug size={24} /><strong>No connectors connected</strong><p>Connect GitHub here; MCP tools and AI providers remain separate settings.</p></div>}
+            {!connectors.length && <div className="empty-state"><Plug size={24} /><strong>No connectors connected</strong><p>Connect GitHub or Linear here; MCP tools and AI providers remain separate settings.</p></div>}
             <div className="local-note"><LockKeyhole size={15} /><span>Connectors use encrypted server credentials. Tokens and secrets never return to the browser.</span></div>
           </>
         ) : section === "members" ? (
