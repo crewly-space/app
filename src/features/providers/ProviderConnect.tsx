@@ -5,10 +5,10 @@ import { codexRuntimeOn, connectable, deviceProviderAvailability, explain, expla
 
 // Mirrors the kinds the server accepts. deepseek was missing here even though
 // the server and the docs both list it.
-const kinds = ['openai', 'anthropic', 'openrouter', 'deepseek', 'openai-compatible', 'claude-subscription', 'ollama'] as const;
+const kinds = ['openai', 'anthropic', 'openrouter', 'deepseek', 'openai-compatible', 'crewly-gateway', 'claude-subscription', 'ollama'] as const;
 type Kind = typeof kinds[number];
 // Device-backed kinds have their own section; the key form only lists these.
-const apiKinds = kinds.filter((item): item is Exclude<Kind, DeviceProviderKind> => item !== 'claude-subscription' && item !== 'ollama');
+const apiKinds = kinds.filter((item): item is Exclude<Kind, DeviceProviderKind | 'crewly-gateway'> => item !== 'claude-subscription' && item !== 'ollama' && item !== 'crewly-gateway');
 
 // The wire values are lowercase ids; showing them raw in a menu reads as an
 // unfinished screen rather than a product.
@@ -18,6 +18,7 @@ const kindLabels: Record<Kind, string> = {
   openrouter: 'OpenRouter',
   deepseek: 'DeepSeek',
   'openai-compatible': 'OpenAI-compatible endpoint',
+  'crewly-gateway': 'Crewly Gateway',
   'claude-subscription': 'Claude Subscription on a paired device',
   ollama: 'Ollama on a paired device',
 };
@@ -140,6 +141,16 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
   };
   const codexDevice = devices ? codexRuntimeOn(devices) : null;
 
+  const connectGateway = async (): Promise<void> => {
+    setError(''); setSaving(true);
+    try {
+      await client.providers.create({ id: 'crewly-gateway', kind: 'crewly-gateway' });
+      onConnected();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not connect Crewly Gateway');
+    } finally { setSaving(false); }
+  };
+
   const signInToProvider = async (): Promise<void> => {
     setError(''); setConnecting(true);
     try {
@@ -179,11 +190,14 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
 
     <section className="provider-class" aria-labelledby="provider-class-gateway">
       <h2 id="provider-class-gateway">Crewly Gateway</h2>
-      <div className="provider-option unavailable">
+      <div className="provider-option">
         <div>
           <strong>Models through your Crewly account</strong>
-          <small>No keys to manage, billed with your plan. Not available on this server yet.</small>
+          <small>No key is stored on this server. Connect this server to Crewly first, then managed models appear here.</small>
         </div>
+        <button type="button" className="secondary-button" disabled={saving} onClick={() => void connectGateway()}>
+          {saving ? 'Connecting…' : 'Connect Crewly Gateway'}
+        </button>
       </div>
     </section>
 

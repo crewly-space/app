@@ -18,7 +18,7 @@ export function ProviderCredentials({
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
-  const local = provider.name === 'claude-subscription' || provider.name === 'ollama';
+  const local = provider.name === 'claude-subscription' || provider.name === 'ollama' || provider.name === 'crewly-gateway';
 
   return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card form" onSubmit={async (event) => {
     event.preventDefault();
@@ -35,7 +35,11 @@ export function ProviderCredentials({
     } finally { setSaving(false); }
   }}>
     <h1>Manage {provider.name}</h1>
-    <p>{local ? 'This provider runs on a paired device. No credential is stored on the server.' : <>Rotate the credential for <strong>{provider.id}</strong>. Existing keys are never shown.</>}</p>
+    <p>{local
+      ? provider.name === 'crewly-gateway'
+        ? 'This provider runs through your Crewly account. The upstream credential stays in Crewly Cloud.'
+        : 'This provider runs on a paired device. No credential is stored on the server.'
+      : <>Rotate the credential for <strong>{provider.id}</strong>. Existing keys are never shown.</>}</p>
     {!local && <label>New API key<input required type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label>}
     {!local && provider.name === 'openai-compatible' && <label>New base URL <small>(optional)</small><input type="url" autoComplete="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="Leave blank to keep the current URL" /></label>}
     {error && <p role="alert">{error}</p>}

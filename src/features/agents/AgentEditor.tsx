@@ -14,6 +14,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openrouter: "OpenRouter",
   deepseek: "DeepSeek",
   "openai-compatible": "Custom provider",
+  "crewly-gateway": "Crewly Gateway",
   "claude-subscription": "Claude subscription",
   ollama: "Ollama",
 };
