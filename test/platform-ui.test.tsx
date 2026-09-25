@@ -91,6 +91,18 @@ describe('agent status', () => {
   it('keeps the old wording for a server that reports no canonical status', () => {
     expect(statusLabel({ status: 'online' })).toBe('Ready');
   });
+
+  it('puts a blocking execution error before a misleading online presence', () => {
+    const view = withStatus({ id: 'a1', name: 'Coder', initials: 'C', status: 'unknown', model: '', runtime: '', memory: [] }, {
+      ...status,
+      presence: 'online',
+      execution: 'error',
+      reason: 'Last run failed: provider_unavailable',
+    });
+    expect(view.status).toBe('offline');
+    expect(statusLabel(view)).toBe('Error · Online');
+    expect(statusTitle(view)).toBe('Error · Online — Last run failed: provider_unavailable');
+  });
 });
 
 describe('agent settings', () => {

@@ -25,9 +25,10 @@ const EXECUTION: Record<AgentStatus['execution'], string> = {
  */
 export function withStatus(agent: Agent, status: AgentStatus): Agent {
   const busy = status.execution === 'working' || status.execution === 'queued' || status.execution === 'waiting_approval';
+  const blocked = status.execution === 'error' || status.execution === 'runtime_unavailable' || status.execution === 'provider_unavailable';
   return {
     ...agent,
-    status: status.presence === 'offline' ? 'offline' : busy ? 'thinking' : 'online',
+    status: status.presence === 'offline' || blocked ? 'offline' : busy ? 'thinking' : 'online',
     presence: status.presence,
     execution: status.execution,
     statusReason: status.reason ?? undefined,
@@ -38,7 +39,13 @@ export function withStatus(agent: Agent, status: AgentStatus): Agent {
 
 /** "Online · Working", "Do not disturb · Ready" -- or the old wording for a server that does not say. */
 export function statusLabel(agent: Partial<Pick<Agent, 'status' | 'presence' | 'execution'>>): string {
-  if (agent.presence && agent.execution) return `${PRESENCE[agent.presence]} · ${EXECUTION[agent.execution]}`;
+  const blocked = agent.execution === 'error' || agent.execution === 'runtime_unavailable' || agent.execution === 'provider_unavailable';
+  if (agent.presence && agent.execution) {
+    return blocked && agent.presence !== 'offline'
+      ? `${EXECUTION[agent.execution]} · ${PRESENCE[agent.presence]}`
+      : `${PRESENCE[agent.presence]} · ${EXECUTION[agent.execution]}`;
+  }
+  if (blocked && agent.execution) return EXECUTION[agent.execution];
   if (agent.status === 'online') return 'Ready';
   if (agent.status === 'thinking') return 'Working';
   if (agent.status === 'offline') return 'No model provider';
