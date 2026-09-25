@@ -1,0 +1,10 @@
+{
+  "name": "@crewly/bloop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic, dependency-free Crewly Bloop avatar geometry",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@crewly/sdk": r("./src/sdk/index.ts"),
+      "@crewly/bloop": r("./packages/bloop/src/index.ts"),
       "@crewly/protocol": r("./src/protocol/index.ts"),
       "@crewly/ui": r("./src/ui"),
     },

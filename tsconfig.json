@@ -23,6 +23,9 @@
       "@crewly/sdk": [
         "./src/sdk/index.ts"
       ],
+      "@crewly/bloop": [
+        "./packages/bloop/src/index.ts"
+      ],
       "@crewly/protocol": [
         "./src/protocol/index.ts"
       ],

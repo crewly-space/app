@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Blobatar } from "@blobatar/react";
-import { bloopSvg } from "@crewly/ui/bloop";
+import { bloopSvg } from "@crewly/bloop";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, ServerBranding, UserAccount } from "@crewly/sdk";
 import { Building2, Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { Blobatar } from "@blobatar/react";
-import { bloopSvg } from "@crewly/ui/bloop";
+import { bloopSvg } from "@crewly/bloop";
 import type { AvatarMode } from "@crewly/protocol";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent } from "../../types";
