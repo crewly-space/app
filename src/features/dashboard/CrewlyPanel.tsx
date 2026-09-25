@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { CrewlyConnection } from '@crewly/sdk';
+import { CrewlyApiError, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
 
@@ -19,6 +19,27 @@ const STATUS_TEXT: Record<CrewlyConnection['status'], string> = {
   revoked: 'Crewly revoked this server. Connect again to use Crewly services.',
 };
 
+const DISCONNECTED: CrewlyConnection = {
+  status: 'disconnected',
+  cloudUrl: null,
+  instanceId: null,
+  scopes: [],
+  credentialVersion: null,
+  connectedAt: null,
+  lastCheckedAt: null,
+  link: null,
+};
+
+/** A deleted or stale cloud-side connection is a recoverable disconnected state. */
+async function getConnection(api: ServicesApi): Promise<CrewlyConnection> {
+  try {
+    return await api.crewly();
+  } catch (reason) {
+    if (reason instanceof CrewlyApiError && reason.status === 404) return DISCONNECTED;
+    throw reason;
+  }
+}
+
 /**
  * Connect Crewly. Optional: nothing here is needed to run the server, and
  * disconnecting removes only the connection, never local data.
@@ -29,7 +50,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const [requested, setRequested] = useState<string[]>(['mail:send']);
 
   useEffect(() => {
-    void run(async () => setConnection(await api.crewly()));
+    void run(async () => setConnection(await getConnection(api)));
   }, [api, run]);
 
   // While the owner approves in Crewly, ask every few seconds whether they have.
@@ -37,7 +58,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   useEffect(() => {
     if (!pending) return;
     const timer = setInterval(() => {
-      api.pollCrewly().then(setConnection).catch(async () => setConnection(await api.crewly()));
+      api.pollCrewly().then(setConnection).catch(async () => setConnection(await getConnection(api)));
     }, pending.interval * 1000);
     return () => clearInterval(timer);
   }, [api, pending]);
@@ -82,7 +103,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           <div className="dashboard-actions">
             <a className="primary-button" href={pending.verificationUrl} target="_blank" rel="noopener noreferrer">Open Crewly</a>
             <button type="button" className="text-button" disabled={busy}
-              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await api.crewly()); })}>Cancel</button>
+              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await getConnection(api)); })}>Cancel</button>
           </div>
         </div>
       )}
@@ -106,7 +127,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
             <button type="button" className="secondary-button" disabled={busy}
               onClick={() => void run(async () => setConnection(await api.rotateCrewly()))}>Rotate credential</button>
             <button type="button" className="text-button danger" disabled={busy}
-              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await api.crewly()); })}>Disconnect</button>
+              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await getConnection(api)); })}>Disconnect</button>
           </div>
         </>
       )}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CrewlyConnection, MailDelivery, MailDomain, MailOverview } from '@crewly/sdk';
+import { CrewlyApiError, type CrewlyConnection, type MailDelivery, type MailDomain, type MailOverview } from '@crewly/sdk';
 import { CrewlyPanel } from '../src/features/dashboard/CrewlyPanel';
 import { MailPanel } from '../src/features/dashboard/MailPanel';
 import type { ServicesApi } from '../src/features/dashboard/services-api';
@@ -92,6 +92,17 @@ describe('Connect Crewly panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     expect(await screen.findByText('Not connected. This server runs entirely on its own.')).toBeTruthy();
     expect(api.disconnectCrewly).toHaveBeenCalled();
+  });
+
+  it('treats a stale cloud connection as disconnected and recoverable', async () => {
+    const api = services({
+      crewly: vi.fn(async () => { throw new CrewlyApiError('missing', 404, 'not_found'); }),
+    });
+    render(<CrewlyPanel api={api} serverName="Acme" />);
+
+    expect(await screen.findByText('Not connected. This server runs entirely on its own.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Connect Crewly' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 
