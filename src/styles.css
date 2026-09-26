@@ -133,6 +133,35 @@ body {
   padding: 3px;
   cursor: pointer;
 }
+.sidebar-label button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* An empty Channels section says what to do instead of rendering a bare heading. */
+.sidebar-cta {
+  width: 100%;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px dashed var(--oc-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--oc-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sidebar-cta:hover {
+  color: var(--oc-text);
+  border-color: var(--oc-line-strong);
+}
+.sidebar-empty {
+  margin: 2px 9px 6px;
+  color: var(--oc-muted-2);
+  font-size: 12px;
+}
 .conversation-row {
   width: 100%;
   height: 35px;
@@ -3517,6 +3546,12 @@ body {
 .model-option strong { font-size: 13px; font-weight: 500; }
 .model-option small { color: var(--oc-muted); font-size: 11px; }
 .model-option small:last-of-type { grid-column: 2; grid-row: 1 / 3; align-self: center; white-space: nowrap; }
+/* A failed list explains itself and offers a retry before any raw id field. */
+.model-picker-failure { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px;
+  border: 1px solid var(--oc-danger-line); border-radius: var(--radius-md); background: var(--oc-danger-panel); }
+.model-picker-failure strong { font-size: 13px; color: var(--oc-danger-text); }
+.model-picker-failure p { margin: 0; font-size: 12px; color: var(--text-muted); }
+.model-picker-failure-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
 /* The run inspector: how a reply was made, over the chat like the dashboard. */
 .run-inspector { max-width: 760px; margin: 0 auto; padding: 28px 22px 60px; }
@@ -3890,4 +3925,357 @@ body {
   color: var(--oc-muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* Invites: the way people join. A fresh link is shown once, with a copy. */
+.invites-manager { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.invite-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.invite-actions { display: flex; gap: 8px; }
+.invite-fresh { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--oc-line);
+  border-radius: var(--radius-md); background: var(--surface-sunken); }
+.invite-fresh label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.invite-fresh-row { display: flex; gap: 8px; min-width: 0; }
+.invite-fresh-row input { flex: 1; min-width: 0; }
+.invite-fresh p { display: flex; align-items: center; gap: 6px; margin: 0; }
+.invite-advanced { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+.invite-advanced summary { cursor: pointer; }
+.invite-advanced p { margin: 6px 0; }
+.device-status-chip.invite-revoked, .device-status-chip.invite-expired { opacity: 0.7; }
+
+/* ------------------------------------------------------- mobile shell -- */
+/* On a phone the desktop columns do not stack: the server rail and the
+   sidebar become one drawer that slides in from the left, and the
+   conversation owns the whole visual viewport -- header at the top, history
+   scrolling in between, composer above Safari's toolbar and the keyboard.
+   Declared last so it wins over every desktop column rule above. */
+@media (max-width: 720px) {
+  html, body { overflow-x: hidden; }
+  .app-shell,
+  .app-shell.panel-open,
+  .app-shell.has-rail,
+  .app-shell.has-rail.panel-open {
+    display: block;
+    width: 100%;
+  }
+  /* The rail was left in the flow as a block and stacked its servers down the
+     top of the screen, pushing the conversation below the browser chrome. */
+  .app-shell > .server-rail {
+    position: fixed;
+    z-index: 46;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 62px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+  .app-shell.nav-open > .server-rail { transform: translateX(0); }
+  .sidebar {
+    width: min(260px, calc(100vw - 48px));
+    padding-top: max(18px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+  .app-shell.has-rail .sidebar {
+    left: 62px;
+    width: min(260px, calc(100vw - 62px - 32px));
+    /* Parked fully off-screen, not just its own width left of the rail. */
+    transform: translateX(calc(-100% - 62px));
+  }
+  .app-shell.has-rail .sidebar.sidebar-open { transform: translateX(0); }
+  .conversation {
+    width: 100%;
+    height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .conversation-header {
+    height: auto;
+    min-height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  .conversation-title { flex: 1; min-width: 0; }
+  .conversation-title div { min-width: 0; }
+  .conversation-title strong,
+  .conversation-title span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .header-actions { flex: none; }
+  /* An empty conversation starts at the top, under its header, instead of
+     parking its title against the composer. */
+  .message-list.is-empty::before { flex: 0 0 0; }
+  .message-list.is-empty .conversation-intro { padding-top: 22px; }
+  .composer-wrap {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .detail-panel {
+    width: 100%;
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Before a server is open there is no drawer to hide the rail in, so it
+     becomes a strip across the top instead of a column down it. */
+  .app-shell.server-pending {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+  }
+  .app-shell.server-pending > .server-rail {
+    position: static;
+    transform: none;
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .app-shell.server-pending > .server-rail .server-tab { flex: none; }
+  .server-pending-body { padding: 20px 12px; }
+}
+
+/* Key-based providers as cards: what each is and what it needs, and only
+   the chosen one asks for credentials. */
+.provider-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.provider-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  position: relative;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.provider-card:hover { border-color: var(--oc-line-strong); }
+.provider-card-text { display: grid; gap: 3px; min-width: 0; }
+.provider-card-text span,
+.provider-card-text small { color: var(--oc-muted); font-size: var(--oc-text-sm); }
+.provider-card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--oc-accent-soft);
+  color: var(--oc-text);
+  font-size: 10px;
+}
+.provider-key-form { display: grid; gap: 12px; }
+.provider-key-form-head { display: flex; align-items: center; gap: 10px; }
+.provider-key-form-head .text-button { margin-left: auto; }
+.provider-connect-card { width: min(640px, 94vw); max-width: 100%; }
+.agent-editor-no-provider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-sm);
+}
+
+/* ------------------------------------------------------------ settings -- */
+/* Settings is a dialog, not a 330px rail: navigation on the left, grouped by
+   whose setting it is, and a readable content column. Full screen on phones. */
+.settings-layer { z-index: 35; }
+.settings-modal {
+  --surface: var(--oc-panel);
+  width: min(880px, 100%);
+  height: min(680px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--oc-line);
+  border-radius: 16px;
+  box-shadow: var(--oc-shadow-lg);
+  overflow: hidden;
+}
+.settings-modal > header {
+  height: 58px;
+  flex: none;
+  padding: 0 14px 0 20px;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+}
+.settings-modal > header strong { flex: 1; font-size: 15px; }
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.settings-modal .settings-nav {
+  margin: 0;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-right: 1px solid var(--line-soft);
+  overflow-y: auto;
+}
+.settings-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.settings-nav-label {
+  padding: 0 10px;
+  color: var(--oc-muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.settings-nav-hint {
+  padding: 0 10px 6px;
+  color: var(--oc-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .settings-nav button { width: 100%; font-size: 13px; }
+.settings-modal .settings-nav .settings-logout { margin-top: auto; justify-content: flex-start; padding: 7px 10px; }
+.settings-modal .settings-content {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 22px 26px 28px;
+}
+.settings-modal .settings-content > * { max-width: 620px; }
+@media (max-width: 720px) {
+  .settings-layer { padding: 0; align-items: stretch; }
+  .settings-modal {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+  .settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-modal .settings-nav {
+    flex-direction: row;
+    gap: 14px;
+    overflow-x: auto;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .settings-nav-group { flex-direction: row; align-items: center; flex: none; }
+  .settings-nav-hint { display: none; }
+  .settings-modal .settings-nav button { width: auto; white-space: nowrap; }
+  .settings-modal .settings-content { padding: 18px 16px max(24px, env(safe-area-inset-bottom)); }
+}
+
+/* Server admin sections, grouped by job rather than twelve equal tabs. */
+.dashboard-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 18px;
+  margin: 18px 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-nav-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dashboard-nav-label {
+  color: var(--oc-muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dashboard-nav .dashboard-tabs { margin: 0; border-bottom: 0; flex-wrap: wrap; }
+/* Dashboard forms use the kit's fields, without the dialog form's padding. */
+.dashboard-form.form { padding: 0; }
+.dashboard-empty {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 18px;
+  padding: 16px 18px;
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius-md);
+  color: var(--oc-muted);
+  font-size: 13px;
+}
+.dashboard-empty strong { color: var(--oc-text); }
+.dashboard-empty p { margin: 0; line-height: 1.55; }
+
+/* ------------------------------------------------------- boot skeleton -- */
+/* The shape of the shell while it loads: the page never sits blank. */
+.boot-skeleton {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 246px minmax(0, 1fr);
+  background: var(--bg);
+}
+.boot-skeleton.embedded { min-height: 100%; height: 100%; }
+.boot-skeleton-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 14px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--oc-panel);
+}
+.boot-skeleton-sidebar .brand-mark { margin: 0 6px 10px; }
+.boot-skeleton-main { display: grid; grid-template-rows: 65px minmax(0, 1fr) auto auto; min-width: 0; }
+.boot-skeleton-header { display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--line-soft); }
+.boot-skeleton-messages {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 24px max(30px, calc((100% - 760px) / 2));
+}
+.boot-skeleton-status { display: grid; place-items: center; padding: 8px 16px; min-height: 36px; }
+.boot-skeleton-phase { color: var(--oc-muted); font-size: 12px; opacity: 0; transition: opacity 0.3s ease; }
+.boot-skeleton-phase.shown { opacity: 1; }
+.boot-skeleton-slow { display: grid; justify-items: center; gap: 8px; text-align: center; font-size: 13px; color: var(--oc-muted); }
+.boot-skeleton-slow strong { color: var(--oc-text); }
+.boot-skeleton-composer {
+  height: 72px;
+  margin: 8px max(30px, calc((100% - 760px) / 2)) 20px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--oc-panel);
+}
+.bone {
+  display: block;
+  height: 12px;
+  width: 62%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--oc-panel-2) 0%, var(--oc-panel-3) 50%, var(--oc-panel-2) 100%);
+  background-size: 200% 100%;
+  animation: bone-shimmer 1.6s ease-in-out infinite;
+}
+.bone.wide { width: 86%; }
+.bone.short { width: 34%; }
+@keyframes bone-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bone { animation: none; }
+  .boot-skeleton-phase { transition: none; }
+}
+@media (max-width: 720px) {
+  .boot-skeleton { grid-template-columns: minmax(0, 1fr); }
+  .boot-skeleton-sidebar { display: none; }
+}
+/* While a server this app has shown before reconnects, its last known state
+   is on screen and says so; sending waits for the connection. */
+.server-switching {
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--oc-panel);
+  color: var(--oc-muted);
+  font-size: 12px;
 }

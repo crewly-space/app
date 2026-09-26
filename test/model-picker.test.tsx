@@ -73,32 +73,50 @@ describe('choosing a model', () => {
 });
 
 describe('when the list cannot be had', () => {
-  it('explains why and still lets a model be typed', async () => {
-    const onChange = picker({ loadModels: async () => { throw new Error('provider_unavailable'); } });
+  it('explains why, offers a retry, and only then a typed id on purpose', async () => {
+    const onChange = picker({ loadModels: async () => { throw new Error('The provider could not be reached.'); } });
 
-    expect(await screen.findByRole('alert')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /use a custom model id/i }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/could not be reached/);
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    // A failed list is not an invitation to type: the raw field waits for a choice.
+    expect(screen.queryByRole('textbox', { name: /model id/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /enter a model id instead/i }));
     const field = screen.getByRole('textbox', { name: /model id/i });
     fireEvent.change(field, { target: { value: 'some-new-model' } });
     expect(onChange).toHaveBeenCalledWith('some-new-model');
   });
 
-  it('offers the same escape hatch when the provider simply has no models', async () => {
-    picker({ loadModels: async () => [] });
-    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
-    expect(await screen.findByRole('textbox', { name: /model id/i })).toBeTruthy();
+  it('asks again when Retry is pressed, and shows the list that comes back', async () => {
+    let calls = 0;
+    const loadModels = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw Object.assign(new Error('Rate limited.'), { code: 'provider_rate_limited', body: { retryable: true } });
+      return models;
+    });
+    picker({ loadModels });
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('option', { name: /Claude Opus 5/ })).toBeTruthy();
+    expect(loadModels).toHaveBeenCalledTimes(2);
   });
 
-  it('retries discovery before asking for a custom id', async () => {
-    let attempts = 0;
+  it('does not offer a retry that cannot help', async () => {
     picker({ loadModels: async () => {
-      attempts += 1;
-      if (attempts === 1) throw new Error('temporary outage');
-      return models;
+      throw Object.assign(new Error('The provider rejected its API key.'), { code: 'provider_auth_failed', body: { retryable: false } });
     } });
-    fireEvent.click(await screen.findByRole('button', { name: /retry model discovery/i }));
-    expect(await screen.findByRole('option', { name: /Claude Opus 5/ })).toBeTruthy();
-    expect(attempts).toBe(2);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/rejected its API key/);
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('keeps the model an existing agent runs when the list fails', async () => {
+    picker({ value: 'my-custom-model', loadModels: async () => { throw new Error('down'); } });
+    expect((await screen.findByRole('alert')).textContent).toMatch(/my-custom-model/);
+  });
+
+  it('offers the same escape hatch when the provider simply has no models', async () => {
+    picker({ loadModels: async () => [] });
+    expect(await screen.findByRole('textbox', { name: /model id/i })).toBeTruthy();
   });
 
   it('does not ask a provider that is not there yet', () => {

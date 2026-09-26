@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { client, clearToken, currentToken, storeToken } from '../../lib/api/client';
 import { consumeHandoffFromUrl } from '../../lib/api/handoff';
+import { JoinInvite, leaveInvitePage, readInviteCode } from './JoinInvite';
 
 /**
  * A server's own login.
@@ -20,6 +21,11 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
   const [claimToken, setClaimToken] = useState('');
   const [claimRequired, setClaimRequired] = useState(false);
   const [error, setError] = useState('');
+  // An invite link opened on this server's own address. The hosted app's
+  // per-server gates (`server` set) never see one: the link is to the server.
+  const [inviteCode, setInviteCode] = useState(() => (server ? null : readInviteCode()));
+  const [signingInToAccept, setSigningInToAccept] = useState(false);
+  const [signedInAs, setSignedInAs] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     const refresh = async () => {
@@ -32,8 +38,8 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
       } catch { /* fall through to the usual sign-in */ }
       try {
         if (currentToken()) {
-          await client.auth.me();
-          if (active) { setPhase('ready'); return; }
+          const me = await client.auth.me();
+          if (active) { setSignedInAs(me.email); setPhase('ready'); return; }
         }
       } catch { clearToken(); }
       try {
@@ -57,6 +63,19 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
     return () => { active = false; window.removeEventListener('crewly:logout', logout); };
   }, [server, attempt]);
   useEffect(() => { if (phase === 'ready') onReady?.(); }, [phase, onReady]);
+  if (inviteCode && phase !== 'loading' && phase !== 'setup' && !(phase === 'login' && signingInToAccept)) {
+    return <JoinInvite
+      code={inviteCode}
+      signedInAs={phase === 'ready' ? signedInAs ?? email : null}
+      onSignIn={() => setSigningInToAccept(true)}
+      onJoined={(token) => {
+        storeToken(token);
+        leaveInvitePage();
+        setInviteCode(null);
+        setPhase('ready');
+      }}
+    />;
+  }
   if (phase === 'ready') return <>{children}</>;
   const frame = (content: ReactNode) => server
     ? <div className="server-pending-body">{content}</div>
@@ -74,7 +93,7 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
       const result = phase === 'setup'
         ? await client.auth.setup({ email, displayName, password, ...(claimRequired ? { claimToken } : {}) })
         : await client.auth.login({ email, password });
-      storeToken(result.token); setPhase('ready');
+      storeToken(result.token); setSignedInAs(result.user.email); setSigningInToAccept(false); setPhase('ready');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Authentication failed'); }
   }}>
     <h1>{phase === 'setup' ? 'Create first admin' : server ? `Log in to ${server}` : 'Log in to Crewly'}</h1>

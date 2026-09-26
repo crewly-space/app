@@ -25,7 +25,7 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
       providers={providers}
       onClose={() => {}}
       onSubmit={onSubmit}
-  // No provider behind these tests, so the picker uses its explicit custom-id escape hatch.
+      // No provider behind these tests, so the picker falls back to a typed id.
       loadModels={async () => models}
     />,
   );
@@ -34,7 +34,6 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
   // Without a connected provider there is no model to choose; the editor says
   // so before it asks for one.
   if (providers.some((provider) => provider.status === 'connected')) {
-    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     fireEvent.change(await screen.findByRole('textbox', { name: /Model ID/ }), {
       target: { value: 'test-model' },
     });
@@ -45,28 +44,32 @@ async function openEditor(providers: Providers, models: ModelInfo[] = []) {
 const createButton = () => screen.getByRole('button', { name: /Create agent/ });
 
 describe('AgentEditor without a usable provider', () => {
-  it('tells the user to connect a provider instead of ignoring the click', async () => {
+  it('does not offer to create an agent that has nothing to run on, and says why', async () => {
     const onSubmit = await openEditor([]);
 
+    expect((createButton() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(createButton());
-
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
+    expect(screen.getByRole('status').textContent).toMatch(/no provider is connected/i);
   });
 
-  it('says the same when the only provider is not connected', async () => {
-    const onSubmit = await openEditor([missing]);
-
-    fireEvent.click(createButton());
-
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toMatch(/connect a provider/i);
+  it('treats a provider that is not connected the same as none', async () => {
+    await openEditor([missing]);
+    expect((createButton() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('warns before submitting, so the empty provider list is not a surprise', async () => {
+  it('lets an admin connect one right here instead of sending them to Settings', async () => {
+    const onProvidersChanged = vi.fn(async () => {});
+    render(<AgentEditor providers={[]} onClose={() => {}} onSubmit={vi.fn()} onProvidersChanged={onProvidersChanged}
+      loadModels={async () => []} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Connect a provider' }));
+    expect(await screen.findByRole('dialog', { name: 'Connect a model provider' })).toBeTruthy();
+  });
+
+  it('tells a member to ask an admin, since they cannot connect one', async () => {
     await openEditor([]);
-
-    expect(screen.getByText(/no connected provider/i)).toBeTruthy();
+    expect(screen.getByText(/ask an admin/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect a provider' })).toBeNull();
   });
 });
 
@@ -89,7 +92,6 @@ describe('AgentEditor when a provider connects while it is open', () => {
     expect(screen.queryByRole('textbox', { name: /Model ID/ })).toBeNull();
 
     view.rerender(<AgentEditor providers={[connected as Providers[number]]} {...props} />);
-    fireEvent.click(await screen.findByRole('button', { name: /use a custom model id/i }));
     expect(await screen.findByRole('textbox', { name: /Model ID/ })).toBeTruthy();
   });
 });

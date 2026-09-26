@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 
@@ -74,12 +74,19 @@ describe('connecting a provider', () => {
     expect(screen.getByRole('heading', { name: 'Crewly Gateway' })).toBeTruthy();
   });
 
-  it('keeps device-backed kinds out of the API key list', async () => {
+  it('shows key-based providers as cards, keeps device-backed ones out, and asks for nothing until one is chosen', async () => {
     render(<ProviderConnect onConnected={() => {}} />);
-    const options = Array.from((await screen.findByLabelText('Provider') as HTMLSelectElement).options).map((option) => option.value);
-    expect(options).not.toContain('claude-subscription');
-    expect(options).not.toContain('ollama');
-    expect(options).toContain('openai-compatible');
+    const cards = within(await screen.findByRole('list', { name: 'API providers' })).getAllByRole('listitem')
+      .map((card) => card.getAttribute('aria-label'));
+    expect(cards).toEqual(['OpenAI', 'Anthropic', 'OpenRouter', 'DeepSeek', 'Custom endpoint']);
+    expect(screen.queryByLabelText(/^API key/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('listitem', { name: 'Custom endpoint' }));
+    expect(screen.getByLabelText(/^API key/)).toBeTruthy();
+    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Connect Custom endpoint' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another' }));
+    expect(screen.queryByLabelText(/^API key/)).toBeNull();
   });
 
   it('switches Claude on through a signed-in device that has not enabled it yet', async () => {

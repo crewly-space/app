@@ -70,7 +70,7 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
       break;
     default:
       body = <div className="server-pending-body">
-        <div className="server-switch-skeleton" role="status" aria-live="polite">
+        <div className="server-switch-skeleton boot-skeleton" role="status" aria-live="polite">
           <div className="server-switch-skeleton-mark"><span /><span /><span /></div>
           <div className="server-switch-skeleton-lines"><i /><i /><i /></div>
           <p className="server-pending-status">{selected ? `Opening ${selected.name}…` : 'Loading your servers…'}</p>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Blobatar } from "@blobatar/react";
 import { bloopSvg } from "@crewly/bloop";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, ServerBranding, UserAccount } from "@crewly/sdk";
@@ -8,11 +8,14 @@ import { client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
-import { InviteUserDialog } from "./InviteUserDialog";
 import type { Agent, Provider } from "../../types";
 import type { Theme } from "../../app-types";
 import type { AvatarMode } from "@crewly/protocol";
 import { AvatarModePicker, UserAvatar } from "../appearance/Avatar";
+import { providerConnectionLabel } from "../providers/labels";
+import { InvitesManager } from "../people/InvitesManager";
+import { serverInvitesApi } from "../people/api";
+import { useDialog } from "../../lib/layers";
 
 export function SettingsPanel({
   providers,
@@ -33,6 +36,7 @@ export function SettingsPanel({
   onDevicesChanged,
   onServerBrandingChanged,
   onClose,
+  serverName,
 }: {
   providers: Provider[];
   connectors: Connector[];
@@ -52,13 +56,14 @@ export function SettingsPanel({
   onDevicesChanged: () => Promise<void>;
   onServerBrandingChanged: (input: { displayName: string; tagline: string; iconDataUrl: string | null }) => Promise<void>;
   onClose: () => void;
+  /** The server being administered, so nobody mistakes a server setting for their own. */
+  serverName?: string;
 }) {
   const [section, setSection] = useState<
     "providers" | "connectors" | "members" | "devices" | "server" | "appearance"
   >("providers");
   const [addingProvider, setAddingProvider] = useState(false);
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
-  const [invitingUser, setInvitingUser] = useState(false);
   const [pairingCode, setPairingCode] = useState("");
   const [pairing, setPairing] = useState<DevicePairingInfo | null>(null);
   const [pairingError, setPairingError] = useState("");
@@ -70,6 +75,17 @@ export function SettingsPanel({
   const [brandingBusy, setBrandingBusy] = useState(false);
   const [brandingError, setBrandingError] = useState("");
   const canManageServer = currentUser.role === 'owner' || currentUser.role === 'admin';
+  const dialogRef = useDialog(onClose);
+  const navButton = (id: typeof section, icon: ReactNode, label: string) => (
+    <button
+      type="button"
+      className={section === id ? "active" : ""}
+      aria-current={section === id ? "page" : undefined}
+      onClick={() => setSection(id)}
+    >
+      {icon} {label}
+    </button>
+  );
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const code = query.get("code");
@@ -129,9 +145,12 @@ export function SettingsPanel({
     reader.readAsDataURL(file);
   };
   return (
-    <aside className="detail-panel settings-panel">
+    <div className="modal-layer settings-layer" onMouseDown={(event) => {
+      if (event.currentTarget === event.target) onClose();
+    }}>
+    <div ref={dialogRef} className="settings-panel settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <header>
-        <strong>Settings</strong>
+        <strong id="settings-title">Settings</strong>
         <button
           className="icon-button compact"
           onClick={onClose}
@@ -140,44 +159,24 @@ export function SettingsPanel({
           <X size={18} />
         </button>
       </header>
-      <div className="settings-nav">
-        <button
-          className={section === "providers" ? "active" : ""}
-          onClick={() => setSection("providers")}
-        >
-          <Cpu size={16} /> Providers
-        </button>
-        {canManageServer && <button
-          className={section === "connectors" ? "active" : ""}
-          onClick={() => setSection("connectors")}
-        >
-          <Plug size={16} /> Connectors
-        </button>}
-        {canManageServer && <button
-            className={section === "members" ? "active" : ""}
-            onClick={() => setSection("members")}
-          >
-            <UserRound size={16} /> People
-          </button>}
-        <button
-          className={section === "devices" ? "active" : ""}
-          onClick={() => setSection("devices")}
-        >
-          <Laptop size={16} /> Devices
-        </button>
-        {canManageServer && <button
-          className={section === "server" ? "active" : ""}
-          onClick={() => setSection("server")}
-        >
-          <Building2 size={16} /> Server
-        </button>}
-        <button
-          className={section === "appearance" ? "active" : ""}
-          onClick={() => setSection("appearance")}
-        >
-          <Palette size={16} /> Appearance
-        </button>
-      </div>
+      <div className="settings-body">
+      <nav className="settings-nav" aria-label="Settings sections">
+        <div className="settings-nav-group">
+          <span className="settings-nav-label">Your account</span>
+          <span className="settings-nav-hint">{currentUser.email}</span>
+          {navButton("appearance", <Palette size={16} />, "Appearance")}
+          {navButton("devices", <Laptop size={16} />, "Devices")}
+        </div>
+        <div className="settings-nav-group">
+          <span className="settings-nav-label">This server</span>
+          {serverName && <span className="settings-nav-hint">{serverName}</span>}
+          {navButton("providers", <Cpu size={16} />, "Providers")}
+          {canManageServer && navButton("connectors", <Plug size={16} />, "Connectors")}
+          {canManageServer && navButton("members", <UserRound size={16} />, "People")}
+          {canManageServer && navButton("server", <Building2 size={16} />, "Server")}
+        </div>
+        <button type="button" className="text-button settings-logout" onClick={() => void gateway.logout()}>Log out</button>
+      </nav>
       <div className="settings-content">
         {section === "providers" ? (
           <>
@@ -194,14 +193,14 @@ export function SettingsPanel({
               <div className="setting-row" key={provider.id}>
                 <ProviderLogo provider={provider.name} small />
                 <div>
-                  <strong>{provider.name}</strong>
+                  <strong>{providerConnectionLabel(provider)}</strong>
                   <span>{provider.detail}</span>
                 </div>
                 {!canManageServer ? <span className="connected-label"><Check size={13} /> Ready</span> : provider.status === "available" ? (
                   <button
                     className="use-button"
                     onClick={() =>
-                      onNotify(`${provider.name} is ready to use.`)
+                      onNotify(`${providerConnectionLabel(provider)} is ready to use.`)
                     }
                   >
                     Use
@@ -244,9 +243,6 @@ export function SettingsPanel({
                 <h3>People</h3>
                 <p>People who can sign in to this server.</p>
               </div>
-              <button onClick={() => setInvitingUser(true)}>
-                <Plus size={15} /> Invite
-              </button>
             </div>
             {users.map((user) => (
               <div className="setting-row" key={user.id}>
@@ -259,10 +255,11 @@ export function SettingsPanel({
                 <span className="device-status-chip">{user.role}</span>
               </div>
             ))}
-            <div className="security-note">
-              <LockKeyhole size={15} />
-              <span>Invite links let people choose their own password. Manage pending, accepted and revoked invites from Server admin.</span>
-            </div>
+            <InvitesManager
+              api={serverInvitesApi}
+              allowAdmin={currentUser.role === 'owner'}
+              onNotify={onNotify}
+            />
           </>
         ) : section === "devices" ? (
           <>
@@ -404,7 +401,7 @@ export function SettingsPanel({
           </>
         )}
       </div>
-      <button className="secondary-button" onClick={() => void gateway.logout()}>Log out</button>
+      </div>
       {/* The same full screen first run uses; from a panel it has to cover the
           app, or it renders inside a 330px column and runs off its edge. */}
       {addingProvider && <div className="provider-connect-layer"><ProviderConnect onClose={() => setAddingProvider(false)} onConnected={() => {
@@ -418,11 +415,7 @@ export function SettingsPanel({
           await onProvidersChanged(); setManagingProvider(null); onNotify(message);
         }}
       />}
-      {invitingUser && <InviteUserDialog
-        allowAdmin={currentUser.role === 'owner'}
-        onClose={() => setInvitingUser(false)}
-        onCreated={() => onNotify('Invite created. Copy the link and send it to the new member.')}
-      />}
-    </aside>
+    </div>
+    </div>
   );
 }

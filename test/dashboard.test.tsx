@@ -18,6 +18,11 @@ function api(overrides: Partial<DashboardApi> = {}): DashboardApi {
       id: 'i1', role: 'member', createdBy: owner.id, createdAt: '2026-09-22T10:00:00.000Z',
       expiresAt: '2026-09-29T10:00:00.000Z', usedAt: null, usedBy: null, label: null, code: 'invite-code-123456',
     })),
+    resendInvite: vi.fn(async () => ({
+      id: 'i1', role: 'member' as const, email: 'sam@example.com', status: 'pending' as const, createdBy: owner.id,
+      createdAt: '2026-09-22T10:00:00.000Z', expiresAt: '2026-09-29T10:00:00.000Z', usedAt: null, usedBy: null,
+      label: null, code: 'renewed-code-654321',
+    })),
     revokeInvite: vi.fn(async () => {}),
     status: async () => ({
       version: '0.1.0', uptimeSeconds: 3600,
@@ -81,12 +86,68 @@ describe('the server dashboard', () => {
   it('makes an invite link instead of a password somebody has to be sent', async () => {
     const implementation = open();
     fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /create invite/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Invite' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Invite a person' });
+    // Nobody picks a password for anybody.
+    expect(dialog.querySelector('input[type="password"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Create link only' }));
 
-    await waitFor(() => expect(implementation.createInvite).toHaveBeenCalled());
+    await waitFor(() => expect(implementation.createInvite).toHaveBeenCalledWith({ role: 'member' }));
     // Shown once, in full, because it cannot be read back afterwards.
     expect((await screen.findByRole('textbox', { name: /invite link/i })).getAttribute('value'))
       .toContain('invite-code-123456');
+  });
+
+  it('invites by email with a role, and falls back to a link when mail is off', async () => {
+    const mailOff = Object.assign(new Error('Outbound email is disabled on this server'), { code: 'mail_disabled' });
+    const createInvite = vi.fn()
+      .mockRejectedValueOnce(mailOff)
+      .mockResolvedValueOnce({
+        id: 'i2', role: 'admin', email: 'sam@example.com', status: 'pending', createdBy: owner.id,
+        createdAt: '2026-09-22T10:00:00.000Z', expiresAt: '2026-09-29T10:00:00.000Z', usedAt: null, usedBy: null,
+        label: null, code: 'mailless-code-1',
+      });
+    open({ createInvite });
+    fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Invite' }));
+    fireEvent.change(await screen.findByLabelText(/^Email/), { target: { value: 'sam@example.com' } });
+    fireEvent.change(screen.getByLabelText(/^Role/), { target: { value: 'admin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+    expect(await screen.findByText(/Email is not set up on this server/)).toBeTruthy();
+    expect(createInvite).toHaveBeenNthCalledWith(1, { role: 'admin', email: 'sam@example.com', send: true });
+    expect(createInvite).toHaveBeenNthCalledWith(2, { role: 'admin', email: 'sam@example.com', send: false });
+    expect(screen.getByRole('textbox', { name: /invite link/i }).getAttribute('value')).toContain('mailless-code-1');
+  });
+
+  it('lists where each invite stands, with resend and revoke', async () => {
+    const base = { role: 'member' as const, createdBy: owner.id, createdAt: '2026-09-22T10:00:00.000Z',
+      expiresAt: '2026-09-29T10:00:00.000Z', usedBy: null, label: null };
+    const implementation = open({ listInvites: async () => [
+      { ...base, id: 'i1', email: 'sam@example.com', status: 'pending', usedAt: null },
+      { ...base, id: 'i2', email: 'lee@example.com', status: 'accepted', usedAt: '2026-09-23T10:00:00.000Z' },
+      { ...base, id: 'i3', email: 'old@example.com', status: 'revoked', usedAt: null },
+    ] });
+    fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
+    expect(await screen.findByText('sam@example.com')).toBeTruthy();
+    expect(screen.getByText('Accepted')).toBeTruthy();
+    expect(screen.getByText('Revoked')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Revoke invite to lee@example.com/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resend invite to sam@example.com' }));
+    await waitFor(() => expect(implementation.resendInvite).toHaveBeenCalledWith('i1'));
+    expect((await screen.findByRole('textbox', { name: /invite link/i })).getAttribute('value')).toContain('renewed-code-654321');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke invite to sam@example.com' }));
+    await waitFor(() => expect(implementation.revokeInvite).toHaveBeenCalledWith('i1'));
+    expect(await screen.findAllByText('Revoked')).toHaveLength(2);
+  });
+
+  it('groups server administration by job instead of one row of equal tabs', async () => {
+    open();
+    for (const group of ['People & access', 'Agents & AI', 'Integrations', 'Usage & operations']) {
+      expect(await screen.findByRole('tablist', { name: group })).toBeTruthy();
+    }
+    expect(screen.getAllByRole('tab')).toHaveLength(14);
   });
 
   it('reports what the server is doing and what failed', async () => {

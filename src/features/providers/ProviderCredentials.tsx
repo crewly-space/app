@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { client } from '../../lib/api/client';
 import type { Provider } from '../../types';
+import { providerConnectionLabel } from './labels';
 
 export function ProviderCredentials({
   provider,
@@ -49,7 +50,7 @@ export function ProviderCredentials({
       <button type="button" className="danger-button" onClick={() => setConfirmDelete(true)}>Remove provider</button>
     ) : (
       <div className="danger-confirm" role="alert">
-        <strong>Remove {provider.name}?</strong>
+        <strong>Remove {providerConnectionLabel(provider)}?</strong>
         <p>{usedByAgents > 0
           ? `${usedByAgents} agent${usedByAgents === 1 ? '' : 's'} use this provider and will stop replying until reconfigured.`
           : 'Agents will no longer be able to use this provider.'}</p>

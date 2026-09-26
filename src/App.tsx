@@ -11,6 +11,7 @@ import { serverApi } from "./features/dashboard/api";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ServerPending } from "./features/servers/ServerPending";
+import { hasWorkspace, readWorkspace, writeWorkspace } from "./lib/boot-cache";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
 import { FirstRunHome, firstRunStep, useFirstRunSkips } from "./features/onboarding/FirstRun";
 import { PairingApproval } from "./features/devices/PairingApproval";
@@ -59,11 +60,18 @@ function withChannels(current: Bootstrap, next: Awaited<ReturnType<typeof gatewa
  */
 export default function App() {
   const registry = useServerRegistry();
-  if (registry.connection.state !== "connected") return <ServerPending registry={registry} />;
-  return <ServerWorkspace registry={registry} />;
+  const serverKey = registry.selected?.id ?? "local";
+  const connected = registry.connection.state === "connected";
+  // A server shown before stays on screen while it reconnects -- its last
+  // known sidebar and conversation, marked as such -- instead of the whole
+  // workspace being torn down for a loading page (CRE-101). A server never
+  // shown yet, or one that failed, gets the pending screen beside the rail.
+  const reconnecting = registry.connection.state === "connecting" && hasWorkspace(serverKey);
+  if (!connected && !reconnecting) return <ServerPending registry={registry} />;
+  return <ServerWorkspace key={serverKey} serverKey={serverKey} connected={connected} registry={registry} />;
 }
 
-function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
+function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerRegistry; serverKey: string; connected: boolean }) {
   // Administering a server is its own screen rather than a panel beside a
   // conversation: suspending somebody is not a chat setting. It has its own
   // address, so it can be opened, linked and left with the back button.
@@ -74,9 +82,12 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const [profileOpen, setProfileOpen] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
   const [inspecting, setInspecting] = useState<{ messageId?: string; runId?: string } | null>(null);
-  const [data, setData] = useState<Bootstrap | null>(null);
+  const cached = readWorkspace<Bootstrap>(serverKey);
+  const [data, setData] = useState<Bootstrap | null>(cached?.data ?? null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [loadError, setLoadError] = useState('');
-  const [selected, setSelected] = useState("launch");
+  // Each server reopens on the conversation that was open there.
+  const [selected, setSelected] = useState(cached?.selected ?? "launch");
   const [view, setView] = useState<View>("messages");
   const [panel, setPanel] = useState<Panel>(() => {
     if (new URLSearchParams(window.location.search).has("pair")) return "settings";
@@ -132,15 +143,19 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
+    // Not asked until the server is connected: before then there is no
+    // session for it, and the last known state is what is on screen.
+    if (!connected) return;
     let cancelled = false;
-    const bootstrapStartedAt = performance.now();
+    const workspaceWindow = window;
+    const bootstrapStartedAt = workspaceWindow.performance.now();
     const recordBootstrapTiming = (status: 'success' | 'error') => {
       // Use the page's constructor rather than the ambient global. The app can
       // be mounted into another window (the integration test does this with
       // jsdom), where Node's CustomEvent belongs to a different realm and
       // cannot be dispatched by that window.
-      window.dispatchEvent(new window.CustomEvent('crewly:bootstrap-timing', {
-        detail: { status, durationMs: Math.round(performance.now() - bootstrapStartedAt), serverId: registry.selected?.id ?? null },
+      workspaceWindow.dispatchEvent(new workspaceWindow.CustomEvent('crewly:bootstrap-timing', {
+        detail: { status, durationMs: Math.round(workspaceWindow.performance.now() - bootstrapStartedAt), serverId: registry.selected?.id ?? null },
       }));
     };
     let stopRealtime = () => {};
@@ -182,7 +197,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
     // while connected to another would be a lie.
-  }, [registry.epoch]);
+  }, [registry.epoch, connected, bootAttempt]);
+  // Remember what this server looked like, for switching back to it.
+  useEffect(() => {
+    if (data) writeWorkspace(serverKey, data, selected);
+  }, [data, selected, serverKey]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
@@ -242,7 +261,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   // server for the first time, or an owner whose DMs were all cleared — used to
   // land on a page whose only content was a button. Open the DM for them.
   useEffect(() => {
-    if (!data || data.conversations.length || !data.agents.length) return;
+    // Channels are shared rooms, not "a conversation of their own": a server
+    // opening on #general still owes a newcomer their DM.
+    if (!data || data.conversations.some((item) => item.type !== "channel") || !data.agents.length) return;
     if (openingFirstDm.current) return;
     openingFirstDm.current = true;
     const agents = data.agents;
@@ -272,7 +293,27 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  if (!data) return loadError ? <div role="alert">{loadError}</div> : <Loading />;
+  if (!data) {
+    const serverName = registry.selected?.name;
+    const retry = () => { setLoadError(""); setBootAttempt((value) => value + 1); };
+    const content = loadError ? (
+      <div className="onboarding-body"><div className="onboarding-card form">
+        <h1>{serverName ? `${serverName} couldn't be opened` : "Crewly couldn't be opened"}</h1>
+        <p role="alert">{loadError}</p>
+        <button className="primary-button" type="button" onClick={retry}>Try again</button>
+      </div></div>
+    ) : <Loading embedded={registry.multiServer} phase={serverName ? `Opening ${serverName}…` : "Opening your crew…"} onRetry={retry} />;
+    // Hosted, the rail stays while one server loads, so the others are still a click away.
+    if (!registry.multiServer || !registry.servers.length) return content;
+    return <div className="app-shell server-pending">
+      <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
+        onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+        unread={registry.unread} failures={registry.failures} />
+      <main className="server-pending-main">{content}</main>
+      {addingServer && <AddServerDialog onClose={() => setAddingServer(false)}
+        onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
+    </div>;
+  }
   const pairingCode = new URLSearchParams(window.location.search).get("pair");
   if (pairingCode) return <PairingApproval code={pairingCode} onApproved={async () => {
     const url = new URL(window.location.href);
@@ -286,7 +327,13 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   // No provider is not a reason to hold the app: the server switcher, settings
   // and every other action have to stay reachable, and providers are managed
   // from Settings or the dashboard. The sidebar nudge keeps the gap visible.
-  if (!data.conversations.length && panel !== "settings") {
+  const serverBranding = data.serverBranding ?? {
+    displayName: registry.selected?.name ?? 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null,
+  };
+  const ownConversations = data.conversations.filter((item) => item.type !== "channel");
+  const hasChannels = data.conversations.length > ownConversations.length;
+  const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);
+  if (!ownConversations.length && panel !== "settings") {
     // A DM is on its way from the effect above; showing "create your first
     // agent" to someone who already has one would be a lie that flashes past.
     if (data.agents.length && !firstDmFailed) return <Loading />;
@@ -299,14 +346,16 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
     if (step === "provider") return <ProviderConnect closeLabel="Skip for now"
       onConnected={() => { void gateway.bootstrap().then(setData); notify("Provider saved."); }}
       onClose={() => firstRun.skip("provider")} />;
-    return <div className="first-run">
+    // Nothing left to set up for this person: with channels to talk in, the
+    // app itself is the useful place, not a page about setting up agents.
+    if (!(step === "home" && hasChannels)) return <div className="first-run">
       <header>
         <BrandMark />
         <button className="text-button" onClick={() => setPanel("settings")}>Settings</button>
         <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
       </header>
       {step === "agent" ? (
-        <AgentEditor firstRun providers={data.providers} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
+        <AgentEditor firstRun providers={data.providers} onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
           const agent = await gateway.createAgent(input);
           const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
           setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
@@ -328,7 +377,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
   if (!data.conversations.length) return <div className="empty-settings-shell">
     <SettingsPanel
     providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
-    people={data.people} serverBranding={data.serverBranding} onServerBrandingChanged={updateServerBranding}
+    people={data.people} serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding}
     onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
     onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)}
     onUsersChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)}
@@ -725,17 +774,17 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
 
   return (
     <>
-      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""}`}>
+      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
         {registry.multiServer && registry.servers.length > 0 && (
           <ServerRail
             servers={registry.servers}
             selectedId={registry.selected?.id ?? null}
-            onSelect={registry.select}
+            onSelect={(id) => { registry.select(id); setMobileNav(false); }}
             onAddServer={() => setAddingServer(true)}
             dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
             account={registry.account}
             onProfile={() => setProfileOpen(true)}
-            selectedBranding={data.serverBranding}
+            selectedBranding={serverBranding}
             unread={registry.unread}
             failures={registry.failures}
           />
@@ -766,10 +815,10 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         )}
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
-            {data.serverBranding.iconDataUrl
-              ? <img className="server-brand-icon" src={data.serverBranding.iconDataUrl} alt="" />
+            {serverBranding.iconDataUrl
+              ? <img className="server-brand-icon" src={serverBranding.iconDataUrl} alt="" />
               : <BrandMark />}
-            <span title={data.serverBranding.tagline || undefined}>{data.serverBranding.displayName}</span>
+            <span title={serverBranding.tagline || undefined}>{serverBranding.displayName}</span>
             <small>Crewly</small>
             <button
               className="icon-button compact mobile-only"
@@ -865,6 +914,22 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
               )}
             </SidebarSection>
           )}
+          <SidebarSection
+            title="Channels"
+            action={() => { setChannelDialog({}); setMobileNav(false); }}
+            actionLabel="Create channel"
+            actionDisabledReason={canManageChannels ? undefined : "Only admins can create channels"}
+          >
+            {uncategorisedChannels}
+            {!hasLiveChannels && (canManageChannels ? (
+              <button className="sidebar-cta" onClick={() => { setChannelDialog({}); setMobileNav(false); }}>
+                <Plus size={15} />
+                <span>Create your first channel</span>
+              </button>
+            ) : (
+              <p className="sidebar-empty">No channels yet. An admin can create one.</p>
+            ))}
+          </SidebarSection>
           {data.channelCategories.map((category) => {
             const rows = channelRows(category.id);
             return rows.length > 0 ? <SidebarSection key={category.id} title={category.name}>{rows}</SidebarSection> : null;
@@ -923,6 +988,9 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         {dashboardOpen && (
           <div className="dashboard-layer">
             <Dashboard
+              // Everything administered here belongs to one server; switching
+              // servers starts it fresh rather than showing the last one's state.
+              key={registry.selected?.id ?? "local"}
               api={serverApi}
               currentUser={{
                 id: data.currentUser.id,
@@ -931,7 +999,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                 role: data.currentUser.role as "owner" | "admin" | "member",
                 createdAt: new Date().toISOString(),
               }}
-              serverName={data.serverBranding.displayName}
+              serverName={serverBranding.displayName}
               onClose={() => {
                 setDashboardOpen(false);
                 history.pushState(null, "", "/");
@@ -953,6 +1021,11 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
         )}
 
         <main className="conversation">
+          {!connected && (
+            <div className="server-switching" role="status">
+              Showing {registry.selected?.name ?? "this server"} as you left it. Connecting…
+            </div>
+          )}
           <header className="conversation-header">
             <button
               className="icon-button compact mobile-only"
@@ -1039,7 +1112,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           {view === "messages" ? (
             <>
               <section
-                className="message-list"
+                className={`message-list${visibleMessages.length === 0 && conversationApprovals.length === 0 ? " is-empty" : ""}`}
                 ref={messageListRef}
                 onScroll={(event) => {
                   const list = event.currentTarget;
@@ -1163,7 +1236,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
                   <div
                     ref={composerRef}
                     className="composer-editor"
-                    contentEditable={!sending}
+                    contentEditable={!sending && connected}
                     suppressContentEditableWarning
                     onInput={(event) => {
                       setComposer(readComposer(event.currentTarget));
@@ -1346,7 +1419,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           />
         )}
         {panel === "settings" && (
-          <SettingsPanel
+          <SettingsPanel serverName={registry.selected?.name}
             providers={data.providers}
             connectors={data.connectors}
             devices={data.devices}
@@ -1354,7 +1427,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
             currentUser={data.currentUser}
             users={data.users}
             people={data.people}
-            serverBranding={data.serverBranding}
+            serverBranding={serverBranding}
             onServerBrandingChanged={updateServerBranding}
             onAvatarModeChange={updateMyAvatar}
             theme={theme}
@@ -1371,6 +1444,7 @@ function ServerWorkspace({ registry }: { registry: ServerRegistry }) {
           <AgentEditor
             onClose={() => setCreating(false)}
             providers={data.providers}
+            onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined}
             onSubmit={async (input) => {
               const created = await gateway.createAgent(input);
               const dm = await gateway.createDm(created.id, [...data.agents, created]);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { CloudAccount } from '../../lib/cloud/account';
+import { Loading } from '../shell/BrandMark';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
 
@@ -79,7 +80,8 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   const card = (content: ReactNode) => (
     <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card form">{content}</div></div></div>
   );
-  if (phase.name === 'loading') return card(<p>Connecting to Crewly…</p>);
+  // The shell's shape with the brand, not a card that only says "Connecting".
+  if (phase.name === 'loading') return <Loading phase="Signing you in…" onRetry={() => void enter()} />;
   if (phase.name === 'error') {
     return card(<>
       <h1>Can't reach Crewly</h1>

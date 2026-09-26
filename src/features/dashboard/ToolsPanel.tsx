@@ -26,7 +26,13 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
   return (
     <div className="dashboard-tools">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
-      {servers.length === 0 && <p className="field-description">No MCP servers yet.</p>}
+      {servers.length === 0 && (
+        <div className="dashboard-empty">
+          <strong>No tools connected yet</strong>
+          <p>Tools let agents act beyond conversation: search an issue tracker, read a repository, query a database.
+            Connect an MCP server below, then choose which of its tools each agent may use.</p>
+        </div>
+      )}
       {servers.map((server) => (
         <section key={server.id} className="dashboard-card">
           <header className="dashboard-row-actions">
@@ -72,7 +78,7 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
       ))}
 
       <h2>Connect an MCP server</h2>
-      <form className="dashboard-form" onSubmit={(event) => {
+      <form className="dashboard-form form" onSubmit={(event) => {
         event.preventDefault();
         void run(async () => {
           const created = await api.createMcpServer({

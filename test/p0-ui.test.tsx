@@ -87,28 +87,42 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByRole('heading', { name: 'Connect a model provider' });
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
   fireEvent.click(page.getByRole('button', { name: 'Skip for now' }));
-  await page.findByRole('heading', { name: 'Your server is ready' });
+  // A new server opens on #general, so skipping setup lands in a channel with
+  // a composer rather than on an empty page (CRE-114).
+  await page.findByRole('heading', { name: '# general' });
+  expect(page.getByRole('combobox', { name: 'Message general' })).toBeTruthy();
+  expect(page.queryByText('Groups')).toBeNull();
+  expect(page.getByRole('button', { name: 'Create channel' })).toBeTruthy();
   expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
+  // Settings is a dialog with the person's own settings kept apart from the
+  // server's (CRE-102), and Log out lives with the account, not under every tab.
+  const settingsDialog = await page.findByRole('dialog', { name: 'Settings' });
+  expect(within(settingsDialog).getByText('Your account')).toBeTruthy();
+  expect(within(settingsDialog).getByText('This server')).toBeTruthy();
+  expect(within(settingsDialog).getAllByRole('button', { name: 'Log out' })).toHaveLength(1);
   fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
   fireEvent.click(page.getByRole('button', { name: 'Add' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });
-  fireEvent.change(page.getByLabelText('Provider'), { target: { value: 'openai-compatible' } });
+  fireEvent.click(page.getByRole('listitem', { name: 'Custom endpoint' }));
   // The provider ID defaults to the provider kind and only appears once the
   // second-account disclosure is opened.
   fireEvent.click(page.getByRole('button', { name: /Connecting another/ }));
-  // The label wraps a hint, so its text is not exactly "Provider ID".
-  fireEvent.change(await page.findByLabelText(/Provider ID/), { target: { value: 'mock' } });
-  fireEvent.change(page.getByLabelText('API key'), { target: { value: 'test-key' } });
+  // The label wraps a hint, so its text is not exactly "Connection name".
+  fireEvent.change(await page.findByLabelText(/^Connection name/), { target: { value: 'mock' } });
+  fireEvent.change(page.getByLabelText(/^API key/), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText(/Base URL/), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
-  fireEvent.click(page.getByRole('button', { name: 'Save provider' }));
+  fireEvent.click(page.getByRole('button', { name: 'Connect Custom endpoint' }));
   await page.findByText('Provider saved.');
   fireEvent.click(page.getByRole('button', { name: 'Close settings' }));
   // With a provider connected, first run moves on to the agent step by itself.
   const dialog = within(await page.findByRole('dialog', { name: 'Create an agent' }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Name/ }), { target: { value: 'Echo' } });
   fireEvent.change(dialog.getByRole('textbox', { name: /Role/ }), { target: { value: 'Assistant' } });
-  fireEvent.change(await dialog.findByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
+  // The mock provider has no /models, so the picker says so and typing an id
+  // is an explicit choice rather than the default.
+  fireEvent.click(await dialog.findByRole('button', { name: /Enter a model ID instead/ }));
+  fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
   const composer = await page.findByRole('combobox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });
@@ -125,11 +139,17 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
 
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   fireEvent.click(page.getByRole('button', { name: 'People' }));
-  fireEvent.click(page.getByRole('button', { name: 'Invite' }));
-  const inviteDialog = within(page.getByRole('dialog', { name: 'Invite someone' }));
-  fireEvent.click(inviteDialog.getByRole('button', { name: 'Create invite' }));
-  await inviteDialog.findByRole('textbox', { name: 'Invite link' });
-  expect(db.prepare('SELECT COUNT(*) AS n FROM invites').get()).toEqual({ n: 1 });
+  fireEvent.click(await page.findByRole('button', { name: 'Invite' }));
+  const inviteDialog = within(page.getByRole('dialog', { name: 'Invite a person' }));
+  expect(inviteDialog.queryByLabelText(/password/i)).toBeNull();
+  fireEvent.change(inviteDialog.getByLabelText(/^Email/), { target: { value: 'sam@example.test' } });
+  fireEvent.click(inviteDialog.getByRole('button', { name: 'Send invite' }));
+  const inviteUrl = (await inviteDialog.findByRole('textbox', { name: 'Invite link' })).getAttribute('value')!;
+  expect(inviteUrl).toMatch(/\/join#invite=/);
+  fireEvent.click(inviteDialog.getByRole('button', { name: 'Done' }));
+  expect(await page.findByText('sam@example.test')).toBeTruthy();
+  expect(page.getByText('Pending')).toBeTruthy();
+  expect(db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get('sam@example.test')).toEqual({ n: 0 });
 
   fireEvent.click(page.getByRole('button', { name: 'Providers' }));
   fireEvent.click(await page.findByRole('button', { name: 'Manage' }));
@@ -167,4 +187,22 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByText('Device paired. It can now connect securely.');
   expect(db.prepare('SELECT id, name FROM devices WHERE id = ?').get(deviceId)).toEqual({ id: deviceId, name: 'Work laptop' });
   refreshedView.unmount();
-}, 20_000);
+
+  // Sam opens the link signed out and joins with a password only Sam knows.
+  const { clearToken } = await import('../src/lib/api/client');
+  vi.stubGlobal('Event', win.Event);
+  clearToken();
+  win.history.replaceState(null, '', new URL(inviteUrl).pathname + new URL(inviteUrl).hash);
+  const joinRoot = win.document.createElement('div');
+  win.document.body.appendChild(joinRoot);
+  const joinView = render(React.createElement(UI), { container: joinRoot });
+  await page.findByRole('heading', { name: 'You’re invited' });
+  expect((page.getByLabelText('Email') as HTMLInputElement).value).toBe('sam@example.test');
+  fireEvent.change(page.getByLabelText('Name'), { target: { value: 'Sam' } });
+  fireEvent.change(page.getByLabelText('Password'), { target: { value: 'sams-own-password-1' } });
+  fireEvent.click(page.getByRole('button', { name: 'Create account and join' }));
+  await waitFor(() => expect(win.location.pathname).toBe('/'));
+  expect(db.prepare('SELECT email, role FROM users WHERE email = ?').get('sam@example.test')).toEqual({ email: 'sam@example.test', role: 'member' });
+  expect(db.prepare('SELECT used_at IS NOT NULL AS used FROM invites').get()).toEqual({ used: 1 });
+  joinView.unmount();
+}, 30_000);

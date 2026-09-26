@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CrewlyApiError, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
@@ -16,7 +16,7 @@ const STATUS_TEXT: Record<CrewlyConnection['status'], string> = {
   disconnected: 'Not connected. This server runs entirely on its own.',
   pending: 'Waiting for approval in Crewly.',
   connected: 'Connected to Crewly.',
-  revoked: 'Crewly revoked this server. Connect again to use Crewly services.',
+  revoked: 'This server’s link to Crewly no longer works: it was revoked or removed in Crewly. Connect again, or remove the old link.',
 };
 
 const DISCONNECTED: CrewlyConnection = {
@@ -40,30 +40,80 @@ async function getConnection(api: ServicesApi): Promise<CrewlyConnection> {
   }
 }
 
+function statusOf(reason: unknown): number | undefined {
+  const status = (reason as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+function explain(reason: unknown, fallback: string): string {
+  if (statusOf(reason) === 404) return 'This server does not offer a Crewly connection. Update the server to connect Crewly.';
+  return reason instanceof Error && reason.message ? reason.message : fallback;
+}
+
 /**
  * Connect Crewly. Optional: nothing here is needed to run the server, and
  * disconnecting removes only the connection, never local data.
  */
 export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName: string }) {
-  const { busy, error, run } = useWork();
+  const { busy, error, run, setError } = useWork();
   const [connection, setConnection] = useState<CrewlyConnection | null>(null);
+  const [loadFailure, setLoadFailure] = useState('');
   const [requested, setRequested] = useState<string[]>(['mail:send']);
 
+  const load = useCallback(async () => {
+    setLoadFailure('');
+    try {
+      setConnection(await getConnection(api));
+    } catch (reason) {
+      setConnection(null);
+      setLoadFailure(explain(reason, 'The Crewly connection could not be loaded.'));
+    }
+  }, [api]);
+
+  // Always this server's connection: a record read for another server, or
+  // one that has since changed, is never shown or acted on.
   useEffect(() => {
-    void run(async () => setConnection(await getConnection(api)));
-  }, [api, run]);
+    setConnection(null);
+    void load();
+  }, [load, serverName]);
+
+  const act = (work: () => Promise<CrewlyConnection | void>) => run(async () => {
+    try {
+      const next = await work();
+      setConnection(next ?? await getConnection(api));
+    } catch (reason) {
+      if (statusOf(reason) === 404 || statusOf(reason) === 409) {
+        await load();
+        setError(statusOf(reason) === 409 && reason instanceof Error ? reason.message : 'That link had already changed. This is its current state.');
+        return;
+      }
+      throw reason;
+    }
+  });
 
   // While the owner approves in Crewly, ask every few seconds whether they have.
   const pending = connection?.status === 'pending' ? connection.link : null;
   useEffect(() => {
     if (!pending) return;
     const timer = setInterval(() => {
-      api.pollCrewly().then(setConnection).catch(async () => setConnection(await getConnection(api)));
+      api.pollCrewly().then(setConnection).catch(() => void load());
     }, pending.interval * 1000);
     return () => clearInterval(timer);
-  }, [api, pending]);
+  }, [api, pending, load]);
 
-  if (!connection) return error ? <p role="alert" className="dashboard-error">{error}</p> : null;
+  if (!connection) {
+    if (!loadFailure) return <p className="field-description" role="status">Checking this server’s Crewly connection…</p>;
+    return (
+      <div className="dashboard-crewly">
+        <div className="dashboard-card" role="alert">
+          <p>{loadFailure}</p>
+          <div className="dashboard-actions">
+            <button type="button" className="secondary-button" onClick={() => void load()}>Try again</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-crewly">
@@ -71,9 +121,9 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
       <p className="field-description">{STATUS_TEXT[connection.status]}</p>
 
       {(connection.status === 'disconnected' || connection.status === 'revoked') && (
-        <form className="dashboard-form" onSubmit={(event) => {
+        <form className="dashboard-form form" onSubmit={(event) => {
           event.preventDefault();
-          void run(async () => setConnection(await api.connectCrewly({ name: serverName, scopes: requested })));
+          void act(() => api.connectCrewly({ name: serverName, scopes: requested }));
         }}>
           <fieldset>
             <legend>Services to ask for</legend>
@@ -91,7 +141,13 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
             ))}
           </fieldset>
           <div className="dashboard-actions">
-            <button type="submit" className="primary-button" disabled={busy}>Connect Crewly</button>
+            <button type="submit" className="primary-button" disabled={busy}>
+              {connection.status === 'revoked' ? 'Connect again' : 'Connect Crewly'}
+            </button>
+            {connection.status === 'revoked' && (
+              <button type="button" className="text-button" disabled={busy}
+                onClick={() => void act(() => api.disconnectCrewly())}>Remove the old link</button>
+            )}
           </div>
         </form>
       )}
@@ -103,7 +159,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           <div className="dashboard-actions">
             <a className="primary-button" href={pending.verificationUrl} target="_blank" rel="noopener noreferrer">Open Crewly</a>
             <button type="button" className="text-button" disabled={busy}
-              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await getConnection(api)); })}>Cancel</button>
+              onClick={() => void act(() => api.disconnectCrewly())}>Cancel</button>
           </div>
         </div>
       )}
@@ -123,11 +179,11 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           </p>
           <div className="dashboard-actions">
             <button type="button" className="secondary-button" disabled={busy}
-              onClick={() => void run(async () => setConnection(await api.refreshCrewly()))}>Check again</button>
+              onClick={() => void act(() => api.refreshCrewly())}>Check again</button>
             <button type="button" className="secondary-button" disabled={busy}
-              onClick={() => void run(async () => setConnection(await api.rotateCrewly()))}>Rotate credential</button>
+              onClick={() => void act(() => api.rotateCrewly())}>Rotate credential</button>
             <button type="button" className="text-button danger" disabled={busy}
-              onClick={() => void run(async () => { await api.disconnectCrewly(); setConnection(await getConnection(api)); })}>Disconnect</button>
+              onClick={() => void act(() => api.disconnectCrewly())}>Disconnect</button>
           </div>
         </>
       )}

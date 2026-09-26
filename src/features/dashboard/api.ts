@@ -29,7 +29,8 @@ export interface DashboardApi {
   setSuspended(userId: string, suspended: boolean): Promise<UserAccount>;
   removeMember(userId: string): Promise<void>;
   listInvites(): Promise<Invite[]>;
-  createInvite(input: { role: Exclude<UserRole, 'owner'>; label?: string }): Promise<Invite>;
+  createInvite(input: { role: Exclude<UserRole, 'owner'>; label?: string; email?: string; send?: boolean }): Promise<Invite>;
+  resendInvite(inviteId: string): Promise<Invite>;
   revokeInvite(inviteId: string): Promise<void>;
   status(): Promise<ServerStatus>;
   logs(): Promise<ServerLogEntry[]>;
@@ -57,6 +58,7 @@ export const serverApi: DashboardApi = {
   removeMember: (userId) => client.users.remove(userId),
   listInvites: async () => (await client.users.listInvites()).invites,
   createInvite: async (input) => (await client.users.createInvite(input)).invite,
+  resendInvite: async (inviteId) => (await client.users.resendInvite(inviteId)).invite,
   revokeInvite: (inviteId) => client.users.revokeInvite(inviteId),
   status: () => client.server.status(),
   logs: async () => (await client.server.logs()).entries,

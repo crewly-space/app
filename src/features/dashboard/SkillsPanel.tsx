@@ -46,7 +46,7 @@ export function SkillsPanel({ api }: { api: PlatformApi }) {
         <button type="button" role="tab" aria-selected={mode === 'write'} className={mode === 'write' ? 'selected' : ''} onClick={() => setMode('write')}>Write one</button>
         <button type="button" role="tab" aria-selected={mode === 'install'} className={mode === 'install' ? 'selected' : ''} onClick={() => setMode('install')}>Install a manifest</button>
       </div>
-      <form className="dashboard-form" onSubmit={(event) => {
+      <form className="dashboard-form form" onSubmit={(event) => {
         event.preventDefault();
         void run(async () => {
           add(mode === 'write'

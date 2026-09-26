@@ -119,7 +119,7 @@ export function MailPanel({ api }: { api: ServicesApi }) {
     <div className="dashboard-mail">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
 
-      <form className="dashboard-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <form className="dashboard-form form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <label>
           Provider
           <select value={draft.provider} onChange={(event) => set({ provider: event.target.value as MailProvider, secret: '' })}>
