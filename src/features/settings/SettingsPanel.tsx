@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Blobatar } from "@blobatar/react";
 import { bloopSvg } from "@crewly/bloop";
-import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, ServerBranding, UserAccount } from "@crewly/sdk";
+import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser, ServerBranding, SlackImportChannel, UserAccount } from "@crewly/sdk";
 import { Building2, Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { client } from "../../lib/api/client";
@@ -69,6 +69,10 @@ export function SettingsPanel({
   const [pairingError, setPairingError] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
   const [connectorBusy, setConnectorBusy] = useState(false);
+  const [slackChannels, setSlackChannels] = useState<SlackImportChannel[]>([]);
+  const [selectedSlackChannels, setSelectedSlackChannels] = useState<string[]>([]);
+  const [slackHistory, setSlackHistory] = useState(0);
+  const [slackMembers, setSlackMembers] = useState(true);
   const [brandingName, setBrandingName] = useState(serverBranding.displayName);
   const [brandingTagline, setBrandingTagline] = useState(serverBranding.tagline);
   const [brandingIcon, setBrandingIcon] = useState<string | null>(serverBranding.iconDataUrl);
@@ -91,14 +95,14 @@ export function SettingsPanel({
     const code = query.get("code");
     const state = query.get("state");
     const provider = query.get("connector");
-    if (!provider || !["github", "linear"].includes(provider) || !code || !state || !canManageServer) return;
+    if (!provider || !["github", "linear", "slack"].includes(provider) || !code || !state || !canManageServer) return;
     setConnectorBusy(true);
-    const complete = provider === "linear" ? client.connectors.completeLinearOAuth({ code, state }) : client.connectors.completeGitHubOAuth({ code, state });
+    const complete = provider === "linear" ? client.connectors.completeLinearOAuth({ code, state }) : provider === "slack" ? client.connectors.completeSlackOAuth({ code, state }) : client.connectors.completeGitHubOAuth({ code, state });
     void complete.then(async () => {
       window.history.replaceState({}, "", window.location.pathname);
       await onConnectorsChanged();
-      onNotify(`${provider === "linear" ? "Linear" : "GitHub"} connected.`);
-    }).catch(() => onNotify(`${provider === "linear" ? "Linear" : "GitHub"} could not be connected.`)).finally(() => setConnectorBusy(false));
+      onNotify(`${provider === "linear" ? "Linear" : provider === "slack" ? "Slack" : "GitHub"} connected.`);
+    }).catch(() => onNotify(`${provider === "linear" ? "Linear" : provider === "slack" ? "Slack" : "GitHub"} could not be connected.`)).finally(() => setConnectorBusy(false));
   }, [canManageServer, onConnectorsChanged, onNotify]);
   const connectGitHub = async () => {
     setConnectorBusy(true);
@@ -118,6 +122,16 @@ export function SettingsPanel({
     } catch {
       setConnectorBusy(false);
       onNotify("Linear OAuth is not configured on this server.");
+    }
+  };
+  const connectSlack = async () => {
+    setConnectorBusy(true);
+    try {
+      const pending = await client.connectors.startSlackOAuth({ callbackUrl: `${window.location.origin}/?connector=slack` });
+      window.location.assign(pending.authorizeUrl);
+    } catch {
+      setConnectorBusy(false);
+      onNotify("Slack OAuth is not configured on this server.");
     }
   };
   const saveBranding = async () => {
@@ -220,20 +234,42 @@ export function SettingsPanel({
                 <h3>Connectors</h3>
                 <p>External services with explicit, auditable capabilities.</p>
               </div>
-              <div className="section-heading-actions"><button onClick={() => void connectGitHub()} disabled={connectorBusy}><GitBranch size={15} /> Connect GitHub</button><button onClick={() => void connectLinear()} disabled={connectorBusy}><Plug size={15} /> Connect Linear</button></div>
+              <div className="section-heading-actions"><button onClick={() => void connectGitHub()} disabled={connectorBusy}><GitBranch size={15} /> Connect GitHub</button><button onClick={() => void connectLinear()} disabled={connectorBusy}><Plug size={15} /> Connect Linear</button><button onClick={() => void connectSlack()} disabled={connectorBusy}><Plug size={15} /> Connect Slack</button></div>
             </div>
             {connectors.map((connector) => (
               <div className="connector-card" key={connector.id}>
-                <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || (connector.provider === "linear" ? "Linear" : "GitHub")}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
+                <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || (connector.provider === "linear" ? "Linear" : connector.provider === "slack" ? "Slack" : "GitHub")}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
                 <p>{connector.scopes.length ? `Scopes: ${connector.scopes.join(", ")}` : "No permissions granted yet."}</p>
                 <small>Capabilities are not available to agents until an explicit policy grant is added.</small>
                 <div className="connector-card-actions">
                   <button className="text-button" onClick={() => void client.connectors.refresh(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}><RefreshCw size={13} /> Refresh</button>
                   <button className="text-button danger" onClick={() => void client.connectors.revoke(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}>Disconnect</button>
+                  {connector.provider === 'slack' && connector.status === 'connected' && <button className="text-button" onClick={() => {
+                    setConnectorBusy(true);
+                    void client.connectors.slackChannels(connector.id).then((result) => {
+                      setSlackChannels(result.channels);
+                      setSelectedSlackChannels(result.channels.map((channel) => channel.id));
+                    }).catch(() => onNotify('Slack channels could not be loaded.')).finally(() => setConnectorBusy(false));
+                  }}>Import channels</button>}
                 </div>
+                {connector.provider === 'slack' && slackChannels.length > 0 && <div className="slack-import">
+                  <strong>QuickStart from Slack</strong>
+                  <p>Select exactly what Crewly should copy. Retrying is safe and does not duplicate imported items.</p>
+                  {slackChannels.map((channel) => <label key={channel.id}><input type="checkbox" checked={selectedSlackChannels.includes(channel.id)} onChange={(event) => setSelectedSlackChannels((current) => event.target.checked ? [...current, channel.id] : current.filter((id) => id !== channel.id))} /> #{channel.name} {channel.topic && <small>— {channel.topic}</small>}</label>)}
+                  <label>Recent messages per channel <input type="number" min={0} max={100} value={slackHistory} onChange={(event) => setSlackHistory(Number(event.target.value))} /></label>
+                  <label><input type="checkbox" checked={slackMembers} onChange={(event) => setSlackMembers(event.target.checked)} /> Create Crewly invitations for Slack members with email access</label>
+                  <button className="primary-button" disabled={connectorBusy || !selectedSlackChannels.length} onClick={() => {
+                    setConnectorBusy(true);
+                    void client.connectors.importSlack(connector.id, { channelIds: selectedSlackChannels, historyLimit: slackHistory, importMembers: slackMembers }).then((summary) => {
+                      onNotify(`Slack import complete: ${summary.createdChannels} channels, ${summary.importedMessages} messages, ${summary.invitedMembers} invitations.`);
+                      setSlackChannels([]);
+                      return onConnectorsChanged();
+                    }).catch(() => onNotify('Slack import did not finish.')).finally(() => setConnectorBusy(false));
+                  }}>Import selected</button>
+                </div>}
               </div>
             ))}
-            {!connectors.length && <div className="empty-state"><Plug size={24} /><strong>No connectors connected</strong><p>Connect GitHub or Linear here; MCP tools and AI providers remain separate settings.</p></div>}
+            {!connectors.length && <div className="empty-state"><Plug size={24} /><strong>No connectors connected</strong><p>Connect GitHub, Linear, or Slack here; MCP tools and AI providers remain separate settings.</p></div>}
             <div className="local-note"><LockKeyhole size={15} /><span>Connectors use encrypted server credentials. Tokens and secrets never return to the browser.</span></div>
           </>
         ) : section === "members" ? (

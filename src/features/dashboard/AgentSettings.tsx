@@ -13,6 +13,9 @@ import type {
   RuntimeKind,
   RuntimePermissionMode,
   Skill,
+  CapabilityDecision,
+  CapabilityPolicy,
+  ExecutionCapability,
 } from '@crewly/sdk';
 import { statusLabel } from '../../lib/agent-status';
 import type { PlatformApi } from './platform-api';
@@ -36,6 +39,16 @@ const ROUTING_MODES: Array<{ id: AgentRoutingMode; label: string; detail: string
   { id: 'relevant', label: 'Relevant messages', detail: 'A lightweight profile match filters messages before a run.' },
   { id: 'always', label: 'Always listen', detail: 'Every allowed shared-conversation message can wake it.' },
   { id: 'disabled', label: 'Disabled', detail: 'Only direct messages and explicit mentions wake it.' },
+];
+
+const CAPABILITIES: Array<{ id: ExecutionCapability; label: string; detail: string }> = [
+  { id: 'filesystem.read', label: 'Read files', detail: 'Read files inside assigned workspaces.' },
+  { id: 'filesystem.write', label: 'Change files', detail: 'Create or edit files inside assigned workspaces.' },
+  { id: 'process.execute', label: 'Run processes', detail: 'Run commands and local tools.' },
+  { id: 'network.access', label: 'Use the network', detail: 'Call public services, connectors and websites.' },
+  { id: 'secret.read', label: 'Read granted secrets', detail: 'Resolve explicitly granted vault references.' },
+  { id: 'external.side_effect', label: 'Change external services', detail: 'Post messages, create issues or submit forms.' },
+  { id: 'browser.control', label: 'Use a browser', detail: 'Create isolated browser sessions and interact with pages.' },
 ];
 
 /**
@@ -68,10 +81,11 @@ export function AgentSettings({
   const [delegates, setDelegates] = useState<string[]>([]);
   const [routing, setRouting] = useState<AgentRoutingConfig | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [capabilityPolicies, setCapabilityPolicies] = useState<CapabilityPolicy[]>([]);
 
   useEffect(() => {
     void run(async () => {
-      const [nextStatus, nextRuntime, nextRouting, nextChannels, nextServers, nextTools, nextLibrary, nextSkills, nextDelegates] = await Promise.all([
+      const [nextStatus, nextRuntime, nextRouting, nextChannels, nextServers, nextTools, nextLibrary, nextSkills, nextDelegates, nextPolicies] = await Promise.all([
         api.agentStatus(agent.id),
         api.agentRuntime(agent.id),
         api.agentRouting(agent.id),
@@ -81,6 +95,7 @@ export function AgentSettings({
         api.skills(),
         api.agentSkills(agent.id),
         api.delegates(agent.id),
+        api.capabilityPolicies ? api.capabilityPolicies(agent.id) : Promise.resolve([]),
       ]);
       setStatus(nextStatus);
       setRuntime(nextRuntime);
@@ -97,6 +112,7 @@ export function AgentSettings({
       setLibrary(nextLibrary);
       setSkills(nextSkills);
       setDelegates(nextDelegates.map((entry) => entry.agentId));
+      setCapabilityPolicies(nextPolicies.filter((policy) => policy.agentId === agent.id));
     });
   }, [agent.id, api, run]);
 
@@ -274,6 +290,33 @@ export function AgentSettings({
             ))}
           </fieldset>
         ))}
+      </section>
+
+      <section className="dashboard-card">
+        <h3>Execution capabilities</h3>
+        <p className="field-description">One policy applies across coding runtimes, MCP tools, connectors and the browser. “Ask” creates an exact, expiring approval for that action.</p>
+        {CAPABILITIES.map((capability) => {
+          const current = capabilityPolicies.find((policy) => policy.capability === capability.id)?.decision ?? 'ask';
+          return (
+            <label key={capability.id} className="dashboard-form">
+              <span><strong>{capability.label}</strong><small>{capability.detail}</small></span>
+              <select aria-label={`${capability.label} policy`} value={current} disabled={busy} onChange={(event) => void run(async () => {
+                const decision = event.target.value as CapabilityDecision;
+                const next = CAPABILITIES.map((entry) => ({
+                  capability: entry.id,
+                  decision: entry.id === capability.id
+                    ? decision
+                    : capabilityPolicies.find((policy) => policy.capability === entry.id)?.decision ?? 'ask' as CapabilityDecision,
+                }));
+                setCapabilityPolicies(await api.setAgentCapabilityPolicies(agent.id, next));
+              })}>
+                <option value="allow">Allow</option>
+                <option value="ask">Ask each time</option>
+                <option value="deny">Deny</option>
+              </select>
+            </label>
+          );
+        })}
       </section>
 
       <section className="dashboard-card">

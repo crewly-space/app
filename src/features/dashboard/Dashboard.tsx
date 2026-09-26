@@ -26,6 +26,8 @@ import { MailPanel } from './MailPanel';
 import { servicesApi, type ServicesApi } from './services-api';
 import { RolesPanel } from './RolesPanel';
 import { AutomationsPanel } from './AutomationsPanel';
+import { RegistryPanel } from './RegistryPanel';
+import { FederationPanel } from './FederationPanel';
 
 type Tab = 'members' | 'invites' | 'roles' | 'agents' | 'providers' | 'usage' | 'runs' | 'automations' | 'tools' | 'skills' | 'secrets' | 'mail' | 'crewly' | 'server';
 
@@ -319,10 +321,10 @@ export function Dashboard({
       {tab === 'usage' && <UsagePanel api={platform} agents={agents} />}
       {tab === 'runs' && <RunsPanel api={platform} agents={agents} />}
       {tab === 'tools' && <ToolsPanel api={platform} />}
-      {tab === 'skills' && <SkillsPanel api={platform} />}
+      {tab === 'skills' && <><SkillsPanel api={platform} /><RegistryPanel api={platform} /></>}
       {tab === 'secrets' && <SecretsPanel api={platform} agents={agents} />}
       {tab === 'mail' && <MailPanel api={services} />}
-      {tab === 'crewly' && <CrewlyPanel api={services} serverName={serverName} />}
+      {tab === 'crewly' && <><CrewlyPanel api={services} serverName={serverName} /><FederationPanel api={platform} /></>}
 
       {tab === 'agents' && !configuring && (
         <table className="dashboard-table">

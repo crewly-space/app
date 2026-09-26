@@ -30,7 +30,9 @@ export function messageView(message: ApiMessage): Message {
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
     body: message.body, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     attachments: message.attachments ?? [],
-    replyTo: message.replyToMessageId ?? undefined };
+    replyTo: message.replyToMessageId ?? undefined,
+    threadRootId: message.threadRootId ?? undefined,
+    thread: message.thread ?? null };
 }
 /** How long the last bootstraps took, newest last. Read from the console as `crewlyBootTimings`. */
 export const bootTimings: Array<{ at: string; firstRoundMs: number; secondRoundMs: number }> = [];
@@ -165,6 +167,15 @@ export const gateway = {
     mentions: { targetId: string; targetType: 'user' | 'agent' }[] = [], attachmentIds: string[] = []): Promise<Message> {
     return messageView(await client.messages.send(id, { body, replyToMessageId, mentions, attachmentIds }));
   },
+  async openThread(messageId: string) { return client.messages.openThread(messageId); },
+  async thread(rootMessageId: string) {
+    const result = await client.messages.thread(rootMessageId);
+    return { thread: result.thread, messages: result.messages.map(messageView) };
+  },
+  async sendThread(rootMessageId: string, body: string, mentions: { targetId: string; targetType: 'user' | 'agent' }[] = []) {
+    return messageView(await client.messages.sendThread(rootMessageId, { body, mentions }));
+  },
+  setThreadStatus: (rootMessageId: string, status: 'open' | 'resolved' | 'archived') => client.messages.setThreadStatus(rootMessageId, status),
   async uploadAttachment(conversationId: string, file: File): Promise<ApiAttachment> {
     const dataBase64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

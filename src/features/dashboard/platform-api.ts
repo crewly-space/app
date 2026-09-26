@@ -21,6 +21,13 @@ import type {
   UsageGrouping,
   UsageReport,
   Channel,
+  CapabilityPolicy,
+  CapabilityPolicyInput,
+  RegistryInstallation,
+  RegistryItem,
+  RegistrySettings,
+  FederationConnection,
+  FederationSettings,
 } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
@@ -70,6 +77,19 @@ export interface PlatformApi {
   setAgentSkills(agentId: string, skills: Array<{ skillId: string; enabled: boolean; config: Record<string, string> }>): Promise<AgentSkill[]>;
   delegates(agentId: string): Promise<Array<{ agentId: string; name: string }>>;
   setDelegates(agentId: string, agentIds: string[]): Promise<Array<{ agentId: string; name: string }>>;
+  capabilityPolicies(agentId: string): Promise<CapabilityPolicy[]>;
+  setAgentCapabilityPolicies(agentId: string, policies: CapabilityPolicyInput[]): Promise<CapabilityPolicy[]>;
+  registrySettings(): Promise<RegistrySettings>;
+  updateRegistrySettings(input: RegistrySettings): Promise<RegistrySettings>;
+  registryItems(query?: { q?: string; type?: RegistryItem['type'] }): Promise<RegistryItem[]>;
+  registryInstallations(): Promise<RegistryInstallation[]>;
+  installRegistryItem(input: { itemId: string; type: RegistryItem['type']; version?: string }): Promise<RegistryInstallation>;
+  pinRegistryInstallation(id: string, version: string | null): Promise<void>;
+  federation(): Promise<{ settings: FederationSettings; connections: FederationConnection[] }>;
+  updateFederationSettings(input: Pick<FederationSettings, 'enabled' | 'displayName'>): Promise<FederationSettings>;
+  createFederationConnection(input: { remoteUrl: string; scopes: string[] }): Promise<FederationConnection>;
+  acceptFederationConnection(id: string): Promise<FederationConnection>;
+  revokeFederationConnection(id: string): Promise<FederationConnection>;
 }
 
 export const platformApi: PlatformApi = {
@@ -113,4 +133,17 @@ export const platformApi: PlatformApi = {
   setAgentSkills: async (agentId, skills) => (await client.skills.setForAgent(agentId, skills)).skills,
   delegates: async (agentId) => (await client.agents.delegates(agentId)).delegates,
   setDelegates: async (agentId, agentIds) => (await client.agents.setDelegates(agentId, agentIds)).delegates,
+  capabilityPolicies: async (agentId) => (await client.platform.capabilityPolicies(agentId)).policies,
+  setAgentCapabilityPolicies: async (agentId, policies) => (await client.platform.setAgentCapabilityPolicies(agentId, policies)).policies,
+  registrySettings: () => client.platform.registrySettings(),
+  updateRegistrySettings: (input) => client.platform.updateRegistrySettings(input),
+  registryItems: async (query) => (await client.platform.registryItems(query)).items,
+  registryInstallations: async () => (await client.platform.registryInstallations()).installations,
+  installRegistryItem: (input) => client.platform.installRegistryItem(input),
+  pinRegistryInstallation: (id, version) => client.platform.pinRegistryInstallation(id, version),
+  federation: () => client.platform.federation(),
+  updateFederationSettings: (input) => client.platform.updateFederationSettings(input),
+  createFederationConnection: (input) => client.platform.createFederationConnection(input),
+  acceptFederationConnection: (id) => client.platform.acceptFederationConnection(id),
+  revokeFederationConnection: (id) => client.platform.revokeFederationConnection(id),
 };

@@ -25,6 +25,7 @@ import { Avatar } from "./features/appearance/Avatar";
 import { DetailsPanel } from "./features/conversations/DetailsPanel";
 import { UtilityView } from "./features/inbox/UtilityView";
 import { MessageItem, ApprovalMessage, authorName } from "./features/messages/MessageItem";
+import { ThreadPanel } from "./features/messages/ThreadPanel";
 import { SearchDialog } from "./features/search/SearchDialog";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { BrandMark, Loading } from "./features/shell/BrandMark";
@@ -102,6 +103,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [mentionSuppressed, setMentionSuppressed] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [replying, setReplying] = useState<Message | null>(null);
+  const [threadRoot, setThreadRoot] = useState<Message | null>(null);
   const [creating, setCreating] = useState(false);
   // The channel dialog: {} creates one, { id } manages that one.
   const [channelDialog, setChannelDialog] = useState<{ id?: string } | null>(null);
@@ -1159,6 +1161,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     people={people}
                     allMessages={visibleMessages}
                     onReply={() => setReplying(message)}
+                    onThread={() => setThreadRoot(message)}
                     onAgentClick={openAgentProfile}
                     onInspect={() => setInspecting({ messageId: message.id })}
                     onAttachmentDownload={(id, filename) => {
@@ -1515,6 +1518,12 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               setSearching(false);
             }}
           />
+        )}
+        {threadRoot && (
+          <ThreadPanel root={threadRoot} agents={data.agents} onClose={() => setThreadRoot(null)} onRootUpdated={(updated) => {
+            setThreadRoot(updated);
+            setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
+          }} />
         )}
         {toast && (
           <div

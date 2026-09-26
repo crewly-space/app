@@ -20,6 +20,8 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
   const [password, setPassword] = useState('');
   const [claimToken, setClaimToken] = useState('');
   const [claimRequired, setClaimRequired] = useState(false);
+  const [authMode, setAuthMode] = useState<'local' | 'crewly' | 'both'>('local');
+  const [crewlySignInUrl, setCrewlySignInUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   // An invite link opened on this server's own address. The hosted app's
   // per-server gates (`server` set) never see one: the link is to the server.
@@ -46,6 +48,8 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
         const status = await client.auth.status();
         if (active) {
           setClaimRequired(Boolean(status.claimRequired));
+          setAuthMode(status.authMode ?? 'local');
+          setCrewlySignInUrl(status.crewlySignInUrl ?? null);
           setPhase(status.initialized ? 'login' : 'setup');
         }
       } catch {
@@ -97,7 +101,8 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Authentication failed'); }
   }}>
     <h1>{phase === 'setup' ? 'Create first admin' : server ? `Log in to ${server}` : 'Log in to Crewly'}</h1>
-    {server && phase === 'login' && <p>This server has its own accounts. Use the email and password you have on it.</p>}
+    {server && phase === 'login' && <p>{authMode === 'both' ? 'Continue with Crewly, or use a local server account.' : authMode === 'crewly' ? 'This server uses Crewly Identity. Local owner recovery remains available.' : 'This server uses local accounts.'}</p>}
+    {phase === 'login' && crewlySignInUrl && <button className="primary-button" type="button" onClick={() => window.location.assign(crewlySignInUrl)}>Continue with Crewly</button>}
     {phase === 'setup' && <label>Name<input required autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>}
     <label>Email<input type="email" required autoComplete={phase === 'setup' ? 'email' : 'username'} spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
     <label htmlFor="auth-password">Password</label>

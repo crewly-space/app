@@ -1,4 +1,4 @@
-import type { CrewlyConnection, InboundMail, MailDelivery, MailDomain, MailOverview, MailSender, MailSettings, MailSettingsInput } from '@crewly/sdk';
+import type { AuthMode, AuthSettings, CrewlyConnection, InboundMail, MailDelivery, MailDomain, MailOverview, MailSender, MailSettings, MailSettingsInput } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
 /**
@@ -12,6 +12,8 @@ export interface ServicesApi {
   refreshCrewly(): Promise<CrewlyConnection>;
   rotateCrewly(): Promise<CrewlyConnection>;
   disconnectCrewly(): Promise<void>;
+  authSettings(): Promise<AuthSettings>;
+  updateAuthSettings(mode: AuthMode): Promise<AuthSettings>;
 
   mail(): Promise<MailOverview>;
   updateMail(input: MailSettingsInput): Promise<MailSettings>;
@@ -35,6 +37,8 @@ export const servicesApi: ServicesApi = {
   refreshCrewly: () => client.crewly.refresh(),
   rotateCrewly: () => client.crewly.rotate(),
   disconnectCrewly: async () => { await client.crewly.disconnect(); },
+  authSettings: () => client.auth.settings(),
+  updateAuthSettings: (mode) => client.auth.updateSettings(mode),
 
   mail: () => client.mail.get(),
   updateMail: async (input) => (await client.mail.update(input)).settings,

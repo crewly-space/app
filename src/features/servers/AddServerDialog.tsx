@@ -65,7 +65,7 @@ export function AddServerDialog({ onClose, onAdded }: { onClose: () => void; onA
               placeholder="https://crewly.example.com"
             />
             <small className="field-description">
-              Must be reachable over HTTPS. You sign in to it with its own account.
+              Must be reachable over HTTPS. Crewly will detect whether it supports Continue with Crewly, local sign-in, or both.
             </small>
           </label>
           {error && <p role="alert">{error}</p>}

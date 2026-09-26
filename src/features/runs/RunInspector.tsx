@@ -159,6 +159,26 @@ export function RunInspector({
               </ul>
             </section>
           )}
+
+          {(trace.browserSessions ?? []).length > 0 && (
+            <section>
+              <h2>Browser activity</h2>
+              {(trace.browserSessions ?? []).map((session) => (
+                <div key={session.id} className="dashboard-card">
+                  <strong>{session.status} · {session.pageCount} page{session.pageCount === 1 ? '' : 's'}</strong>
+                  <ul className="run-events">
+                    {session.actions.map((action) => (
+                      <li key={action.id}>
+                        <time dateTime={action.createdAt}>{new Date(action.createdAt).toLocaleTimeString()}</time>
+                        <span>{action.action}{action.url ? ` · ${action.url}` : ''}</span>
+                        <small>{action.status} · {action.durationMs} ms{action.artifactId ? ' · artifact saved' : ''}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </section>
+          )}
         </>
       )}
     </aside>

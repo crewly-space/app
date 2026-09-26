@@ -35,7 +35,7 @@ async function defaultExchange(server: RegistryServer, token: string): Promise<s
  * Gets a usable session for one server, without disturbing the others.
  *
  * The order matters: a session we already hold costs nothing, so it is tried
- * first. Only a cloud server can be entered with a handoff, and a refused
+ * first. Cloud servers and Crewly-connected self-hosted servers can be entered with a handoff, and a refused
  * handoff -- an unlinked Cloud, an expired Cloud session, a server that has
  * not been told about Cloud -- falls back to the server's own login rather
  * than leaving the person stuck.
@@ -56,7 +56,7 @@ export async function connectToServer(
   if (!server.endpoint || (server.kind === 'cloud' && server.status !== 'ready')) {
     return { state: 'not_ready', status: server.status };
   }
-  if (server.kind !== 'cloud') return { state: 'needs_local_login' };
+  if (server.kind !== 'cloud' && !['crewly', 'both'].includes(server.authMode ?? 'local')) return { state: 'needs_local_login' };
 
   const handoff = await account.handoffToken(server.id);
   if (!handoff) return { state: 'needs_local_login' };

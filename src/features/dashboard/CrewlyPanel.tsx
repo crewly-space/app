@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CrewlyApiError, type CrewlyConnection } from '@crewly/sdk';
+import { CrewlyApiError, type AuthMode, type AuthSettings, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
 
@@ -59,6 +59,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const [connection, setConnection] = useState<CrewlyConnection | null>(null);
   const [loadFailure, setLoadFailure] = useState('');
   const [requested, setRequested] = useState<string[]>(['mail:send']);
+  const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
 
   const load = useCallback(async () => {
     setLoadFailure('');
@@ -76,6 +77,11 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
     setConnection(null);
     void load();
   }, [load, serverName]);
+
+  useEffect(() => {
+    if (connection?.status !== 'connected' || !connection.scopes.includes('identity') || typeof api.authSettings !== 'function') { setAuthSettings(null); return; }
+    api.authSettings().then(setAuthSettings).catch(() => setAuthSettings(null));
+  }, [api, connection]);
 
   const act = (work: () => Promise<CrewlyConnection | void>) => run(async () => {
     try {
@@ -185,6 +191,23 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
             <button type="button" className="text-button danger" disabled={busy}
               onClick={() => void act(() => api.disconnectCrewly())}>Disconnect</button>
           </div>
+          {connection.scopes.includes('identity') && authSettings && (
+            <section className="dashboard-card">
+              <h2>Sign in with Crewly</h2>
+              <p className="field-description">Choose whether this self-hosted server accepts local passwords, Crewly identity, or both. A local owner/admin password remains available for recovery.</p>
+              <label className="dashboard-form">
+                <span>Authentication mode</span>
+                <select value={authSettings.mode} disabled={busy} onChange={(event) => {
+                  const mode = event.target.value as AuthMode;
+                  void run(async () => setAuthSettings(await api.updateAuthSettings(mode)));
+                }}>
+                  <option value="local">Local passwords only</option>
+                  <option value="both">Local passwords and Crewly</option>
+                  <option value="crewly">Crewly (local admin recovery only)</option>
+                </select>
+              </label>
+            </section>
+          )}
         </>
       )}
     </div>

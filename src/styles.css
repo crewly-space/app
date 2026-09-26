@@ -4279,3 +4279,25 @@ body {
   color: var(--oc-muted);
   font-size: 12px;
 }
+.message-thread {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--oc-muted);
+  cursor: pointer;
+  padding: 5px;
+}
+.thread-summary { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; border: 0; background: transparent; color: var(--oc-info); cursor: pointer; padding: 0; }
+.thread-summary.unread { font-weight: 700; }
+.thread-panel { position: fixed; z-index: 80; inset: 0 0 0 auto; width: min(440px, 100vw); background: var(--oc-panel); border-left: 1px solid var(--oc-border); box-shadow: -18px 0 45px rgb(0 0 0 / 24%); display: flex; flex-direction: column; }
+.thread-panel > header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--oc-border); }
+.thread-panel h2 { display: flex; gap: 8px; align-items: center; margin: 2px 0 0; }
+.thread-actions { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--oc-border); }
+.thread-actions button { display: inline-flex; align-items: center; gap: 5px; }
+.thread-messages { flex: 1; overflow: auto; padding: 16px 20px; }
+.thread-messages article { border-left: 2px solid var(--oc-border); padding: 8px 12px; margin-bottom: 10px; }
+.thread-messages article.thread-root { border-left-color: var(--oc-accent); background: color-mix(in srgb, var(--oc-accent) 7%, transparent); }
+.thread-messages time { margin-left: 8px; color: var(--oc-muted); font-size: 12px; }
+.thread-messages p { white-space: pre-wrap; margin: 5px 0 0; }
+.thread-composer { display: grid; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--oc-border); }
+.thread-composer textarea { min-height: 90px; resize: vertical; }

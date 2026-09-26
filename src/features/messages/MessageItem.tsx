@@ -1,5 +1,5 @@
 import type { AvatarMode } from "@crewly/protocol";
-import { Activity, Check, Download, Folder, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
+import { Activity, Check, Download, Folder, MessageSquare, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
 import type { MentionOption } from "../../app-types";
@@ -14,6 +14,7 @@ export function MessageItem({
   onAgentClick,
   onInspect,
   onAttachmentDownload,
+  onThread,
 }: {
   message: Message;
   agents: Agent[];
@@ -27,6 +28,7 @@ export function MessageItem({
   onAgentClick: (agentId: string) => void;
   onInspect?: () => void;
   onAttachmentDownload: (id: string, filename: string) => void;
+  onThread: () => void;
 }) {
   const agent = agents.find((item) => item.id === message.author);
   const replied = allMessages.find((item) => item.id === message.replyTo);
@@ -132,6 +134,11 @@ export function MessageItem({
             </div>
           </div>
         )}
+        {message.thread && (
+          <button type="button" className={`thread-summary${message.thread.unread ? ' unread' : ''}`} onClick={onThread}>
+            <MessageSquare size={14} /> {message.thread.replyCount} {message.thread.replyCount === 1 ? 'reply' : 'replies'} · {message.thread.status}
+          </button>
+        )}
       </div>
       <button
         className="message-reply"
@@ -140,6 +147,7 @@ export function MessageItem({
       >
         <Reply size={15} />
       </button>
+      <button className="message-thread" onClick={onThread} aria-label="Open message thread" title="Open thread"><MessageSquare size={15} /></button>
     </article>
   );
 }

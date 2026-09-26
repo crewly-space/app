@@ -18,6 +18,7 @@ export type RegistryServer = {
   role: 'owner' | 'admin' | 'member' | null;
   organizationId: string | null;
   reachable: boolean;
+  authMode?: 'local' | 'crewly' | 'both';
 };
 
 export type CloudAccountProfile = {

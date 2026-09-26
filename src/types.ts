@@ -46,6 +46,8 @@ export type Message = {
   time: string;
   attachments: ApiAttachment[];
   replyTo?: string;
+  threadRootId?: string;
+  thread?: { status: 'open' | 'resolved' | 'archived'; replyCount: number; latestActivityAt: string; unread: boolean } | null;
   streaming?: boolean;
   activity?: { label: string; detail: string; state: "running" | "done" };
 };
