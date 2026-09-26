@@ -59,7 +59,7 @@ function draftFrom(overview: MailOverview): Draft {
  * failed. The password or API key is typed once and never shown again.
  */
 export function MailPanel({ api }: { api: ServicesApi }) {
-  const { busy, error, run } = useWork();
+  const { busy, error, run, setError } = useWork();
   const [overview, setOverview] = useState<MailOverview | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deliveries, setDeliveries] = useState<MailDelivery[]>([]);
@@ -85,7 +85,25 @@ export function MailPanel({ api }: { api: ServicesApi }) {
   const replaceDelivery = (updated: MailDelivery) =>
     setDeliveries((current) => [updated, ...current.filter((row) => row.id !== updated.id)]);
 
+  const validateDraft = (): string | null => {
+    if (needsKey && !draft.fromAddress.trim()) return 'A from address is required for this provider.';
+    if (draft.provider === 'smtp') {
+      if (!draft.host.trim()) return 'SMTP needs a host and a port.';
+      const port = Number(draft.port);
+      if (!Number.isInteger(port) || port < 1 || port > 65_535) return 'SMTP port must be a number between 1 and 65535.';
+    }
+    if ((draft.provider === 'resend' || draft.provider === 'postmark') && !draft.secret.trim() && !(sameProvider && overview.settings.hasSecret)) {
+      return `${draft.provider === 'resend' ? 'Resend' : 'Postmark'} needs an API key.`;
+    }
+    return null;
+  };
+
   const save = () => run(async () => {
+    const validationError = validateDraft();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     const input: MailSettingsInput = { provider: draft.provider };
     if (draft.provider !== 'disabled' && draft.provider !== 'crewly') input.fromAddress = draft.fromAddress || null;
     if (draft.provider === 'smtp') {

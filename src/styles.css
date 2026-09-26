@@ -2544,6 +2544,17 @@ body {
 
 .agent-editor-modal {
   width: min(640px, 96vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.agent-editor-modal > header,
+.agent-editor-modal > footer {
+  flex: 0 0 auto;
+}
+.agent-editor-modal > .agent-form {
+  min-height: 0;
+  overflow-y: auto;
 }
 .agent-form {
   gap: 17px;

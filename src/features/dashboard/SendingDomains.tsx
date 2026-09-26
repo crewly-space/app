@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MailDomain } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
@@ -14,9 +14,14 @@ export function SendingDomains({ api }: { api: ServicesApi }) {
   const [domains, setDomains] = useState<MailDomain[]>([]);
   const [draft, setDraft] = useState('');
   const [senders, setSenders] = useState<Record<string, string>>({});
+  const mutationVersion = useRef(0);
 
   useEffect(() => {
-    void run(async () => setDomains(await api.mailDomains()));
+    const version = mutationVersion.current;
+    void run(async () => {
+      const loaded = await api.mailDomains();
+      if (version === mutationVersion.current) setDomains(loaded);
+    });
   }, [api, run]);
 
   const replace = (updated: MailDomain) => setDomains((current) => current.map((row) => (row.id === updated.id ? updated : row)));
@@ -76,7 +81,9 @@ export function SendingDomains({ api }: { api: ServicesApi }) {
         <form className="dashboard-actions" onSubmit={(event) => {
           event.preventDefault();
           void run(async () => {
-            setDomains([await api.addMailDomain(draft)]);
+            mutationVersion.current += 1;
+            const created = await api.addMailDomain(draft);
+            setDomains([created]);
             setDraft('');
           });
         }}>

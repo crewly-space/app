@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CrewlyApiError, type CrewlyConnection, type MailDelivery, type MailDomain, type MailOverview } from '@crewly/sdk';
 import { CrewlyPanel } from '../src/features/dashboard/CrewlyPanel';
 import { MailPanel } from '../src/features/dashboard/MailPanel';
+import { SendingDomains } from '../src/features/dashboard/SendingDomains';
 import type { ServicesApi } from '../src/features/dashboard/services-api';
 
 afterEach(() => {
@@ -145,6 +146,16 @@ describe('Mail panel', () => {
     expect(screen.getByText(/needs this server connected to Crewly/)).toBeTruthy();
   });
 
+  it('explains incomplete SMTP settings before sending them to the server', async () => {
+    const api = services();
+    render(<MailPanel api={api} />);
+    fireEvent.change(await screen.findByLabelText('Provider'), { target: { value: 'smtp' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('A from address is required for this provider.')).toBeTruthy();
+    expect(api.updateMail).not.toHaveBeenCalled();
+  });
+
   it('adds a sending domain for Crewly Mail, shows its DNS records, and checks it', async () => {
     const crewlyOverview: MailOverview = { ...overview, settings: { ...overview.settings, provider: 'crewly' }, crewlyMailAvailable: true };
     const api = services({ mail: async () => crewlyOverview });
@@ -161,6 +172,25 @@ describe('Mail panel', () => {
     fireEvent.change(screen.getByLabelText('Senders on acme.com'), { target: { value: 'crew, support' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save senders' }));
     await waitFor(() => expect(api.setMailDomainSenders).toHaveBeenCalledWith('dom-1', [{ localPart: 'crew' }, { localPart: 'support' }]));
+  });
+
+  it('does not let an older domain request overwrite a domain that was just added', async () => {
+    let finishOlderRequest!: (domains: MailDomain[]) => void;
+    const olderApi = services({
+      mailDomains: vi.fn(() => new Promise<MailDomain[]>((resolve) => { finishOlderRequest = resolve; })),
+    });
+    const currentApi = services();
+    const view = render(<SendingDomains api={olderApi} />);
+    await waitFor(() => expect(olderApi.mailDomains).toHaveBeenCalled());
+
+    view.rerender(<SendingDomains api={currentApi} />);
+    fireEvent.change(await screen.findByLabelText('Domain'), { target: { value: 'new.example' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add domain' }));
+    expect(await screen.findByLabelText('Senders on new.example')).toBeTruthy();
+
+    await act(async () => { finishOlderRequest([{ ...pendingDomain, domain: 'stale.example' }]); });
+    expect(screen.getByLabelText('Senders on new.example')).toBeTruthy();
+    expect(screen.queryByText(/stale\.example/)).toBeNull();
   });
 
   it('shows incoming email and why any was not posted', async () => {
