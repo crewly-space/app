@@ -4,6 +4,7 @@ import { CloudAccount } from '../src/lib/cloud/account';
 import { clearServerToken, clientFor, readServerToken, storeServerToken } from '../src/lib/servers/session';
 import { connectToServer } from '../src/lib/servers/connect';
 import type { RegistryServer } from '../src/lib/servers/types';
+import { CrewlyApiError } from '../src/sdk/errors';
 
 const cloudServer: RegistryServer = {
   id: 'dep-1',
@@ -100,13 +101,31 @@ describe('connecting to a server', () => {
   });
 
   it('falls back to a local login when the handoff is refused', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: 'nope' }), { status: 503 }));
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ token: 'handoff-token' }), { status: 201 }));
     const account = new CloudAccount('https://cloud.crewly.space', fetchImpl as unknown as typeof fetch);
     const result = await connectToServer(cloudServer, account, {
       verifyToken: async () => false,
-      exchangeHandoff: async () => 'unused',
+      exchangeHandoff: async () => { throw new CrewlyApiError('Unauthorized', 401); },
     });
     expect(result).toEqual({ state: 'needs_local_login' });
+  });
+
+  it('does not disguise an unreachable server as a login problem', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ token: 'handoff-token' }), { status: 201 }));
+    const account = new CloudAccount('https://cloud.crewly.space', fetchImpl as unknown as typeof fetch);
+    await expect(connectToServer(cloudServer, account, {
+      verifyToken: async () => false,
+      exchangeHandoff: async () => { throw new CrewlyApiError('Cannot reach server', 0, 'network_error'); },
+    })).rejects.toThrow(/Cannot reach server/);
+  });
+
+  it('does not disguise a Cloud outage as a server login problem', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 }));
+    const account = new CloudAccount('https://cloud.crewly.space', fetchImpl as unknown as typeof fetch);
+    await expect(connectToServer(cloudServer, account, {
+      verifyToken: async () => false,
+      exchangeHandoff: async () => 'unused',
+    })).rejects.toThrow(/HTTP 503/);
   });
 });
 

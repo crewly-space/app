@@ -202,6 +202,18 @@ describe('agents and providers, out of the chat settings', () => {
     expect(screen.getByText(/api key configured/i)).toBeTruthy();
   });
 
+  it('routes an empty provider list to the provider setup screen', async () => {
+    const onAddProvider = vi.fn();
+    const implementation = api();
+    render(<Dashboard api={implementation} currentUser={owner} serverName="Acme production" onAddProvider={onAddProvider} onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole('tab', { name: /providers/i }));
+
+    expect(await screen.findByText(/no model providers yet/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /add provider/i }));
+    expect(onAddProvider).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
   it('browses the models a provider offers', async () => {
     const listModels = vi.fn(async () => [
       { id: 'gpt-4o-mini', providerId: 'openai-1', displayName: 'GPT-4o mini', contextWindow: 128_000 },

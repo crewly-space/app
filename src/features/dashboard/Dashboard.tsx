@@ -93,6 +93,7 @@ export function Dashboard({
   services = servicesApi,
   currentUser,
   serverName,
+  onAddProvider,
   onClose,
 }: {
   api: DashboardApi;
@@ -100,6 +101,7 @@ export function Dashboard({
   services?: ServicesApi;
   currentUser: UserAccount;
   serverName: string;
+  onAddProvider?: () => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('members');
@@ -353,7 +355,14 @@ export function Dashboard({
 
       {tab === 'providers' && (
         <div className="dashboard-providers">
-          <table className="dashboard-table">
+          {providers.length === 0 && (
+            <div className="dashboard-empty">
+              <strong>No model providers yet</strong>
+              <p>Add a provider before creating agents that can answer messages.</p>
+              {onAddProvider && <button type="button" className="primary-button compact" onClick={onAddProvider}>Add provider</button>}
+            </div>
+          )}
+          {providers.length > 0 && <table className="dashboard-table">
             <thead>
               <tr><th>Provider</th><th>State</th><th aria-label="Actions" /></tr>
             </thead>
@@ -394,7 +403,7 @@ export function Dashboard({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table>}
 
           {models && (
             <section className="dashboard-models">

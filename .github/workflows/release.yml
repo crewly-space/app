@@ -33,6 +33,11 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Verify release version
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: test "$TAG" = "v$(node -p "require('./package.json').version")"
+
       # Vendored protocol and SDK must match their owner before anything ships.
       - name: Check vendored code, build and test
         run: |

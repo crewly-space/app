@@ -92,7 +92,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await page.findByRole('heading', { name: '# general' });
   expect(page.getByRole('combobox', { name: 'Message general' })).toBeTruthy();
   expect(page.queryByText('Groups')).toBeNull();
-  expect(page.getByRole('button', { name: 'Create channel' })).toBeTruthy();
+  expect(page.getAllByRole('button', { name: 'Create channel' })).toHaveLength(1);
   expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
   fireEvent.click(page.getByRole('button', { name: 'Settings' }));
   // Settings is a dialog with the person's own settings kept apart from the

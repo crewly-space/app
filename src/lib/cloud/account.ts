@@ -68,7 +68,11 @@ export class CloudAccount {
         headers: { accept: 'application/json' },
       },
     );
-    if (!response.ok) return null;
+    // A refusal can fall back to the server's own login. Infrastructure
+    // failures cannot: presenting a password form when Cloud is unavailable
+    // sends the customer down the wrong recovery path.
+    if ([401, 403, 404].includes(response.status)) return null;
+    if (!response.ok) throw new Error(`Cloud returned HTTP ${response.status}`);
     const body = (await response.json()) as { token?: unknown };
     return typeof body.token === 'string' ? body.token : null;
   }

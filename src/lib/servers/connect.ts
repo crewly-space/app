@@ -1,4 +1,5 @@
 import type { CloudAccount } from '../cloud/account';
+import { CrewlyApiError } from '../../sdk/errors';
 import { clientFor, readServerToken, storeServerToken } from './session';
 import type { RegistryServer } from './types';
 
@@ -63,7 +64,10 @@ export async function connectToServer(
   try {
     storeServerToken(server.id, await exchange(server, handoff));
     return { state: 'connected' };
-  } catch {
-    return { state: 'needs_local_login' };
+  } catch (reason) {
+    if (reason instanceof CrewlyApiError && [401, 403].includes(reason.status)) {
+      return { state: 'needs_local_login' };
+    }
+    throw reason;
   }
 }

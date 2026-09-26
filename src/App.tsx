@@ -906,16 +906,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 />
               ))}
           </SidebarSection>}
-          {(uncategorisedChannels.length > 0 || canManageChannels) && (
-            <SidebarSection title="Channels" action={canManageChannels ? () => setChannelDialog({}) : undefined}>
-              {uncategorisedChannels.length > 0 ? uncategorisedChannels : (
-                <div className="channel-empty-state">
-                  <span>No channels yet</span>
-                  {canManageChannels && <button type="button" onClick={() => setChannelDialog({})}>Create your first channel</button>}
-                </div>
-              )}
-            </SidebarSection>
-          )}
           <SidebarSection
             title="Channels"
             action={() => { setChannelDialog({}); setMobileNav(false); }}
@@ -1002,6 +992,11 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 createdAt: new Date().toISOString(),
               }}
               serverName={serverBranding.displayName}
+              onAddProvider={() => {
+                setDashboardOpen(false);
+                setPanel("settings");
+                history.pushState(null, "", "/");
+              }}
               onClose={() => {
                 setDashboardOpen(false);
                 history.pushState(null, "", "/");
