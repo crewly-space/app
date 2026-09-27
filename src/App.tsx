@@ -14,6 +14,7 @@ import { ServerPending } from "./features/servers/ServerPending";
 import { hasWorkspace, readWorkspace, writeWorkspace } from "./lib/boot-cache";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
 import { FirstRunHome, firstRunStep, useFirstRunSkips } from "./features/onboarding/FirstRun";
+import { SetupWizard, needsSetup, useSetupState } from "./features/onboarding/Setup";
 import { PairingApproval } from "./features/devices/PairingApproval";
 import { SidebarSection } from "./features/shell/SidebarSection";
 import { Scrim, layers } from "./lib/layers";
@@ -138,6 +139,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   }, [notify]);
   const [firstDmFailed, setFirstDmFailed] = useState(false);
   const firstRun = useFirstRunSkips();
+  const setup = useSetupState();
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -332,6 +334,34 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const serverBranding = data.serverBranding ?? {
     displayName: registry.selected?.name ?? 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null,
   };
+  // An owner or admin opening a new server is walked through setting it up:
+  // provider, a crew from templates, channels, and the people who join them.
+  if (needsSetup(data, setup) && panel !== "settings") {
+    const wizard = <SetupWizard
+      data={data}
+      serverName={serverBranding.displayName || registry.selected?.name || "your server"}
+      setup={setup}
+      onRefresh={async () => { setData(await gateway.bootstrap()); }}
+      onFinish={(conversationId) => {
+        // Skipped here stays skipped. Only the agent prompt comes back, once a
+        // provider is connected later -- then it is the obvious next step.
+        firstRun.skip("provider");
+        if (data.providers.some((provider) => provider.status === "connected")) firstRun.skip("agent");
+        if (conversationId) setSelected(conversationId);
+      }}
+      onLogout={() => void gateway.logout()} />;
+    const toastView = toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>;
+    if (!registry.multiServer || !registry.servers.length) return <div className="setup-standalone">{wizard}{toastView}</div>;
+    return <div className="app-shell server-pending">
+      <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
+        onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+        unread={registry.unread} failures={registry.failures} />
+      <main className="server-pending-main">{wizard}</main>
+      {addingServer && <AddServerDialog onClose={() => setAddingServer(false)}
+        onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
+      {toastView}
+    </div>;
+  }
   const ownConversations = data.conversations.filter((item) => item.type !== "channel");
   const hasChannels = data.conversations.length > ownConversations.length;
   const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);

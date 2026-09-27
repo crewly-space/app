@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { useDialog } from "../../lib/layers";
+import { inviteLink as linkFor } from "../people/InvitesManager";
 
 export function InviteUserDialog({
   allowAdmin,
@@ -31,7 +32,7 @@ export function InviteUserDialog({
         ...(email.trim() ? { email: email.trim() } : {}),
       });
       setInviteLink(result.invite.code
-        ? `${window.location.origin}/join#invite=${result.invite.code}`
+        ? linkFor(result.invite.code)
         : null);
       onCreated();
     } catch (reason) {

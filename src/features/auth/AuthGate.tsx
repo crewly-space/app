@@ -13,7 +13,15 @@ import { JoinInvite, leaveInvitePage, readInviteCode } from './JoinInvite';
  * instead of rendering children, and never tells the visitor to start a
  * server they do not run.
  */
-export function AuthGate({ children, server, onReady }: { children?: ReactNode; server?: string; onReady?: () => void }) {
+export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
+  children?: ReactNode;
+  server?: string;
+  onReady?: () => void;
+  /** A server bought on Crewly Cloud: the account normally opens it, so this form is only a fallback. */
+  hosted?: boolean;
+  /** Asks Cloud again for a sign-in to this server. */
+  onRetryCrewly?: () => void;
+}) {
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'setup' | 'login' | 'ready'>('loading');
   const [email, setEmail] = useState('');
@@ -29,6 +37,8 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
   const [inviteCode, setInviteCode] = useState(() => (server ? null : readInviteCode()));
   const [signingInToAccept, setSigningInToAccept] = useState(false);
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
+  // Hosted, the password form is a recovery path, not the way in.
+  const [showLocal, setShowLocal] = useState(!hosted);
   useEffect(() => {
     let active = true;
     const refresh = async () => {
@@ -92,6 +102,14 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
       <button className="primary-button" type="button" onClick={() => setAttempt((value) => value + 1)}>Try again</button>
     </div>);
   }
+  if (hosted && !showLocal && phase !== 'loading') {
+    return frame(<div className="onboarding-card form">
+      <h1>We couldn't open {server} for you</h1>
+      <p>Your Crewly account normally signs you straight in to servers you bought. This time the server didn't accept the sign-in. It may still be starting, or it may have been restored from an older copy.</p>
+      <button className="primary-button" type="button" onClick={() => onRetryCrewly ? onRetryCrewly() : setAttempt((value) => value + 1)}>Try again</button>
+      {phase === 'login' && <button className="text-button" type="button" onClick={() => setShowLocal(true)}>Sign in with a password on this server instead</button>}
+    </div>);
+  }
   return frame(<form className="onboarding-card form" onSubmit={async (event) => {
     event.preventDefault(); setError('');
     try {
@@ -112,6 +130,7 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
     {phase === 'setup' && claimRequired && <label>Claim token<input required autoComplete="off" value={claimToken} onChange={(e) => setClaimToken(e.target.value)} /><small>Find this one-time token in the server data directory's claim-token file or in the first startup log.</small></label>}
     {error && <p role="alert">{error}</p>}
     {phase !== 'loading' && <button className="primary-button" type="submit">{phase === 'setup' ? 'Create admin' : 'Log in'}</button>}
-    {phase === 'login' && <p>First time here? <button type="button" className="text-button" onClick={() => setPhase('setup')}>Try first admin setup</button></p>}
+    {phase === 'login' && !hosted && <p>First time here? <button type="button" className="text-button" onClick={() => setPhase('setup')}>Try first admin setup</button></p>}
+    {hosted && <button type="button" className="text-button" onClick={() => { setShowLocal(false); onRetryCrewly?.(); }}>Back to signing in with Crewly</button>}
   </form>);
 }

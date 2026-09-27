@@ -84,12 +84,16 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('Password'), { target: { value: 'test-password-1' } });
   fireEvent.change(page.getByLabelText(/Claim token/), { target: { value: 'test-claim-token' } });
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
-  // First run offers the provider first, but it is not a gate: skipping lands
-  // on the empty server, and the provider is connected from Settings like any
-  // other. Hashing the password is deliberately slow (scrypt, N=2^17).
-  await page.findByRole('heading', { name: 'Connect a model provider' }, { timeout: 5000 });
+  // A new server walks its owner through setup -- provider, agents, channels,
+  // people -- but it is not a gate: skipping lands on the empty server, and
+  // everything is set up from Settings like any other time. Hashing the
+  // password is deliberately slow (scrypt, N=2^17).
+  await page.findByRole('heading', { name: /^Welcome to / }, { timeout: 5000 });
+  expect(page.getByText('You own this server')).toBeTruthy();
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
-  fireEvent.click(page.getByRole('button', { name: 'Skip for now' }));
+  fireEvent.click(page.getByRole('button', { name: "Let's set it up" }));
+  await page.findByRole('heading', { name: 'Connect a model provider' });
+  fireEvent.click(page.getByRole('button', { name: 'Skip setup' }));
   // A new server opens on #general, so skipping setup lands in a channel with
   // a composer rather than on an empty page (CRE-114).
   await page.findByRole('heading', { name: '# general' });

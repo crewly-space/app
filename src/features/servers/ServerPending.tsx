@@ -66,7 +66,8 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
     case 'needs_login':
       // The server's own login, scoped to it. Keyed by server so switching
       // away and back starts a fresh form rather than another server's.
-      body = <AuthGate key={selected?.id} server={selected?.name ?? 'this server'} onReady={registry.reconnect} />;
+      body = <AuthGate key={selected?.id} server={selected?.name ?? 'this server'} onReady={registry.reconnect}
+        hosted={selected?.kind === 'cloud'} onRetryCrewly={registry.reconnect} />;
       break;
     default:
       body = <div className="server-pending-body">

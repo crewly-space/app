@@ -46,6 +46,15 @@ export function activeServerId(): string | null {
 }
 
 /**
+ * Where the open server answers. Hosted, the app is on app.crewly.space and
+ * the server is elsewhere, so a link into the server -- an invite -- has to
+ * be built from this, not from the page's own origin.
+ */
+export function activeServerOrigin(): string {
+  return (active?.endpoint ?? window.location.origin).replace(/\/+$/, '');
+}
+
+/**
  * Points the app at one server. Sessions are per server, so this never signs
  * anyone out of the others -- it changes which one is being read.
  */

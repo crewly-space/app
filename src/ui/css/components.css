@@ -560,7 +560,8 @@
 }
 
 /* The row of buttons that closes a form. */
-.form .oc-form-actions {
+.form .oc-form-actions,
+.form .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--oc-space-2);

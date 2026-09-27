@@ -53,11 +53,13 @@ function writePendingState(state: string | null): void {
     else window.sessionStorage?.setItem(PENDING_KEY, state);
   } catch { /* the flow still works; the user just cannot resume after a reload */ }
 }
-export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }: {
+export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', embedded = false }: {
   onConnected: () => void;
   onClose?: () => void;
   /** First run offers to skip rather than cancel. */
   closeLabel?: string;
+  /** Inside a page that already says what this is: no card, no heading of its own. */
+  embedded?: boolean;
 }) {
   // Nothing is asked for until a provider is chosen: credentials belong to
   // one card, not to a form that sits open for all of them.
@@ -208,8 +210,8 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
     </section>
   );
 
-  return <div className="onboarding"><div className="onboarding-body"><form ref={dialogRef} className="onboarding-card form provider-connect-card"
-    role={onClose ? 'dialog' : undefined} aria-modal={onClose ? true : undefined} aria-labelledby="provider-connect-title"
+  const form = <form ref={dialogRef} className={embedded ? 'form provider-connect-embedded' : 'onboarding-card form provider-connect-card'}
+    role={onClose ? 'dialog' : undefined} aria-modal={onClose ? true : undefined} aria-labelledby={embedded ? undefined : 'provider-connect-title'}
     onSubmit={async (event) => {
     event.preventDefault();
     if (!kind) return;
@@ -220,7 +222,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
     finally { setSaving(false); }
   }}>
-    <h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p>
+    {!embedded && <><h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p></>}
 
     {deviceFirst && deviceSection}
     <section className="provider-class" aria-labelledby="provider-class-key">
@@ -286,5 +288,6 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
 
     {error && <p role="alert">{error}</p>}
     {onClose && <button type="button" className="secondary-button" onClick={onClose}>{closeLabel}</button>}
-  </form></div></div>;
+  </form>;
+  return embedded ? form : <div className="onboarding"><div className="onboarding-body">{form}</div></div>;
 }
