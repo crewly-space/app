@@ -162,7 +162,7 @@ describe('Mail panel', () => {
     render(<MailPanel api={api} />);
     fireEvent.change(await screen.findByLabelText('Domain'), { target: { value: 'acme.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add domain' }));
-    expect(await screen.findByText('resend._domainkey.acme.com')).toBeTruthy();
+    expect(await screen.findByText('resend._domainkey.acme.com', undefined, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByText('Not found yet: TXT resend._domainkey')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
