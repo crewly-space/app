@@ -106,10 +106,10 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // server's (CRE-102), and Log out lives with the account, not under every tab.
   const settingsDialog = await page.findByRole('dialog', { name: 'Settings' });
   expect(within(settingsDialog).getByText('Your account')).toBeTruthy();
-  expect(within(settingsDialog).getByText('This server')).toBeTruthy();
+  expect(within(settingsDialog).getByText('Server')).toBeTruthy();
   expect(within(settingsDialog).getAllByRole('button', { name: 'Log out' })).toHaveLength(1);
-  fireEvent.click(await page.findByRole('button', { name: 'Providers' }));
-  fireEvent.click(page.getByRole('button', { name: 'Add' }));
+  fireEvent.click(await page.findByRole('button', { name: 'AI providers' }));
+  fireEvent.click(page.getByRole('button', { name: 'Add provider' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });
   fireEvent.click(page.getByRole('listitem', { name: 'Custom endpoint' }));
   // The provider ID defaults to the provider kind and only appears once the
@@ -158,7 +158,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   expect(page.getByText('Pending')).toBeTruthy();
   expect(db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get('sam@example.test')).toEqual({ n: 0 });
 
-  fireEvent.click(page.getByRole('button', { name: 'Providers' }));
+  fireEvent.click(page.getByRole('button', { name: 'AI providers' }));
   fireEvent.click(await page.findByRole('button', { name: 'Manage' }));
   fireEvent.change(page.getByLabelText('New API key'), { target: { value: 'rotated-test-key' } });
   fireEvent.click(page.getByRole('button', { name: 'Rotate credential' }));

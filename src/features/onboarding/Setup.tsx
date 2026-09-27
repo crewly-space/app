@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Check, Copy, Hash, Mail, Plus, Sparkles, UsersRound, X } from "lucide-react";
 import type { Invite } from "@crewly/sdk";
@@ -227,6 +227,11 @@ export function SetupWizard({
       break;
   }
   const guided = step !== "welcome" && step !== "ready";
+  // Each step starts at its top. The scroller is shared by every step, so
+  // without this a step opened from the bottom of the last one began part way
+  // down, its heading hidden under the step counter.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => { scroller.current?.scrollTo?.({ top: 0 }); }, [step]);
 
   return <div className="setup">
     <aside className="setup-rail" aria-label="Setup progress">
@@ -258,7 +263,7 @@ export function SetupWizard({
         <span>Step {index + 1} of {STEPS.length}</span>
         {step !== "ready" && <button type="button" className="text-button" onClick={() => finish()}>Skip setup</button>}
       </div>
-      <div className="setup-scroll">
+      <div className="setup-scroll" ref={scroller}>
         <section className="setup-panel" aria-labelledby="setup-title">
           {guided && <header className="setup-head">
             <span className="eyebrow">{STEPS[index].hint}</span>

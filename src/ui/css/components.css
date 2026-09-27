@@ -387,6 +387,30 @@
   resize: vertical;
 }
 
+/*
+ * Checkboxes and radios are not wells. The field rule above made them
+ * full-width, control-height boxes, and a label holding one stacked the box
+ * above its text; they sit inline, beside what they choose.
+ */
+.form input[type="checkbox"],
+.form input[type="radio"] {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  accent-color: var(--oc-accent);
+}
+
+.form label:has(> input[type="checkbox"]),
+.form label:has(> input[type="radio"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--oc-space-2);
+  font-weight: 450;
+  color: var(--oc-text);
+}
+
 .form input:hover:not(:disabled):not([readonly]),
 .form select:hover:not(:disabled),
 .form textarea:hover:not(:disabled):not([readonly]),

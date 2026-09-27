@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Gauge, Settings, UserRound, X } from "lucide-react";
+import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Settings, UserRound, X } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { withStatus } from "./lib/agent-status";
 import { RunInspector } from "./features/runs/RunInspector";
 import { client } from "./lib/api/client";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
-import { Dashboard } from "./features/dashboard/Dashboard";
-import { serverApi } from "./features/dashboard/api";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
 import { AddServerDialog } from "./features/servers/AddServerDialog";
 import { ServerPending } from "./features/servers/ServerPending";
@@ -29,6 +27,7 @@ import { MessageItem, ApprovalMessage, authorName } from "./features/messages/Me
 import { ThreadPanel } from "./features/messages/ThreadPanel";
 import { SearchDialog } from "./features/search/SearchDialog";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
+import type { SettingsSectionId } from "./features/settings/sections";
 import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
 import { ChannelDialog } from "./features/channels/ChannelDialog";
@@ -74,12 +73,15 @@ export default function App() {
 }
 
 function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerRegistry; serverKey: string; connected: boolean }) {
-  // Administering a server is its own screen rather than a panel beside a
-  // conversation: suspending somebody is not a chat setting. It has its own
-  // address, so it can be opened, linked and left with the back button.
-  const [dashboardOpen, setDashboardOpen] = useState(
-    () => window.location.pathname === "/admin",
-  );
+  // Every setting, the person's and the server's, lives in one Settings.
+  // /admin still opens it -- on the server's own sections -- so old links work.
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId | undefined>(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.has("pair")) return "devices";
+    if (query.has("connector")) return "connectors";
+    if (window.location.pathname === "/admin") return "general";
+    return undefined;
+  });
   const [addingServer, setAddingServer] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
@@ -92,11 +94,17 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [selected, setSelected] = useState(cached?.selected ?? "launch");
   const [view, setView] = useState<View>("messages");
   const [panel, setPanel] = useState<Panel>(() => {
-    if (new URLSearchParams(window.location.search).has("pair")) return "settings";
+    const query = new URLSearchParams(window.location.search);
+    if (query.has("pair") || query.has("connector") || window.location.pathname === "/admin") return "settings";
     // Below 1050px the details panel lays over the conversation rather than
     // sitting beside it; opening it unasked there hides what was opened.
     return window.matchMedia("(max-width: 1050px)").matches ? null : "details";
   });
+  const openSettings = (section?: SettingsSectionId) => { setSettingsSection(section); setPanel("settings"); };
+  const closeSettings = () => {
+    setPanel(null); setSettingsSection(undefined);
+    if (window.location.pathname === "/admin") history.pushState(null, "", "/");
+  };
   const [composer, setComposer] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<ApiAttachment[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -383,7 +391,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     if (!(step === "home" && hasChannels)) return <div className="first-run">
       <header>
         <BrandMark />
-        <button className="text-button" onClick={() => setPanel("settings")}>Settings</button>
+        <button className="text-button" onClick={() => openSettings()}>Settings</button>
         <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
       </header>
       {step === "agent" ? (
@@ -399,7 +407,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
           canManageProviders={canManageProviders}
           onConnectProvider={() => firstRun.resume("provider")}
           onCreateAgent={() => firstRun.resume("agent")}
-          onOpenSettings={() => setPanel("settings")}
+          onOpenSettings={() => openSettings()}
         />
       )}
       {toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}
@@ -408,12 +416,12 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
 
   if (!data.conversations.length) return <div className="empty-settings-shell">
     <SettingsPanel
-    providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser} users={data.users}
-    people={data.people} serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding}
+    providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser}
+    serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding} initialSection={settingsSection}
     onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
     onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)}
-    onUsersChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)}
-    onClose={() => setPanel(null)} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
+    onDevicesChanged={() => gateway.bootstrap().then(setData)}
+    onClose={closeSettings} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
 
   const conversation =
     data.conversations.find((item) => item.id === selected) ??
@@ -965,7 +973,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 <span>Agents can&rsquo;t reply until you connect one.</span>
                 <button
                   onClick={() => {
-                    setPanel("settings");
+                    openSettings("providers");
                     setMobileNav(false);
                   }}
                 >
@@ -977,21 +985,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               <Plus size={17} />
               <span>New agent</span>
             </button>
-            {(data.currentUser.role === "owner" || data.currentUser.role === "admin") && (
-              <button
-                onClick={() => {
-                  setDashboardOpen(true);
-                  setMobileNav(false);
-                  history.pushState(null, "", "/admin");
-                }}
-              >
-                <Gauge size={17} />
-                <span>Server admin</span>
-              </button>
-            )}
             <button
               onClick={() => {
-                setPanel("settings");
+                openSettings();
                 setMobileNav(false);
               }}
             >
@@ -1006,34 +1002,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
           </div>
         </aside>
         {mobileNav && <Scrim onClose={() => setMobileNav(false)} />}
-
-        {dashboardOpen && (
-          <div className="dashboard-layer">
-            <Dashboard
-              // Everything administered here belongs to one server; switching
-              // servers starts it fresh rather than showing the last one's state.
-              key={registry.selected?.id ?? "local"}
-              api={serverApi}
-              currentUser={{
-                id: data.currentUser.id,
-                email: data.currentUser.email,
-                displayName: data.currentUser.email,
-                role: data.currentUser.role as "owner" | "admin" | "member",
-                createdAt: new Date().toISOString(),
-              }}
-              serverName={serverBranding.displayName}
-              onAddProvider={() => {
-                setDashboardOpen(false);
-                setPanel("settings");
-                history.pushState(null, "", "/");
-              }}
-              onClose={() => {
-                setDashboardOpen(false);
-                history.pushState(null, "", "/");
-              }}
-            />
-          </div>
-        )}
 
         {inspecting && (
           <div className="dashboard-layer">
@@ -1453,9 +1421,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             devices={data.devices}
             agents={data.agents}
             currentUser={data.currentUser}
-            users={data.users}
-            people={data.people}
             serverBranding={serverBranding}
+            initialSection={settingsSection}
             onServerBrandingChanged={updateServerBranding}
             onAvatarModeChange={updateMyAvatar}
             theme={theme}
@@ -1463,9 +1430,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             onNotify={notify}
             onProvidersChanged={() => gateway.bootstrap().then(setData)}
             onConnectorsChanged={() => gateway.bootstrap().then(setData)}
-            onUsersChanged={() => gateway.bootstrap().then(setData)}
             onDevicesChanged={() => gateway.bootstrap().then(setData)}
-            onClose={() => setPanel(null)}
+            onClose={closeSettings}
           />
         )}
         {creating && (

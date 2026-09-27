@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Dashboard } from '../src/features/dashboard/Dashboard';
+import { AdminSection, type AdminSectionId } from '../src/features/dashboard/AdminSection';
 import type { DashboardApi } from '../src/features/dashboard/api';
 
 const owner = { id: 'u1', email: 'owner@example.com', displayName: 'Owner', role: 'owner' as const, createdAt: '2026-09-01T10:00:00.000Z', suspendedAt: null };
@@ -41,15 +41,15 @@ function api(overrides: Partial<DashboardApi> = {}): DashboardApi {
   };
 }
 
-function open(overrides: Partial<DashboardApi> = {}, role: 'owner' | 'admin' | 'member' = 'owner') {
+function open(overrides: Partial<DashboardApi> = {}, role: 'owner' | 'admin' | 'member' = 'owner', section: AdminSectionId = 'people') {
   const implementation = api(overrides);
-  render(<Dashboard api={implementation} currentUser={{ ...owner, role }} serverName="Acme production" onClose={() => {}} />);
+  render(<AdminSection section={section} api={implementation} currentUser={{ ...owner, role }} serverName="Acme production" />);
   return implementation;
 }
 
 afterEach(cleanup);
 
-describe('the server dashboard', () => {
+describe('server administration in Settings', () => {
   it('opens on the people who can use the server', async () => {
     open();
     expect(await screen.findByText('member@example.com')).toBeTruthy();
@@ -85,7 +85,6 @@ describe('the server dashboard', () => {
 
   it('makes an invite link instead of a password somebody has to be sent', async () => {
     const implementation = open();
-    fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Invite' }));
     const dialog = await screen.findByRole('dialog', { name: 'Invite a person' });
     // Nobody picks a password for anybody.
@@ -108,10 +107,9 @@ describe('the server dashboard', () => {
         label: null, code: 'mailless-code-1',
       });
     open({ createInvite });
-    fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Invite' }));
     fireEvent.change(await screen.findByLabelText(/^Email/), { target: { value: 'sam@example.com' } });
-    fireEvent.change(screen.getByLabelText(/^Role/), { target: { value: 'admin' } });
+    fireEvent.change(within(screen.getByRole('dialog', { name: 'Invite a person' })).getByLabelText(/^Role/), { target: { value: 'admin' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
     expect(await screen.findByText(/Email is not set up on this server/)).toBeTruthy();
     expect(createInvite).toHaveBeenNthCalledWith(1, { role: 'admin', email: 'sam@example.com', send: true });
@@ -127,7 +125,6 @@ describe('the server dashboard', () => {
       { ...base, id: 'i2', email: 'lee@example.com', status: 'accepted', usedAt: '2026-09-23T10:00:00.000Z' },
       { ...base, id: 'i3', email: 'old@example.com', status: 'revoked', usedAt: null },
     ] });
-    fireEvent.click(await screen.findByRole('tab', { name: /invites/i }));
     expect(await screen.findByText('sam@example.com')).toBeTruthy();
     expect(screen.getByText('Accepted')).toBeTruthy();
     expect(screen.getByText('Revoked')).toBeTruthy();
@@ -142,17 +139,8 @@ describe('the server dashboard', () => {
     expect(await screen.findAllByText('Revoked')).toHaveLength(2);
   });
 
-  it('groups server administration by job instead of one row of equal tabs', async () => {
-    open();
-    for (const group of ['People & access', 'Agents & AI', 'Integrations', 'Usage & operations']) {
-      expect(await screen.findByRole('tablist', { name: group })).toBeTruthy();
-    }
-    expect(screen.getAllByRole('tab')).toHaveLength(14);
-  });
-
   it('reports what the server is doing and what failed', async () => {
-    open();
-    fireEvent.click(await screen.findByRole('tab', { name: /server/i }));
+    open({}, 'owner', 'status');
 
     expect(await screen.findByText(/0\.1\.0/)).toBeTruthy();
     expect(screen.getByText(/500/)).toBeTruthy();
@@ -177,62 +165,24 @@ describe('the server dashboard', () => {
   });
 });
 
-describe('agents and providers, out of the chat settings', () => {
+describe('agents in Settings', () => {
   const agent = {
     id: 'a1', name: 'Echo', personality: 'Assistant\nBe brief',
     modelPolicy: { defaultProviderId: 'openai-1', defaultModel: 'gpt-4o-mini' },
     permissions: { tools: [], canMessageAgents: true, canApproveOwnActions: false },
     createdAt: '2026-09-01T10:00:00.000Z', updatedAt: '2026-09-01T10:00:00.000Z',
   };
-  const provider = { id: 'openai-1', kind: 'openai' as const, baseUrl: null, hasApiKey: true, createdAt: '', updatedAt: '' };
 
   it('lists the agents this server runs, and what each one runs on', async () => {
-    open({ listAgents: async () => [agent] });
-    fireEvent.click(await screen.findByRole('tab', { name: /agents/i }));
+    open({ listAgents: async () => [agent] }, 'owner', 'agents');
 
     expect(await screen.findByText('Echo')).toBeTruthy();
     expect(screen.getByText(/gpt-4o-mini/)).toBeTruthy();
   });
 
-  it('lists providers with whether they are usable', async () => {
-    open({ listProviders: async () => [provider] });
-    fireEvent.click(await screen.findByRole('tab', { name: /providers/i }));
-
-    expect(await screen.findByText('openai')).toBeTruthy();
-    expect(screen.getByText(/api key configured/i)).toBeTruthy();
-  });
-
-  it('routes an empty provider list to the provider setup screen', async () => {
-    const onAddProvider = vi.fn();
-    const implementation = api();
-    render(<Dashboard api={implementation} currentUser={owner} serverName="Acme production" onAddProvider={onAddProvider} onClose={() => {}} />);
-    fireEvent.click(await screen.findByRole('tab', { name: /providers/i }));
-
-    expect(await screen.findByText(/no model providers yet/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /add provider/i }));
-    expect(onAddProvider).toHaveBeenCalledOnce();
+  it('says where agents come from when there are none', async () => {
+    open({}, 'owner', 'agents');
+    expect(await screen.findByText(/no agents yet/i)).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
-  });
-
-  it('browses the models a provider offers', async () => {
-    const listModels = vi.fn(async () => [
-      { id: 'gpt-4o-mini', providerId: 'openai-1', displayName: 'GPT-4o mini', contextWindow: 128_000 },
-    ]);
-    open({ listProviders: async () => [provider], listModels });
-    fireEvent.click(await screen.findByRole('tab', { name: /providers/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /models from openai-1/i }));
-
-    await waitFor(() => expect(listModels).toHaveBeenCalledWith('openai-1'));
-    expect(await screen.findByText('GPT-4o mini')).toBeTruthy();
-    expect(screen.getByText(/128K context/i)).toBeTruthy();
-  });
-
-  it('removes a provider that is no longer used', async () => {
-    const removeProvider = vi.fn(async () => {});
-    open({ listProviders: async () => [provider], removeProvider });
-    fireEvent.click(await screen.findByRole('tab', { name: /providers/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /remove openai-1/i }));
-
-    await waitFor(() => expect(removeProvider).toHaveBeenCalledWith('openai-1'));
   });
 });

@@ -3403,48 +3403,6 @@ body {
   overflow-y: auto;
   background: var(--bg);
 }
-.dashboard { max-width: 940px; margin: 0 auto; padding: 28px 22px 60px; }
-.dashboard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.dashboard-head h1 { margin: 2px 0 0; font-size: 22px; }
-.dashboard-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  margin: 18px 0 14px;
-  padding: 5px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--oc-radius-md);
-  background: var(--oc-panel-2);
-}
-.dashboard-nav-group {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  min-width: 0;
-  padding: 4px 5px;
-}
-.dashboard-nav-group + .dashboard-nav-group { border-left: 1px solid var(--line-soft); }
-.dashboard-nav-group-label {
-  padding: 4px 8px 6px;
-  color: var(--oc-muted-2);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.dashboard-tabs button {
-  width: 100%;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--oc-muted);
-  text-align: left;
-  font-size: 13px;
-  cursor: pointer;
-}
-.dashboard-tabs button:hover { background: var(--oc-panel-3); color: var(--oc-text); }
-.dashboard-tabs button.selected { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--oc-text); font-weight: 650; }
 .dashboard-error { color: var(--accent); font-size: 13px; }
 .dashboard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dashboard-table th {
@@ -3461,11 +3419,11 @@ body {
    row's hairline stopped short of the actions. */
 .dashboard-row-actions { text-align: right; white-space: nowrap; }
 .dashboard-row-actions > * + * { margin-left: 10px; }
-/* The dashboard's own fields, which sit outside .form: without these they
+/* Admin sections' own fields, which sit outside .form: without these they
    were the browser's, white in both themes. */
-.dashboard select,
-.dashboard input:not([type="checkbox"]):not([type="radio"]),
-.dashboard textarea {
+.admin-section select,
+.admin-section input:not([type="checkbox"]):not([type="radio"]),
+.admin-section textarea {
   min-height: var(--oc-control-height-sm);
   padding: 0 var(--oc-space-3);
   border: 1px solid var(--oc-line-strong);
@@ -3476,21 +3434,24 @@ body {
   font: inherit;
   font-size: 13px;
 }
-.dashboard textarea { padding: var(--oc-space-2) var(--oc-space-3); }
+.admin-section textarea { padding: var(--oc-space-2) var(--oc-space-3); }
 .dashboard-table select { min-height: 30px; }
-.dashboard select:disabled,
-.dashboard input:disabled,
-.dashboard textarea:disabled {
+.admin-section select:disabled,
+.admin-section input:disabled,
+.admin-section textarea:disabled {
   background: var(--oc-field-disabled);
   color: var(--oc-muted);
 }
-.dashboard select:focus,
-.dashboard input:focus,
-.dashboard textarea:focus {
+.admin-section select:focus,
+.admin-section input:focus,
+.admin-section textarea:focus {
   border-color: var(--oc-accent-ring);
   box-shadow: 0 0 0 3px var(--oc-accent-wash);
 }
-.dashboard-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+/* A row of fields and a button: wraps rather than running off a phone. */
+.dashboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.dashboard-actions > input,
+.dashboard-actions > select { flex: 1 1 140px; min-width: 0; }
 .dashboard-fresh-invite { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
 .dashboard-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 22px; }
 .dashboard-facts div {
@@ -3574,7 +3535,7 @@ body {
 .message:hover .message-inspect, .message-inspect:focus-visible { opacity: 1; }
 
 /* Dashboard sections for spend, tools, skills, secrets and per-agent settings. */
-.dashboard h2 { margin: 24px 0 10px; font-size: 15px; }
+.admin-section h2 { margin: 24px 0 10px; font-size: 15px; }
 .dashboard-card {
   margin: 0 0 14px;
   padding: 14px 16px;
@@ -3587,6 +3548,21 @@ body {
 .dashboard-card small, .dashboard-choices small { color: var(--oc-muted); }
 .dashboard-card fieldset, .dashboard-form fieldset { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--oc-radius-md); }
 .dashboard-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; max-width: 560px; }
+/* Label above its field, as in every other form: "Name[field]" on one line
+   was the misalignment people saw on phones. */
+.dashboard-form > label:not(.permission-choice),
+.dashboard-form fieldset > label:not(.permission-choice):not(:has(> input[type="checkbox"])),
+label.dashboard-form {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--oc-muted-strong);
+}
+.dashboard-form > label:not(.permission-choice) > :is(input, select, textarea),
+.dashboard-form fieldset > label > :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]),
+label.dashboard-form > :is(input, select, textarea) { width: 100%; }
+.dashboard-card label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
 .dashboard-toggles { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
 .dashboard-toggles li { padding: 3px 0; }
 .dashboard-blocked { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--oc-radius-md); font-size: 13px; }
@@ -3622,16 +3598,6 @@ body {
 .automation-list-item small, .automation-run small { color: var(--oc-muted); }
 .automations-editor { min-width: 0; }
 .automation-run { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
-@media (max-width: 720px) {
-  .dashboard-tabs {
-    display: flex;
-    overflow-x: auto;
-    align-items: stretch;
-    scrollbar-width: thin;
-  }
-  .dashboard-nav-group { flex: 0 0 142px; }
-  .dashboard-nav-group + .dashboard-nav-group { border-left: 1px solid var(--line-soft); }
-}
 @media (max-width: 900px) {
   .roles-layout { grid-template-columns: 1fr; }
   .automations-layout { grid-template-columns: 1fr; }
@@ -4089,13 +4055,15 @@ body {
 }
 
 /* ------------------------------------------------------------ settings -- */
-/* Settings is a dialog, not a 330px rail: navigation on the left, grouped by
-   whose setting it is, and a readable content column. Full screen on phones. */
+/* One Settings for the person and the server: sections grouped by whose
+   setting it is on the left, a readable content column on the right. On a
+   phone it is a list of sections that opens one at a time (see data-pane), so
+   nothing ever scrolls sideways. */
 .settings-layer { z-index: 35; }
 .settings-modal {
   --surface: var(--oc-panel);
-  width: min(880px, 100%);
-  height: min(680px, calc(100dvh - 48px));
+  width: min(1040px, 100%);
+  height: min(760px, calc(100dvh - 48px));
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -4107,30 +4075,34 @@ body {
 .settings-modal > header {
   height: 58px;
   flex: none;
-  padding: 0 14px 0 20px;
+  padding: 0 var(--oc-space-3) 0 var(--oc-space-5);
   border-bottom: 1px solid var(--line-soft);
   display: flex;
   align-items: center;
+  gap: var(--oc-space-2);
 }
 .settings-modal > header strong { flex: 1; font-size: 15px; }
+.settings-modal .settings-back,
+.settings-header-section,
+.settings-nav-chevron { display: none; }
 .settings-body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
 }
 .settings-modal .settings-nav {
   margin: 0;
-  padding: 14px 10px;
+  padding: var(--oc-space-3) 10px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--oc-space-4);
   border-right: 1px solid var(--line-soft);
   overflow-y: auto;
 }
 .settings-nav-group { display: flex; flex-direction: column; gap: 2px; }
 .settings-nav-label {
-  padding: 0 10px;
+  padding: 0 10px 2px;
   color: var(--oc-muted-2);
   font-size: 10px;
   font-weight: 700;
@@ -4145,14 +4117,70 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.settings-modal .settings-nav button { width: 100%; font-size: 13px; }
+.settings-modal .settings-nav button { width: 100%; min-height: 34px; font-size: 13px; text-align: left; }
+.settings-modal .settings-nav button > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-modal .settings-nav .settings-logout { margin-top: auto; justify-content: flex-start; padding: 7px 10px; }
 .settings-modal .settings-content {
   min-width: 0;
   overflow-y: auto;
-  padding: 22px 26px 28px;
+  padding: var(--oc-space-5) var(--oc-space-6) var(--oc-space-6);
 }
-.settings-modal .settings-content > * { max-width: 620px; }
+.settings-modal .settings-content > * { max-width: 760px; }
+.settings-content .section-heading { flex-wrap: wrap; gap: var(--oc-space-2) var(--oc-space-3); }
+.settings-content .section-heading p { line-height: 1.5; }
+
+/* Pieces every section shares, so sections look like one product. */
+.settings-toolbar { display: flex; flex-wrap: wrap; gap: var(--oc-space-2); margin-bottom: var(--oc-space-3); }
+.settings-toolbar button { gap: 6px; }
+.settings-item { border-bottom: 1px solid var(--line-soft); }
+.settings-item .setting-row { border-bottom: 0; }
+.setting-row-actions { display: flex; align-items: center; gap: var(--oc-space-2); }
+.settings-models {
+  list-style: none;
+  margin: 0 0 var(--oc-space-3) 43px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+.settings-models li { display: flex; flex-wrap: wrap; gap: 2px var(--oc-space-2); }
+.settings-models small { color: var(--oc-muted); }
+.settings-aside { margin: var(--oc-space-4) 0 0; color: var(--oc-muted); font-size: 12px; line-height: 1.6; }
+.text-button.inline { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; }
+.settings-subheading { margin: 0; font-size: 14px; font-weight: 650; }
+.settings-form { max-width: 520px; margin-bottom: var(--oc-space-5); }
+.settings-form .field-description { margin: -8px 0 0; }
+.settings-form .branding-icon-editor { margin: 0; }
+.settings-form-actions { display: flex; justify-content: flex-start; }
+.admin-section h2:first-child { margin-top: 0; }
+.connector-apps {
+  display: grid;
+  gap: var(--oc-space-2);
+  margin-bottom: var(--oc-space-4);
+}
+.connector-app {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--oc-space-3);
+  padding: var(--oc-space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-panel-2);
+}
+.connector-app-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--oc-panel-3);
+  color: var(--oc-text);
+}
+.connector-app > div { display: grid; gap: 2px; min-width: 0; }
+.connector-app strong { font-size: 13px; }
+.connector-app span:not(.connector-status):not(.connector-app-icon) { color: var(--oc-muted); font-size: 12px; line-height: 1.4; }
+
 @media (max-width: 720px) {
   .settings-layer { padding: 0; align-items: stretch; }
   .settings-modal {
@@ -4162,41 +4190,45 @@ body {
     border: 0;
     padding-top: env(safe-area-inset-top);
   }
-  .settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-modal > header { height: 54px; padding: 0 var(--oc-space-2) 0 var(--oc-space-4); }
+  .settings-body { grid-template-columns: minmax(0, 1fr); }
   .settings-modal .settings-nav {
-    flex-direction: row;
-    gap: 14px;
-    overflow-x: auto;
-    padding: 10px 12px;
     border-right: 0;
-    border-bottom: 1px solid var(--line-soft);
+    padding: var(--oc-space-3) var(--oc-space-3) max(var(--oc-space-5), env(safe-area-inset-bottom));
+    gap: var(--oc-space-5);
   }
-  .settings-nav-group { flex-direction: row; align-items: center; flex: none; }
-  .settings-nav-hint { display: none; }
-  .settings-modal .settings-nav button { width: auto; white-space: nowrap; }
-  .settings-modal .settings-content { padding: 18px 16px max(24px, env(safe-area-inset-bottom)); }
+  /* A section list like a phone's own settings: full-width rows with a chevron. */
+  .settings-modal .settings-nav button { min-height: 46px; font-size: 15px; padding: 10px 12px; gap: 12px; }
+  .settings-modal .settings-nav button.active { background: transparent; }
+  .settings-nav-chevron { display: block; color: var(--oc-muted-2); }
+  .settings-modal .settings-nav .settings-logout { margin-top: 0; min-height: 44px; }
+  .settings-modal .settings-content { padding: var(--oc-space-4) var(--oc-space-4) max(var(--oc-space-6), env(safe-area-inset-bottom)); }
+  .settings-modal[data-pane="nav"] .settings-content,
+  .settings-modal[data-pane="content"] .settings-nav { display: none; }
+  .settings-modal[data-pane="content"] .settings-back { display: inline-flex; margin-left: -6px; }
+  /* In a section the header names it; the section's own title would repeat it. */
+  .settings-modal[data-pane="content"] > header strong { display: none; }
+  .settings-modal[data-pane="content"] .settings-header-section { display: block; flex: 1; font-size: 15px; font-weight: 650; }
+  .settings-modal[data-pane="content"] .settings-content .section-heading h3 { display: none; }
+  .settings-form { max-width: none; }
+  .connector-app { grid-template-columns: 36px minmax(0, 1fr); }
+  .connector-app > :last-child { grid-column: 1 / -1; justify-self: stretch; }
+  /* Tables become one card per row, each cell labelled. */
+  .dashboard-table.stack-on-phone thead { display: none; }
+  .dashboard-table.stack-on-phone,
+  .dashboard-table.stack-on-phone tbody,
+  .dashboard-table.stack-on-phone tr,
+  .dashboard-table.stack-on-phone td { display: block; width: 100%; }
+  .dashboard-table.stack-on-phone tr { padding: var(--oc-space-3) 0; border-bottom: 1px solid var(--line-soft); }
+  .dashboard-table.stack-on-phone td { padding: 3px 0; border: 0; }
+  .dashboard-table.stack-on-phone td[data-label] { display: flex; align-items: center; justify-content: space-between; gap: var(--oc-space-3); }
+  .dashboard-table.stack-on-phone td[data-label]::before { content: attr(data-label); color: var(--oc-muted); font-size: 12px; }
+  .dashboard-table.stack-on-phone .dashboard-row-actions { text-align: left; padding-top: var(--oc-space-2); white-space: normal; }
 }
 
-/* Server admin sections, grouped by job rather than twelve equal tabs. */
-.dashboard-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px 18px;
-  margin: 18px 0 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-}
-.dashboard-nav-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.dashboard-nav-label {
-  color: var(--oc-muted-2);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.dashboard-nav .dashboard-tabs { margin: 0; border-bottom: 0; flex-wrap: wrap; }
 /* Dashboard forms use the kit's fields, without the dialog form's padding. */
-.dashboard-form.form { padding: 0; }
+.dashboard-form.form,
+.settings-form.form { padding: 0; }
 .dashboard-empty {
   display: grid;
   gap: 6px;
@@ -4717,12 +4749,22 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
   .setup-rail-server { padding: 0; flex: none; }
   .setup-rail-server strong { font-size: var(--oc-text-lg); }
   .setup-steps { display: flex; gap: 4px; }
-  .setup-step { grid-template-columns: 24px auto; gap: 6px; padding: 6px 8px; white-space: nowrap; }
+  /* Sized by content, not width:100%: a percentage width on a button in a
+     row made its li zero-wide, and the current step's name ran over the
+     numbers after it. */
+  .setup-steps > li { flex: none; }
+  .setup-step { width: auto; grid-template-columns: 24px auto; gap: 6px; padding: 6px 8px; white-space: nowrap; }
   .setup-step .setup-step-mark { width: 24px; height: 24px; }
   .setup-step:not(.is-current) .setup-step-text { display: none; }
 }
 @media (max-width: 720px) {
+  /* The phone rail is only the steps; the server's name is in the welcome. */
+  .setup-rail { padding: 10px 12px; }
+  .setup-rail-server { display: none; }
+  .setup-steps { gap: 2px; }
   .setup-top, .setup-scroll, .setup-actions { padding-left: 16px; padding-right: 16px; }
+  .setup-top { padding-top: 12px; }
+  .setup-scroll { padding-top: 16px; }
   .setup-welcome-list { grid-template-columns: 1fr; }
   .setup-grid { grid-template-columns: 1fr; }
   .setup-invite-row { grid-template-columns: 1fr; }
