@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { client, clearToken, currentToken, storeToken } from '../../lib/api/client';
 import { consumeHandoffFromUrl } from '../../lib/api/handoff';
+import { navigateToServerUrl, safeNavigationUrl } from '../../lib/safe-navigation';
 import { JoinInvite, leaveInvitePage, readInviteCode } from './JoinInvite';
 
 /**
@@ -102,7 +103,7 @@ export function AuthGate({ children, server, onReady }: { children?: ReactNode; 
   }}>
     <h1>{phase === 'setup' ? 'Create first admin' : server ? `Log in to ${server}` : 'Log in to Crewly'}</h1>
     {server && phase === 'login' && <p>{authMode === 'both' ? 'Continue with Crewly, or use a local server account.' : authMode === 'crewly' ? 'This server uses Crewly Identity. Local owner recovery remains available.' : 'This server uses local accounts.'}</p>}
-    {phase === 'login' && crewlySignInUrl && <button className="primary-button" type="button" onClick={() => window.location.assign(crewlySignInUrl)}>Continue with Crewly</button>}
+    {phase === 'login' && safeNavigationUrl(crewlySignInUrl) && <button className="primary-button" type="button" onClick={() => navigateToServerUrl(crewlySignInUrl!)}>Continue with Crewly</button>}
     {phase === 'setup' && <label>Name<input required autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>}
     <label>Email<input type="email" required autoComplete={phase === 'setup' ? 'email' : 'username'} spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
     <label htmlFor="auth-password">Password</label>

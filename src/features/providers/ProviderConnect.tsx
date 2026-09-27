@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 import { useLayer } from '../../lib/layers';
+import { navigateToServerUrl } from '../../lib/safe-navigation';
 import { ProviderLogo } from './ProviderLogo';
 import { codexRuntimeOn, connectable, deviceProviderAvailability, explain, explainRefusal, type DeviceProviderKind } from './availability';
 
@@ -183,7 +184,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel' }:
     try {
       const started = await client.providers.startOAuth({ kind: 'openrouter', callbackUrl });
       writePendingState(started.state);
-      window.location.assign(started.authorizeUrl);
+      navigateToServerUrl(started.authorizeUrl);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not start the connection');
       setConnecting(false);

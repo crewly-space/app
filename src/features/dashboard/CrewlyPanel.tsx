@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CrewlyApiError, type AuthMode, type AuthSettings, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
+import { safeNavigationUrl } from '../../lib/safe-navigation';
 
 /** What each capability lets this server do, in words. */
 const SERVICES: Array<{ scope: string; label: string }> = [
@@ -163,7 +164,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           <p>Approve this server in Crewly with the code</p>
           <strong aria-label="Link code">{pending.userCode}</strong>
           <div className="dashboard-actions">
-            <a className="primary-button" href={pending.verificationUrl} target="_blank" rel="noopener noreferrer">Open Crewly</a>
+            {safeNavigationUrl(pending.verificationUrl) && <a className="primary-button" href={safeNavigationUrl(pending.verificationUrl)!} target="_blank" rel="noopener noreferrer">Open Crewly</a>}
             <button type="button" className="text-button" disabled={busy}
               onClick={() => void act(() => api.disconnectCrewly())}>Cancel</button>
           </div>

@@ -5,6 +5,7 @@ import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, DirectoryUser,
 import { Building2, Check, Cpu, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Palette, Plug, Plus, RefreshCw, Sun, UserRound, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { client } from "../../lib/api/client";
+import { navigateToServerUrl } from "../../lib/safe-navigation";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
@@ -108,7 +109,7 @@ export function SettingsPanel({
     setConnectorBusy(true);
     try {
       const pending = await client.connectors.startGitHubOAuth({ callbackUrl: `${window.location.origin}/?connector=github` });
-      window.location.assign(pending.authorizeUrl);
+      navigateToServerUrl(pending.authorizeUrl);
     } catch {
       setConnectorBusy(false);
       onNotify("GitHub OAuth is not configured on this server.");
@@ -118,7 +119,7 @@ export function SettingsPanel({
     setConnectorBusy(true);
     try {
       const pending = await client.connectors.startLinearOAuth({ callbackUrl: `${window.location.origin}/?connector=linear` });
-      window.location.assign(pending.authorizeUrl);
+      navigateToServerUrl(pending.authorizeUrl);
     } catch {
       setConnectorBusy(false);
       onNotify("Linear OAuth is not configured on this server.");
@@ -128,7 +129,7 @@ export function SettingsPanel({
     setConnectorBusy(true);
     try {
       const pending = await client.connectors.startSlackOAuth({ callbackUrl: `${window.location.origin}/?connector=slack` });
-      window.location.assign(pending.authorizeUrl);
+      navigateToServerUrl(pending.authorizeUrl);
     } catch {
       setConnectorBusy(false);
       onNotify("Slack OAuth is not configured on this server.");

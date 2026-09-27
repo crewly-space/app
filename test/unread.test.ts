@@ -21,6 +21,7 @@ class FakeSocket {
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
   closed = false;
+  sent: string[] = [];
 
   constructor(readonly url: string) {
     sockets.push(this);
@@ -29,6 +30,10 @@ class FakeSocket {
 
   deliver(event: Record<string, unknown>) {
     this.onmessage?.({ data: JSON.stringify(event) });
+  }
+
+  send(data: string) {
+    this.sent.push(data);
   }
 
   close() {
@@ -69,6 +74,8 @@ describe('what is waiting on the servers you are not looking at', () => {
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].url).toContain('background.example.com');
+    // The session token travels in the first message, never in the address.
+    expect(sockets[0].url).not.toContain('background-token');
   });
 
   it('leaves alone a server there is no session for', () => {
@@ -76,13 +83,14 @@ describe('what is waiting on the servers you are not looking at', () => {
     expect(sockets).toHaveLength(0);
   });
 
-  it('resumes where this browser left off, so a reload does not recount', () => {
+  it('resumes where this browser left off, so a reload does not recount', async () => {
     storeServerToken(background.id, 'background-token');
     watchBackgroundServers([active, background], active.id, vi.fn(), FakeSocket as never);
     sockets[0].deliver(message(12));
 
     // A reload: same storage, a fresh watcher.
     watchBackgroundServers([active, background], active.id, vi.fn(), FakeSocket as never);
-    expect(sockets[1].url).toContain('sinceSeq=12');
+    await Promise.resolve();
+    expect(JSON.parse(sockets[1].sent[0]!)).toEqual({ type: 'authenticate', token: 'background-token', sinceSeq: 12 });
   });
 });

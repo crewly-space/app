@@ -37,9 +37,12 @@ afterEach(async () => {
   dom?.window.close();
   if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores its reply after remount', async () => {
+  // The fake provider listens on loopback, which only a self-hosted server may reach.
+  vi.stubEnv('CREWLY_ALLOW_PRIVATE_NETWORK', 'true');
   provider = createServer(async (req, res) => {
     if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return; }
     const chunks: Buffer[] = [];
@@ -83,8 +86,8 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
   // First run offers the provider first, but it is not a gate: skipping lands
   // on the empty server, and the provider is connected from Settings like any
-  // other.
-  await page.findByRole('heading', { name: 'Connect a model provider' });
+  // other. Hashing the password is deliberately slow (scrypt, N=2^17).
+  await page.findByRole('heading', { name: 'Connect a model provider' }, { timeout: 5000 });
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
   fireEvent.click(page.getByRole('button', { name: 'Skip for now' }));
   // A new server opens on #general, so skipping setup lands in a channel with
