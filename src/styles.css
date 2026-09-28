@@ -1304,6 +1304,16 @@ body {
   align-items: center;
   gap: 4px;
 }
+.connector-access {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.connector-access > label { display: grid; gap: 5px; max-width: 320px; color: var(--oc-muted); font-size: 12px; }
+.connector-access .dashboard-toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 7px 12px; }
+.connector-access .dashboard-toggles label { display: flex; align-items: center; gap: 7px; font-size: 12px; }
 .device-card {
   border: 1px solid var(--line);
   border-radius: 10px;

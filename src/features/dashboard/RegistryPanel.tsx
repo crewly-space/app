@@ -8,7 +8,7 @@ const GROUPS: Array<{ type: RegistryItem['type']; title: string; description: st
   { type: 'skill', title: 'Skills', description: 'Ready-made instructions. Installing one adds it to the skill library above; turn it on per agent.' },
 ];
 
-export function RegistryPanel({ api }: { api: PlatformApi }) {
+export function RegistryPanel({ api, types = ['mcp_preset', 'skill'] }: { api: PlatformApi; types?: RegistryItem['type'][] }) {
   const { busy, error, run } = useWork();
   const [settings, setSettings] = useState<RegistrySettings | null>(null);
   const [items, setItems] = useState<RegistryItem[]>([]);
@@ -53,7 +53,7 @@ export function RegistryPanel({ api }: { api: PlatformApi }) {
           <button type="submit" className="secondary-button" disabled={busy}>Search</button>
         </form>
         {items.length === 0 && <p className="field-description">Nothing to add{query ? ' matches that search' : ' yet'}.</p>}
-        {GROUPS.map((group) => {
+        {GROUPS.filter((group) => types.includes(group.type)).map((group) => {
           const entries = items.filter((item) => item.type === group.type);
           if (!entries.length) return null;
           return <div key={group.type}>
@@ -70,7 +70,7 @@ export function RegistryPanel({ api }: { api: PlatformApi }) {
           </div>;
         })}
       </section>
-      {installed.length > 0 && <section><h2>Installed</h2><table className="dashboard-table"><thead><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Pin</th></tr></thead><tbody>{installed.map((entry) => <tr key={entry.id}><td>{entry.name}</td><td>{entry.version}</td><td>{entry.publisher}</td><td><button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => { await api.pinRegistryInstallation(entry.id, entry.pinnedVersion ? null : entry.version); setInstalled(await api.registryInstallations()); })}>{entry.pinnedVersion ? `Unpin ${entry.pinnedVersion}` : 'Pin version'}</button></td></tr>)}</tbody></table></section>}
+      {installed.some((entry) => types.includes(entry.itemType)) && <section><h2>Installed</h2><table className="dashboard-table"><thead><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Pin</th></tr></thead><tbody>{installed.filter((entry) => types.includes(entry.itemType)).map((entry) => <tr key={entry.id}><td>{entry.name}</td><td>{entry.version}</td><td>{entry.publisher}</td><td><button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => { await api.pinRegistryInstallation(entry.id, entry.pinnedVersion ? null : entry.version); setInstalled(await api.registryInstallations()); })}>{entry.pinnedVersion ? `Unpin ${entry.pinnedVersion}` : 'Pin version'}</button></td></tr>)}</tbody></table></section>}
       <section className="dashboard-card">
         <h2>Another registry</h2>
         <p className="field-description">The Crewly catalog is built in. To add items from another registry, use one you trust; unverified publishers stay blocked unless you explicitly allow them.</p>
