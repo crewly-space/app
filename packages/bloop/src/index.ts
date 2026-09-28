@@ -7,15 +7,20 @@
 export type BloopKind = "user" | "agent";
 
 export const BLOOP_TONES = 6;
-const EYES = ["dots", "tall", "wide"] as const;
-const MOUTHS = ["smile", "flat", "none"] as const;
+const EYES = ["short", "tall", "wide"] as const;
 
+/*
+ * A Bloop is one of the crew from the Crewly mark: an arched body with a flat,
+ * softly rounded base and two pill eyes. Agents wear the mark's pair of ears.
+ */
 export type BloopFeatures = {
   kind: BloopKind;
   tone: number;
   eyes: (typeof EYES)[number];
-  mouth: (typeof MOUTHS)[number];
-  lobes: number[];
+  /** Body width, in viewBox units. */
+  width: number;
+  /** Height of the straight sides below the arch. */
+  shoulder: number;
 };
 
 function hash(seed: string): number {
@@ -36,6 +41,8 @@ function stream(seed: number): () => number {
   };
 }
 
+const round = (value: number) => Math.round(value * 100) / 100;
+
 /** Stable features for one identity. Use an id rather than a display name. */
 export function bloopFeatures(seed: string, kind: BloopKind): BloopFeatures {
   const base = hash(`${kind}:${seed.trim().toLowerCase()}`);
@@ -44,61 +51,61 @@ export function bloopFeatures(seed: string, kind: BloopKind): BloopFeatures {
     kind,
     tone: base % BLOOP_TONES,
     eyes: EYES[Math.floor(next() * EYES.length)],
-    mouth: MOUTHS[Math.floor(next() * MOUTHS.length)],
-    lobes: Array.from({ length: 8 }, () => 7.6 + next() * 1.6),
+    width: round(13.5 + next() * 3),
+    shoulder: round(5 + next() * 2.5),
   };
 }
 
-const round = (value: number) => Math.round(value * 100) / 100;
+const EAR_RISE = 4.8;
 
-function bodyPath(lobes: number[], cx: number, cy: number): string {
-  const points = lobes.map((radius, index) => {
-    const angle = (index / lobes.length) * Math.PI * 2 - Math.PI / 2;
-    return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
-  });
-  const at = (index: number) => points[(index + points.length) % points.length];
-  let path = `M${round(points[0][0])} ${round(points[0][1])}`;
-  for (let index = 0; index < points.length; index += 1) {
-    const [p0, p1, p2, p3] = [at(index - 1), at(index), at(index + 1), at(index + 2)];
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
-    path += `C${round(c1[0])} ${round(c1[1])} ${round(c2[0])} ${round(c2[1])} ${round(p2[0])} ${round(p2[1])}`;
-  }
-  return `${path}Z`;
+/** Where the base sits so the whole figure, ears included, is centred. */
+function baseline({ kind, width, shoulder }: BloopFeatures): number {
+  const height = shoulder + (width / 2) * 1.1 + (kind === "agent" ? EAR_RISE : 0);
+  return round(Math.min(22.6, 12 + height / 2));
 }
 
-function eyes(style: BloopFeatures["eyes"], kind: BloopKind): string {
-  if (kind === "agent") {
-    if (style === "wide") return '<rect class="bloop-eye" x="8" y="11" width="8" height="2.8" rx="1.4"/>';
-    const height = style === "tall" ? 3.6 : 2.4;
-    return `<rect class="bloop-eye" x="8.6" y="${round(12.6 - height / 2)}" width="2" height="${height}" rx="0.8"/>`
-      + `<rect class="bloop-eye" x="13.4" y="${round(12.6 - height / 2)}" width="2" height="${height}" rx="0.8"/>`;
-  }
-  if (style === "tall") {
-    return '<ellipse class="bloop-eye" cx="9.6" cy="12" rx="1.1" ry="1.7"/><ellipse class="bloop-eye" cx="14.4" cy="12" rx="1.1" ry="1.7"/>';
-  }
-  const gap = style === "wide" ? 3 : 2.3;
-  return `<circle class="bloop-eye" cx="${round(12 - gap)}" cy="12.2" r="1.2"/><circle class="bloop-eye" cx="${round(12 + gap)}" cy="12.2" r="1.2"/>`;
+/** The arch of the mark: a half-ellipse on straight sides, rounded at the base. */
+function bodyPath(features: BloopFeatures): string {
+  const { width, shoulder } = features;
+  const BASE = baseline(features);
+  const left = round(12 - width / 2);
+  const right = round(12 + width / 2);
+  const rx = round(width / 2);
+  const ry = round(rx * 1.1);
+  const top = round(BASE - shoulder);
+  const corner = 2;
+  return `M${left} ${top}A${rx} ${ry} 0 0 1 ${right} ${top}`
+    + `V${round(BASE - corner)}Q${right} ${BASE} ${round(right - corner)} ${BASE}`
+    + `H${round(left + corner)}Q${left} ${BASE} ${left} ${round(BASE - corner)}Z`;
 }
 
-function mouth(style: BloopFeatures["mouth"]): string {
-  if (style === "smile") return '<path class="bloop-line" d="M10.3 15.4q1.7 1.5 3.4 0"/>';
-  if (style === "flat") return '<path class="bloop-line" d="M10.8 15.8h2.4"/>';
-  return "";
+/** Two pill eyes, sat just under the crown as in the mark. */
+function eyes(features: BloopFeatures): string {
+  const height = features.eyes === "tall" ? 5 : 4;
+  const gap = features.eyes === "wide" ? 3 : 2.3;
+  const w = 2.4;
+  const y = round(baseline(features) - features.shoulder - 1.6);
+  return [12 - gap, 12 + gap]
+    .map((cx) => `<rect class="bloop-eye" x="${round(cx - w / 2)}" y="${y}" width="${w}" height="${height}" rx="${w / 2}"/>`)
+    .join("");
+}
+
+/** The mark's two leaf ears, leaning apart above the crown. */
+function ears(features: BloopFeatures): string {
+  const crown = round(baseline(features) - features.shoulder - (features.width / 2) * 1.1);
+  const cy = round(crown - 2.2);
+  return `<ellipse class="bloop-ear bloop-antenna" cx="10.2" cy="${cy}" rx="1.3" ry="2.8" transform="rotate(-16 10.2 ${cy})"/>`
+    + `<ellipse class="bloop-ear bloop-antenna" cx="13.8" cy="${cy}" rx="1.3" ry="2.8" transform="rotate(16 13.8 ${cy})"/>`;
 }
 
 /** Safe inline SVG made entirely from fixed shapes and numeric features. */
 export function bloopSvg(seed: string, kind: BloopKind): string {
   const features = bloopFeatures(seed, kind);
-  const antenna = kind === "agent"
-    ? '<path class="bloop-line bloop-antenna" d="M12 4.6V2.4"/><circle class="bloop-dot" cx="12" cy="1.9" r="1.1"/>'
-    : "";
   return (
     `<svg class="bloop bloop-${kind} bloop-tone-${features.tone}" viewBox="0 0 24 24" focusable="false">` +
-    antenna +
-    `<path class="bloop-body" d="${bodyPath(features.lobes, 12, 12.6)}"/>` +
-    eyes(features.eyes, kind) +
-    mouth(features.mouth) +
+    (kind === "agent" ? ears(features) : "") +
+    `<path class="bloop-body" d="${bodyPath(features)}"/>` +
+    eyes(features) +
     "</svg>"
   );
 }

@@ -16,7 +16,7 @@ import type { Agent } from "../../types";
  */
 
 export const AVATAR_MODES: ReadonlyArray<{ mode: AvatarMode; label: string; detail: string }> = [
-  { mode: "bloop", label: "Bloop", detail: "Crewly's soft faces. Agents wear the antenna." },
+  { mode: "bloop", label: "Bloop", detail: "The crew from the Crewly mark. Agents wear its ears." },
   { mode: "blobatar", label: "Blobatar", detail: "Geometric faces generated from the name." },
   { mode: "name", label: "Name icon", detail: "The first letter of the name." },
 ];
@@ -63,7 +63,7 @@ export function Avatar({
 }
 
 /**
- * A person's avatar, in the mode they chose. A person's Bloop has no antenna
+ * A person's avatar, in the mode they chose. A person's Bloop has no ears
  * and no accent outline, so nobody is mistaken for an agent. Seeded by user id
  * so renaming does not change the face.
  */

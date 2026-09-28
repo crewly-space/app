@@ -862,7 +862,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               ? <img className="server-brand-icon" src={serverBranding.iconDataUrl} alt="" />
               : <BrandMark />}
             <span title={serverBranding.tagline || undefined}>{serverBranding.displayName}</span>
-            <small>Crewly</small>
+            <small>{registry.selected?.kind === "cloud" ? "Cloud" : "Self-hosted"}</small>
             <button
               className="icon-button compact mobile-only"
               onClick={() => setMobileNav(false)}
