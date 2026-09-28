@@ -31,11 +31,19 @@ describe("Bloop", () => {
     for (const seed of Array.from({ length: 50 }, (_, index) => `seed-${index}`)) {
       for (const kind of ["user", "agent"] as const) {
         const svg = bloopSvg(seed, kind);
-        expect(svg.match(/bloop-leaf/g)?.length).toBeGreaterThanOrEqual(2);
+        expect(svg).toContain("bloop-leaf");
         expect(svg.match(/bloop-body/g)).toHaveLength(1);
-        expect(svg.match(/bloop-eye/g)).toHaveLength(2);
+        expect(svg).toContain('class="bloop-eye"');
       }
     }
+  });
+
+  it("tells most identities apart by shape alone, before colour", () => {
+    const shapes = new Set(Array.from({ length: 60 }, (_, index) => {
+      const { body, leaves, eyes, face } = bloopFeatures(`usr_${index}`, "agent");
+      return `${body}/${leaves}/${eyes}/${face}`;
+    }));
+    expect(shapes.size).toBeGreaterThan(45);
   });
 
   it("is a closed svg with no raw colours and none of the seed's text", () => {

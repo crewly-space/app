@@ -110,8 +110,21 @@
   stroke-linejoin: round;
 }
 
-.bloop .bloop-eye {
+.bloop .bloop-eye,
+.bloop .bloop-mouth {
   fill: var(--oc-bloop-eye);
+}
+
+.bloop .bloop-eye-line {
+  fill: none;
+  stroke: var(--oc-bloop-eye);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
+.bloop .bloop-blush {
+  fill: var(--oc-bloop-eye);
+  opacity: 0.45;
 }
 
 .bloop-tone-0 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-0); }
@@ -120,6 +133,8 @@
 .bloop-tone-3 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-3); }
 .bloop-tone-4 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-4); }
 .bloop-tone-5 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-5); }
+.bloop-tone-6 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-6); }
+.bloop-tone-7 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-7); }
 
 /* -------------------------------------------------------------- buttons -- */
 
