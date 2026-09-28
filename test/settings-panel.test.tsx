@@ -96,7 +96,7 @@ describe('one Settings for the person and the server', () => {
   it('lists each connector app with its own Connect, and points to MCP tools and providers', () => {
     const dialog = open({ initialSection: 'connectors' });
     expect(dialog.getAllByRole('button', { name: 'Connect' })).toHaveLength(3);
-    fireEvent.click(within(dialog.getByText(/For a tool that speaks MCP/)).getByRole('button', { name: 'MCP tools' }));
+    fireEvent.click(within(dialog.getByText(/Any other tool that speaks MCP/)).getByRole('button', { name: 'MCP tools' }));
     expect(dialog.getByRole('heading', { name: 'MCP tools' })).toBeTruthy();
   });
 

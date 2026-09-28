@@ -31,8 +31,10 @@ function api(items: () => Promise<RegistryItem[]>, overrides: Partial<PlatformAp
 describe('RegistryPanel', () => {
   it('offers the built-in catalog with no registry configured, and says what an installed tool still needs', async () => {
     const platform = api(async () => [github, review]);
-    render(<RegistryPanel api={platform} />);
-    expect(await screen.findByText('Pull request review · verified')).toBeTruthy();
+    render(<RegistryPanel api={platform} type="mcp_preset" />);
+    expect(await screen.findByText('GitHub')).toBeTruthy();
+    // MCP servers are offered under MCP tools; skills stay under Skills.
+    expect(screen.queryByText('Pull request review')).toBeNull();
     expect(screen.getByText(/needs secret GITHUB_TOKEN/)).toBeTruthy();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]!);
@@ -42,8 +44,17 @@ describe('RegistryPanel', () => {
   });
 
   it('stays quiet on a server without the catalog while no registry is enabled', async () => {
-    render(<RegistryPanel api={api(async () => { throw new Error('registry_disabled'); })} />);
+    render(<RegistryPanel api={api(async () => { throw new Error('registry_disabled'); })} type="skill" showSource />);
     expect(await screen.findByText('Nothing to add yet.')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Another registry')).toBeTruthy();
+  });
+
+  it('asks the server only for the kind of item its section adds', async () => {
+    const registryItems = vi.fn(async () => [review]);
+    render(<RegistryPanel api={api(registryItems)} type="skill" />);
+    expect(await screen.findByText('Pull request review')).toBeTruthy();
+    expect(registryItems).toHaveBeenCalledWith({ q: '', type: 'skill' });
+    expect(screen.queryByText('Another registry')).toBeNull();
   });
 });

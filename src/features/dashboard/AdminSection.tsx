@@ -270,8 +270,8 @@ export function AdminSection({
 
       {section === 'usage' && <UsagePanel api={platform} agents={agents} />}
       {section === 'runs' && <RunsPanel api={platform} agents={agents} />}
-      {section === 'tools' && <><ToolsPanel api={platform} /><RegistryPanel api={platform} types={['mcp_preset']} /></>}
-      {section === 'skills' && <><SkillsPanel api={platform} /><RegistryPanel api={platform} types={['skill']} /></>}
+      {section === 'tools' && <ToolsPanel api={platform} />}
+      {section === 'skills' && <><SkillsPanel api={platform} /><RegistryPanel api={platform} type="skill" showSource /></>}
       {section === 'secrets' && <SecretsPanel api={platform} agents={agents} />}
       {section === 'mail' && <MailPanel api={services} />}
       {section === 'cloud' && <CrewlyPanel api={services} serverName={serverName} />}

@@ -4190,6 +4190,74 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
 .connector-app > div { display: grid; gap: 2px; min-width: 0; }
 .connector-app strong { font-size: 13px; }
 .connector-app span:not(.connector-status):not(.connector-app-icon) { color: var(--oc-muted); font-size: 12px; line-height: 1.4; }
+/* A card's state reads as a sentence ("Connected as octocat"), so no capitalising every word. */
+.connector-app .connector-status { text-transform: none; font-size: 12px; font-weight: 550; }
+.connector-app .connector-status.connected { color: var(--oc-success-text); }
+.connector-app .connector-status.warning { color: var(--oc-warning-text); }
+.connector-app .connector-status.danger { color: var(--oc-danger-text); }
+.connector-app .connector-status.muted { color: var(--oc-muted); }
+.connector-app.expanded { border-color: var(--line); }
+.connector-app-actions { display: flex; gap: var(--oc-space-2); }
+.connector-app-detail { grid-column: 1 / -1; display: grid; gap: var(--oc-space-3); margin: 0; min-width: 0; }
+.connector-app-note { color: var(--oc-warning-text); font-size: 12px; }
+.connector-setup { margin: 0; padding-left: 22px; display: grid; gap: var(--oc-space-3); font-size: 12px; list-style: decimal; }
+.connector-setup li { display: list-item; }
+.connector-setup li > * { display: block; width: fit-content; max-width: 100%; margin-top: var(--oc-space-1); }
+.connector-setup li > :first-child { margin-top: 0; }
+.connector-app-detail > .field-description { margin: var(--oc-space-2) 0 0; font-size: 12px; line-height: 1.5; }
+.connector-setup a { display: inline-flex; align-items: center; gap: 3px; }
+.connector-scopes { font-family: var(--oc-font-mono); font-size: 11px; overflow-wrap: anywhere; }
+.connector-setup li > .copy-value, .copy-value { display: flex; align-items: center; gap: var(--oc-space-1); max-width: 100%; }
+.copy-value code {
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: var(--oc-radius-sm);
+  background: var(--oc-panel-3);
+  font-family: var(--oc-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.connector-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--oc-space-1) var(--oc-space-3); margin: 0; font-size: 12px; }
+.connector-facts dt { color: var(--oc-muted); }
+.connector-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.connector-access { display: grid; gap: var(--oc-space-2); }
+.connector-access > strong { font-size: 13px; }
+.connector-access > p { margin: 0; color: var(--oc-muted); font-size: 12px; line-height: 1.5; }
+.connector-access fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--oc-space-1) var(--oc-space-4);
+  margin: 0;
+  padding: var(--oc-space-2) var(--oc-space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius-sm);
+}
+.connector-access legend { padding: 0 var(--oc-space-1); font-size: 12px; font-weight: 600; }
+.connector-access label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.connector-app .connector-card-actions { flex-wrap: wrap; margin-top: 0; }
+/* A catalog to add from: one row per item, what it is on the left, Add on the right. */
+.catalog-search { display: flex; gap: var(--oc-space-2); margin: var(--oc-space-3) 0; max-width: 520px; }
+.catalog-search input { flex: 1; min-width: 0; }
+.catalog-categories { display: flex; flex-wrap: wrap; gap: var(--oc-space-1) var(--oc-space-3); margin: 0 0 var(--oc-space-3); }
+.builtin-tools > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--oc-space-2); }
+.builtin-tools > summary small { color: var(--oc-muted); font-size: 12px; }
+.builtin-tools[open] > summary { margin-bottom: var(--oc-space-3); }
+.catalog-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--oc-space-2); }
+.catalog-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--oc-space-3);
+  padding: var(--oc-space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-panel);
+}
+.catalog-item > div { display: grid; gap: 2px; min-width: 0; }
+.catalog-item strong { font-size: 13px; }
+.catalog-item span { color: var(--oc-muted); font-size: 12px; line-height: 1.45; }
+.catalog-item small { color: var(--oc-muted-2); font-size: 11px; overflow-wrap: anywhere; }
+.catalog-item .catalog-verified { color: var(--oc-success-text); font-size: 12px; font-weight: 500; }
 
 @media (max-width: 720px) {
   .settings-layer { padding: 0; align-items: stretch; }
@@ -4222,7 +4290,10 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
   .settings-modal[data-pane="content"] .settings-content .section-heading h3 { display: none; }
   .settings-form { max-width: none; }
   .connector-app { grid-template-columns: 36px minmax(0, 1fr); }
-  .connector-app > :last-child { grid-column: 1 / -1; justify-self: stretch; }
+  .connector-app-actions { grid-column: 1 / -1; }
+  .catalog-item { grid-template-columns: minmax(0, 1fr); }
+  .catalog-item > button { justify-self: stretch; }
+  .connector-app-actions > button { flex: 1; }
   /* Tables become one card per row, each cell labelled. */
   .dashboard-table.stack-on-phone thead { display: none; }
   .dashboard-table.stack-on-phone,

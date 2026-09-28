@@ -53,7 +53,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   ] },
   { id: "integrations", label: "Integrations", sections: [
     { id: "connectors", label: "Connectors", summary: "Apps like GitHub, Linear and Slack, connected with OAuth.", icon: Plug, access: "admin" },
-    { id: "tools", label: "MCP tools", summary: "Custom MCP servers whose tools agents can call.", icon: Wrench, access: "admin" },
+    { id: "tools", label: "MCP tools", summary: "MCP servers, from the catalog or your own, whose tools agents can call.", icon: Wrench, access: "admin" },
     { id: "skills", label: "Skills", summary: "Reusable instructions agents can load.", icon: Sparkles, access: "admin" },
     { id: "secrets", label: "Secrets", summary: "Encrypted values tools and agents can use without seeing them.", icon: KeyRound, access: "admin" },
     { id: "mail", label: "Email", summary: "Sending domains and outbound email.", icon: Mail, access: "admin" },
