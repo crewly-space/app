@@ -97,6 +97,8 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // password is deliberately slow (scrypt, N=2^17).
   await page.findByRole('heading', { name: /^Welcome to / }, { timeout: 5000 });
   expect(page.getByText('You own this server')).toBeTruthy();
+  // A local owner signed in with a password here, not with a Crewly account.
+  expect(page.getByText(/signed in as/).textContent).not.toMatch(/Crewly account/);
   expect(win.localStorage.getItem('crewly:session')).toBeTruthy();
   fireEvent.click(page.getByRole('button', { name: "Let's set it up" }));
   await page.findByRole('heading', { name: 'Connect a model provider' });

@@ -150,7 +150,7 @@ const channelSlug = (value: string) => value.toLowerCase().trim().replace(/^#+/,
 const messageOf = (reason: unknown, fallback: string) => reason instanceof Error && reason.message ? reason.message : fallback;
 
 const HEADINGS: Record<Exclude<SetupStep, "welcome" | "ready">, { title: string; lead: string }> = {
-  provider: { title: "Connect a model provider", lead: "Agents need a model to think with. Use a subscription through your own device, a provider's API key, or models through your Crewly account." },
+  provider: { title: "Connect a model provider", lead: "Agents need a model to think with. Use Crewly Gateway through your Crewly account, a provider's API key, or a subscription on your own device." },
   agents: { title: "Build your first crew", lead: "Pick the agents to start with. They share one model for now; each can have its own later." },
   channels: { title: "Set up your channels", lead: "Channels are shared rooms where people and agents talk. #general is already here." },
   people: { title: "Invite your team", lead: "They join with their own account and see the channels and agents you set up." },
@@ -287,7 +287,7 @@ export function SetupWizard({
 function Welcome({ data, serverName, onStart }: { data: Bootstrap; serverName: string; onStart: () => void }) {
   const firstName = (data.currentUser.displayName ?? "").trim().split(/\s+/)[0];
   const items = [
-    { icon: <Sparkles size={17} />, title: "Connect a model provider", text: "OpenAI, Anthropic, OpenRouter, your own subscription or Crewly Gateway." },
+    { icon: <Sparkles size={17} />, title: "Connect a model provider", text: "Crewly Gateway, an OpenAI, Anthropic or OpenRouter key, or your own subscription." },
     { icon: <UsersRound size={17} />, title: "Pick a crew of agents", text: "Start from templates: an assistant, an engineer, a researcher and more." },
     { icon: <Hash size={17} />, title: "Open some channels", text: "Rooms where your team and your agents work together." },
     { icon: <Mail size={17} />, title: "Invite your team", text: "Send invites by email or share a link." },
@@ -295,7 +295,9 @@ function Welcome({ data, serverName, onStart }: { data: Bootstrap; serverName: s
   return <div className="setup-welcome">
     <span className="setup-badge"><Check size={13} strokeWidth={3} /> {data.currentUser.role === "owner" ? "You own this server" : "You're an admin here"}</span>
     <h1 id="setup-title">Welcome to {serverName}{firstName ? `, ${firstName}` : ""}</h1>
-    <p className="setup-lead">Your server is running and you're signed in with your Crewly account. A few minutes here and your crew is ready to work.</p>
+    <p className="setup-lead">Your server is running and you're signed in {data.currentUser.signsInWithCrewly
+      ? "with your Crewly account"
+      : <>as <strong>{data.currentUser.email}</strong></>}. A few minutes here and your crew is ready to work.</p>
     <ul className="setup-welcome-list">
       {items.map((item) => <li key={item.title}>
         <span className="setup-welcome-icon">{item.icon}</span>
