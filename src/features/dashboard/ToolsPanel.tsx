@@ -5,7 +5,7 @@ import { useWork } from './useWork';
 
 const CAPABILITIES: McpCapability[] = ['shell', 'filesystem', 'network'];
 const BUILTIN_TOOLS = [
-  { name: 'Utilities', tools: 'calculate, current_time, generate_uuid, hash_text', detail: 'Deterministic arithmetic, clocks, identifiers and hashes. Always local; no credential or network access.' },
+  { name: 'Utilities', tools: 'calculate, current_time, generate_uuid, hash_text, base64_text, format_json, text_stats, url_component, date_math', detail: 'Deterministic arithmetic, clocks, identifiers, hashes and text/data transforms. Always local; no credential or network access.' },
   { name: 'Browser', tools: 'navigate, inspect, interact, screenshot', detail: 'An isolated browser with private-network blocking and per-agent approval policy.' },
   { name: 'Artifacts', tools: 'create_artifact', detail: 'Publishes an intentional generated file into the conversation and run trace.' },
   { name: 'Agent delegation', tools: 'delegate_to_agent', detail: 'Hands bounded work to another Crewly agent while preserving the root run and depth limit.' },

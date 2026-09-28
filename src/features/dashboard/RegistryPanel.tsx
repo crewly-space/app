@@ -7,6 +7,7 @@ const GROUPS: Array<{ type: RegistryItem['type']; title: string; description: st
   { type: 'mcp_preset', title: 'Tools', description: 'MCP servers such as GitHub or Linear. Installing one adds it under Tools; give its tools to an agent in that agent’s settings.' },
   { type: 'skill', title: 'Skills', description: 'Ready-made instructions. Installing one adds it to the skill library above; turn it on per agent.' },
 ];
+const MCP_CATEGORIES = ['Deploy', 'Finance', 'Cloud', 'Observability', 'Database', 'Documentation'] as const;
 
 export function RegistryPanel({ api, types = ['mcp_preset', 'skill'] }: { api: PlatformApi; types?: RegistryItem['type'][] }) {
   const { busy, error, run } = useWork();
@@ -20,7 +21,10 @@ export function RegistryPanel({ api, types = ['mcp_preset', 'skill'] }: { api: P
   // The built-in catalog is always browsable; a server that predates it only
   // answers with items once a registry is enabled, so a refusal then means "none yet".
   const load = async (current: RegistrySettings, q: string) => {
-    try { setItems(await api.registryItems({ q })); }
+    try {
+      const found = await Promise.all(types.map((type) => api.registryItems({ q, type })));
+      setItems(found.flat().filter((item, index, all) => all.findIndex((entry) => entry.type === item.type && entry.id === item.id) === index));
+    }
     catch (reason) { if (current.enabled && current.registryUrl) throw reason; setItems([]); }
   };
   const refresh = () => run(async () => {
@@ -52,6 +56,8 @@ export function RegistryPanel({ api, types = ['mcp_preset', 'skill'] }: { api: P
           <input value={query} placeholder="Search GitHub, Linear, docs, release notes…" onChange={(event) => setQuery(event.target.value)} />
           <button type="submit" className="secondary-button" disabled={busy}>Search</button>
         </form>
+        {types.includes('mcp_preset') && <div className="dashboard-actions" aria-label="Tool categories">{MCP_CATEGORIES.map((category) =>
+          <button key={category} type="button" className="text-button" disabled={busy} onClick={() => { setQuery(category); void run(() => load(settings, category)); }}>{category}</button>)}</div>}
         {items.length === 0 && <p className="field-description">Nothing to add{query ? ' matches that search' : ' yet'}.</p>}
         {GROUPS.filter((group) => types.includes(group.type)).map((group) => {
           const entries = items.filter((item) => item.type === group.type);
@@ -73,7 +79,7 @@ export function RegistryPanel({ api, types = ['mcp_preset', 'skill'] }: { api: P
       {installed.some((entry) => types.includes(entry.itemType)) && <section><h2>Installed</h2><table className="dashboard-table"><thead><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Pin</th></tr></thead><tbody>{installed.filter((entry) => types.includes(entry.itemType)).map((entry) => <tr key={entry.id}><td>{entry.name}</td><td>{entry.version}</td><td>{entry.publisher}</td><td><button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => { await api.pinRegistryInstallation(entry.id, entry.pinnedVersion ? null : entry.version); setInstalled(await api.registryInstallations()); })}>{entry.pinnedVersion ? `Unpin ${entry.pinnedVersion}` : 'Pin version'}</button></td></tr>)}</tbody></table></section>}
       <section className="dashboard-card">
         <h2>Another registry</h2>
-        <p className="field-description">The Crewly catalog is built in. To add items from another registry, use one you trust; unverified publishers stay blocked unless you explicitly allow them.</p>
+        <p className="field-description">Crewly presets are built in, and remote HTTP servers from the official MCP Registry appear in search as community items. To add a different registry, use one you trust; unverified publishers stay blocked unless you explicitly allow them.</p>
         <label><input type="checkbox" checked={settings.enabled} disabled={busy} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} /> Use another registry</label>
         <label className="dashboard-form"><span>Registry URL</span><input type="url" value={settings.registryUrl ?? ''} placeholder="https://registry.example/catalog.json" onChange={(event) => setSettings({ ...settings, registryUrl: event.target.value || null })} /></label>
         <label><input type="checkbox" checked={settings.allowUnverified} disabled={busy} onChange={(event) => setSettings({ ...settings, allowUnverified: event.target.checked })} /> Allow unverified publishers</label>
