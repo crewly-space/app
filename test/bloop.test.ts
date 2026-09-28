@@ -21,9 +21,21 @@ describe("Bloop", () => {
     const agent = bloopSvg("Maya", "agent");
     const person = bloopSvg("Maya", "user");
     expect(agent).toContain("bloop-agent");
-    expect(agent).toContain("bloop-antenna");
     expect(person).toContain("bloop-user");
-    expect(person).not.toContain("bloop-antenna");
+    // A person is outlined in their tone; an agent never has one, so it keeps the accent.
+    expect(person).toMatch(/bloop-tone-\d/);
+    expect(agent).not.toMatch(/bloop-tone-\d/);
+  });
+
+  it("is always a radish from the mark: leaves, a body and two eyes", () => {
+    for (const seed of Array.from({ length: 50 }, (_, index) => `seed-${index}`)) {
+      for (const kind of ["user", "agent"] as const) {
+        const svg = bloopSvg(seed, kind);
+        expect(svg.match(/bloop-leaf/g)?.length).toBeGreaterThanOrEqual(2);
+        expect(svg.match(/bloop-body/g)).toHaveLength(1);
+        expect(svg.match(/bloop-eye/g)).toHaveLength(2);
+      }
+    }
   });
 
   it("is a closed svg with no raw colours and none of the seed's text", () => {

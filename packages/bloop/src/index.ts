@@ -7,16 +7,20 @@
 export type BloopKind = "user" | "agent";
 
 export const BLOOP_TONES = 6;
-const EYES = ["short", "tall", "wide"] as const;
+const EYES = ["tall", "short", "wide"] as const;
+const LEAVES = ["pair", "trio", "sprout"] as const;
 
 /*
- * A Bloop is one of the crew from the Crewly mark: an arched body with a flat,
- * softly rounded base and two pill eyes. Agents wear the mark's pair of ears.
+ * Every Bloop is one of the radishes from the Crewly mark: an arched body on
+ * a flat, rounded base, two pill eyes, and leaves on top. The seed picks the
+ * leaves, eyes and proportions, so one identity always draws the same radish.
  */
 export type BloopFeatures = {
   kind: BloopKind;
+  /** Outline colour for a person; an agent is always outlined in the accent. */
   tone: number;
   eyes: (typeof EYES)[number];
+  leaves: (typeof LEAVES)[number];
   /** Body width, in viewBox units. */
   width: number;
   /** Height of the straight sides below the arch. */
@@ -51,61 +55,75 @@ export function bloopFeatures(seed: string, kind: BloopKind): BloopFeatures {
     kind,
     tone: base % BLOOP_TONES,
     eyes: EYES[Math.floor(next() * EYES.length)],
+    leaves: LEAVES[Math.floor(next() * LEAVES.length)],
     width: round(13.5 + next() * 3),
-    shoulder: round(5 + next() * 2.5),
+    shoulder: round(4.5 + next() * 2.5),
   };
 }
 
-const EAR_RISE = 4.8;
+/* The mark's top radish is 40 wide with an arch 1.1 times as tall as it is
+   half wide, and leaves about 9 tall; these are the same proportions in 24. */
+const ARCH = 1.1;
+const LEAF_RISE = 6;
 
-/** Where the base sits so the whole figure, ears included, is centred. */
-function baseline({ kind, width, shoulder }: BloopFeatures): number {
-  const height = shoulder + (width / 2) * 1.1 + (kind === "agent" ? EAR_RISE : 0);
-  return round(Math.min(22.6, 12 + height / 2));
+type Frame = { base: number; left: number; right: number; top: number; crown: number };
+
+/** Where everything sits so the whole radish, leaves included, is centred. */
+function frame({ width, shoulder }: BloopFeatures): Frame {
+  const archHeight = (width / 2) * ARCH;
+  const base = round(12 + (shoulder + archHeight + LEAF_RISE) / 2);
+  const top = round(base - shoulder);
+  return {
+    base,
+    left: round(12 - width / 2),
+    right: round(12 + width / 2),
+    top,
+    crown: round(top - archHeight),
+  };
 }
 
-/** The arch of the mark: a half-ellipse on straight sides, rounded at the base. */
-function bodyPath(features: BloopFeatures): string {
-  const { width, shoulder } = features;
-  const BASE = baseline(features);
-  const left = round(12 - width / 2);
-  const right = round(12 + width / 2);
-  const rx = round(width / 2);
-  const ry = round(rx * 1.1);
-  const top = round(BASE - shoulder);
+function bodyPath(features: BloopFeatures, f: Frame): string {
+  const rx = round(features.width / 2);
+  const ry = round(rx * ARCH);
   const corner = 2;
-  return `M${left} ${top}A${rx} ${ry} 0 0 1 ${right} ${top}`
-    + `V${round(BASE - corner)}Q${right} ${BASE} ${round(right - corner)} ${BASE}`
-    + `H${round(left + corner)}Q${left} ${BASE} ${left} ${round(BASE - corner)}Z`;
+  return `M${f.left} ${f.top}A${rx} ${ry} 0 0 1 ${f.right} ${f.top}`
+    + `V${round(f.base - corner)}Q${f.right} ${f.base} ${round(f.right - corner)} ${f.base}`
+    + `H${round(f.left + corner)}Q${f.left} ${f.base} ${f.left} ${round(f.base - corner)}Z`;
 }
 
-/** Two pill eyes, sat just under the crown as in the mark. */
-function eyes(features: BloopFeatures): string {
-  const height = features.eyes === "tall" ? 5 : 4;
-  const gap = features.eyes === "wide" ? 3 : 2.3;
+function leaf(cx: number, cy: number, ry: number, angle: number): string {
+  return `<ellipse class="bloop-leaf" cx="${round(cx)}" cy="${round(cy)}" rx="1.5" ry="${ry}" transform="rotate(${angle} ${round(cx)} ${round(cy)})"/>`;
+}
+
+/** The mark's leaves, drawn first so the body covers where they join it. */
+function leaves(style: BloopFeatures["leaves"], f: Frame): string {
+  const cy = f.crown - 2.2;
+  if (style === "trio") return leaf(9.6, cy + 0.6, 2.8, -28) + leaf(14.4, cy + 0.6, 2.8, 28) + leaf(12, cy - 0.6, 3.2, 0);
+  if (style === "sprout") return leaf(10.8, cy, 3.4, -12) + leaf(13.9, cy + 0.9, 2.4, 34);
+  return leaf(10.3, cy, 3.3, -16) + leaf(13.7, cy, 3.3, 16);
+}
+
+/** Two pill eyes under the crown, as in the mark. */
+function eyes(style: BloopFeatures["eyes"], f: Frame): string {
+  const height = style === "tall" ? 4.6 : 3.6;
+  const gap = style === "wide" ? 2.9 : 2.2;
   const w = 2.4;
-  const y = round(baseline(features) - features.shoulder - 1.6);
+  const y = round(f.top - 2.2);
   return [12 - gap, 12 + gap]
     .map((cx) => `<rect class="bloop-eye" x="${round(cx - w / 2)}" y="${y}" width="${w}" height="${height}" rx="${w / 2}"/>`)
     .join("");
 }
 
-/** The mark's two leaf ears, leaning apart above the crown. */
-function ears(features: BloopFeatures): string {
-  const crown = round(baseline(features) - features.shoulder - (features.width / 2) * 1.1);
-  const cy = round(crown - 2.2);
-  return `<ellipse class="bloop-ear bloop-antenna" cx="10.2" cy="${cy}" rx="1.3" ry="2.8" transform="rotate(-16 10.2 ${cy})"/>`
-    + `<ellipse class="bloop-ear bloop-antenna" cx="13.8" cy="${cy}" rx="1.3" ry="2.8" transform="rotate(16 13.8 ${cy})"/>`;
-}
-
 /** Safe inline SVG made entirely from fixed shapes and numeric features. */
 export function bloopSvg(seed: string, kind: BloopKind): string {
   const features = bloopFeatures(seed, kind);
+  const f = frame(features);
+  const tone = kind === "user" ? ` bloop-tone-${features.tone}` : "";
   return (
-    `<svg class="bloop bloop-${kind} bloop-tone-${features.tone}" viewBox="0 0 24 24" focusable="false">` +
-    (kind === "agent" ? ears(features) : "") +
-    `<path class="bloop-body" d="${bodyPath(features)}"/>` +
-    eyes(features) +
+    `<svg class="bloop bloop-${kind}${tone}" viewBox="0 0 24 24" focusable="false">` +
+    leaves(features.leaves, f) +
+    `<path class="bloop-body" d="${bodyPath(features, f)}"/>` +
+    eyes(features.eyes, f) +
     "</svg>"
   );
 }

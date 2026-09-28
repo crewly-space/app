@@ -91,9 +91,10 @@
 
 /* ---------------------------------------------------------------- bloop -- */
 
-/* Geometry comes from bloop.ts; every colour is a token here. A Bloop is one
-   of the crew from the mark. An agent is outlined in the accent, as the mark
-   is, and wears its two ears; a person does neither. */
+/* Geometry comes from bloop.ts; every colour is a token here. A Bloop is a
+   radish from the mark: its dark body and pink eyes, outlined in the accent
+   for an agent, as the mark is, and in the person's tone for a person, so
+   nobody is mistaken for an agent. */
 .bloop {
   display: block;
   width: 100%;
@@ -102,28 +103,23 @@
 }
 
 .bloop .bloop-body,
-.bloop .bloop-ear {
-  stroke-width: 1.4;
-  stroke-linejoin: round;
-  stroke: var(--oc-bloop-ink);
-}
-
-.bloop.bloop-agent .bloop-body,
-.bloop.bloop-agent .bloop-ear {
+.bloop .bloop-leaf {
+  fill: var(--oc-bloop-body);
   stroke: var(--oc-accent);
   stroke-width: 1.8;
+  stroke-linejoin: round;
 }
 
 .bloop .bloop-eye {
-  fill: var(--oc-bloop-ink);
+  fill: var(--oc-bloop-eye);
 }
 
-.bloop-tone-0 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-0); }
-.bloop-tone-1 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-1); }
-.bloop-tone-2 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-2); }
-.bloop-tone-3 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-3); }
-.bloop-tone-4 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-4); }
-.bloop-tone-5 :is(.bloop-body, .bloop-ear) { fill: var(--oc-bloop-tone-5); }
+.bloop-tone-0 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-0); }
+.bloop-tone-1 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-1); }
+.bloop-tone-2 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-2); }
+.bloop-tone-3 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-3); }
+.bloop-tone-4 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-4); }
+.bloop-tone-5 :is(.bloop-body, .bloop-leaf) { stroke: var(--oc-bloop-tone-5); }
 
 /* -------------------------------------------------------------- buttons -- */
 

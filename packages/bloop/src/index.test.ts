@@ -9,8 +9,8 @@ describe("@crewly/bloop", () => {
 
   it("keeps user and agent output visibly distinct", () => {
     expect(bloopSvg("same", "agent")).toContain("bloop-agent");
-    expect(bloopSvg("same", "agent")).toContain("bloop-antenna");
+    expect(bloopSvg("same", "agent")).not.toMatch(/bloop-tone-\d/);
     expect(bloopSvg("same", "user")).toContain("bloop-user");
-    expect(bloopSvg("same", "user")).not.toContain("bloop-antenna");
+    expect(bloopSvg("same", "user")).toMatch(/bloop-tone-\d/);
   });
 });

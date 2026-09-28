@@ -27,10 +27,10 @@ describe('each identity is drawn in its own mode', () => {
     expect(container.textContent).toContain('M');
   });
 
-  it('draws a person in their mode, never with the agent antenna', () => {
+  it('draws a person in their mode, never as an agent', () => {
     const { container, rerender } = render(<UserAvatar id="u1" name="Sam" mode="bloop" />);
     expect(container.querySelector('.bloop-user')).toBeTruthy();
-    expect(container.querySelector('.bloop-antenna')).toBeNull();
+    expect(container.querySelector('.bloop-agent')).toBeNull();
 
     rerender(<UserAvatar id="u1" name="Sam" mode="name" />);
     expect(container.textContent).toBe('S');
