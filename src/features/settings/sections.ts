@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity, BarChart3, Bot, Building2, Cloud, Cpu, KeyRound, Laptop, Mail, Network, Palette,
-  Plug, ShieldCheck, Sparkles, UserRound, Wrench, Zap,
+  Plug, ShieldCheck, Sparkles, UserRound, UserRoundPen, Wrench, Zap,
 } from "lucide-react";
 
 /**
@@ -14,7 +14,7 @@ import {
  * permission checks all read from here, so they cannot disagree.
  */
 export type SettingsSectionId =
-  | "appearance" | "devices"
+  | "profile" | "appearance" | "devices"
   | "general" | "people" | "roles"
   | "providers" | "agents"
   | "connectors" | "tools" | "skills" | "secrets" | "mail" | "cloud" | "federation"
@@ -39,6 +39,7 @@ export type SettingsGroup = {
 
 export const SETTINGS_GROUPS: SettingsGroup[] = [
   { id: "account", label: "Your account", sections: [
+    { id: "profile", label: "Profile", summary: "Your name, the email you sign in with, and your password.", icon: UserRoundPen, access: "everyone" },
     { id: "appearance", label: "Appearance", summary: "Theme and how you appear to others.", icon: Palette, access: "everyone" },
     { id: "devices", label: "Devices", summary: "Computers that can run local agents for you.", icon: Laptop, access: "everyone" },
   ] },

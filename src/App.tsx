@@ -419,7 +419,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser}
     serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding} initialSection={settingsSection}
     onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
-    onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)}
+    onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)} onProfileChanged={() => gateway.bootstrap().then(setData)}
     onDevicesChanged={() => gateway.bootstrap().then(setData)}
     onClose={closeSettings} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
 
@@ -1429,7 +1429,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             onThemeChange={updateTheme}
             onNotify={notify}
             onProvidersChanged={() => gateway.bootstrap().then(setData)}
-            onConnectorsChanged={() => gateway.bootstrap().then(setData)}
+            onConnectorsChanged={() => gateway.bootstrap().then(setData)} onProfileChanged={() => gateway.bootstrap().then(setData)}
             onDevicesChanged={() => gateway.bootstrap().then(setData)}
             onClose={closeSettings}
           />

@@ -16,6 +16,7 @@ import { serverApi, type DashboardApi } from "../dashboard/api";
 import type { PlatformApi } from "../dashboard/platform-api";
 import type { ServicesApi } from "../dashboard/services-api";
 import { ConnectorsSection } from "./ConnectorsSection";
+import { ProfileSection } from "./ProfileSection";
 import { canOpen, findSection, visibleGroups, type SettingsSectionId } from "./sections";
 
 /** Settings sections that are rendered by the server-administration component. */
@@ -59,6 +60,7 @@ export function SettingsPanel({
   onConnectorsChanged,
   onDevicesChanged,
   onServerBrandingChanged,
+  onProfileChanged,
   onClose,
   serverName,
   initialSection,
@@ -80,6 +82,8 @@ export function SettingsPanel({
   onConnectorsChanged: () => Promise<void>;
   onDevicesChanged: () => Promise<void>;
   onServerBrandingChanged: (input: { displayName: string; tagline: string; iconDataUrl: string | null }) => Promise<void>;
+  /** Reloads who the person is after they change their own profile. */
+  onProfileChanged?: () => Promise<void>;
   onClose: () => void;
   /** The server being administered, so nobody mistakes a server setting for their own. */
   serverName?: string;
@@ -211,6 +215,9 @@ export function SettingsPanel({
         <span>Provider credentials are stored encrypted on this server and never sent back to the browser.</span>
       </div>
     </>
+  ) : section === "profile" ? (
+    <ProfileSection key={currentUser.id} currentUser={currentUser} onNotify={onNotify}
+      onChanged={onProfileChanged ?? (async () => {})} />
   ) : section === "connectors" ? (
     <ConnectorsSection connectors={connectors} agents={agents} onNotify={onNotify}
       onConnectorsChanged={onConnectorsChanged} onOpenSection={open} />
