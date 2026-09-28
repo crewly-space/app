@@ -1224,6 +1224,12 @@ body {
   width: 17px;
   height: 17px;
 }
+/* Generic marks (a custom endpoint, the Gateway) are drawn in strokes, not fills. */
+.provider-logo svg.lucide {
+  fill: none;
+}
+.provider-option > .provider-logo { flex: none; }
+.provider-option.unavailable > .provider-logo { opacity: .5; }
 .connected-label {
   color: var(--oc-success-text) !important;
   display: flex;
@@ -3655,7 +3661,52 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
 .role-members h3 { margin: 0 0 5px; font-size: 14px; }
 .automations-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.5fr); gap: 18px; }
 .automations-list { align-self: start; padding: 14px; }
-.automation-list-item { width: 100%; display: grid; gap: 3px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--oc-text); text-align: left; cursor: pointer; }
+.automations-list-head { display: flex; align-items: center; justify-content: space-between; gap: var(--oc-space-2); margin-bottom: 4px; }
+.automations-list-head h3 { margin: 0; }
+.automations-list > .field-description { margin: 0 0 var(--oc-space-3); font-size: 12px; line-height: 1.5; }
+.automations-empty {
+  margin: 0;
+  padding: var(--oc-space-3);
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius-sm);
+  color: var(--oc-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.automation-list-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--oc-text); text-align: left; cursor: pointer; }
+.automation-list-item > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.automation-list-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--oc-panel-3);
+  color: var(--oc-muted-strong);
+}
+.automation-list-item.selected .automation-list-icon { color: var(--oc-accent); }
+.automations-editor .dashboard-form { max-width: none; }
+.automations-editor .section-heading h3 { margin: 0 0 4px; }
+.automations-editor .section-heading p { margin: 0 0 var(--oc-space-2); color: var(--oc-muted); font-size: 12px; }
+.automations-editor input[type="checkbox"] { accent-color: var(--oc-accent); width: 15px; height: 15px; }
+.automation-action {
+  display: grid;
+  gap: var(--oc-space-3);
+  margin: var(--oc-space-1) 0 !important;
+  padding: var(--oc-space-3) !important;
+  background: var(--oc-panel-2);
+}
+.automation-action legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  color: var(--oc-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.automation-action legend svg { color: var(--oc-accent); }
 .automation-list-item:hover, .automation-list-item.selected { background: var(--oc-line-soft); }
 .automation-list-item small, .automation-run small { color: var(--oc-muted); }
 .automations-editor { min-width: 0; }
@@ -4391,6 +4442,75 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
   font-size: 13px;
 }
 .dashboard-empty strong { color: var(--oc-text); }
+/* Linking to Crewly: the code is what a person compares, so it reads first. */
+.crewly-link-card { display: flex; align-items: flex-start; gap: var(--oc-space-3); padding: var(--oc-space-4); }
+.crewly-link-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--oc-accent-soft);
+  color: var(--oc-accent);
+}
+.crewly-link-body { display: grid; gap: 6px; min-width: 0; }
+.crewly-link-body > strong { font-size: 14px; }
+.crewly-link-body > p { margin: 0; color: var(--oc-muted); font-size: 12px; line-height: 1.5; }
+.crewly-link-status { display: inline-flex; align-items: center; gap: 6px; color: var(--oc-warning-text); font-size: 12px; font-weight: 500; }
+.crewly-link-status svg { animation: crewly-spin 1.2s linear infinite; }
+@keyframes crewly-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .crewly-link-status svg { animation: none; } }
+.crewly-link-code-row { display: flex; align-items: center; gap: var(--oc-space-2); margin: 4px 0 6px; }
+.crewly-link-code {
+  padding: 8px 14px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-3);
+  color: var(--oc-text);
+  font-family: var(--oc-font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+.crewly-link-body .dashboard-actions { margin: 4px 0 0; }
+.crewly-link-body .primary-button { display: inline-flex; align-items: center; gap: 6px; }
+/* A choice between two ways of doing one thing: a segmented control, not two loose buttons. */
+.dashboard-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin: var(--oc-space-2) 0 0;
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+}
+.dashboard-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 var(--oc-space-3);
+  border: 0;
+  border-radius: var(--oc-radius-sm);
+  background: transparent;
+  color: var(--oc-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.dashboard-tabs button:hover { color: var(--oc-text); }
+.dashboard-tabs button.selected {
+  background: var(--oc-line);
+  color: var(--oc-text);
+  box-shadow: var(--oc-shadow-sm);
+}
+:root[data-theme="light"] .dashboard-tabs button.selected { background: var(--oc-panel); }
+.dashboard-tabs button:focus-visible { outline: 2px solid var(--oc-accent-ring); outline-offset: 1px; }
+.dashboard-form .primary-button,
+.dashboard-actions .primary-button,
+.dashboard-actions .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .dashboard-empty p { margin: 0; line-height: 1.55; }
 
 /* ------------------------------------------------------- boot skeleton -- */

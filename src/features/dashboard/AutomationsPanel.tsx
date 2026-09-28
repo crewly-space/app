@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Activity, Clock, MessageSquare, Plus, Save, Send, Trash2, Webhook, type LucideIcon } from 'lucide-react';
 import type { Automation, AutomationInput, AutomationRun } from '@crewly/sdk';
+
+/** Each trigger in words, with the mark it shows in the rule list. */
+const TRIGGERS: Record<AutomationInput['triggerType'], { label: string; icon: LucideIcon }> = {
+  webhook: { label: 'Incoming webhook', icon: Webhook },
+  message: { label: 'Channel message', icon: MessageSquare },
+  schedule: { label: 'Schedule', icon: Clock },
+  run: { label: 'Agent run event', icon: Activity },
+};
 
 const blank: AutomationInput = {
   name: '', description: '', enabled: true, triggerType: 'webhook', triggerConfig: {}, conditions: {},
@@ -42,18 +50,29 @@ export function AutomationsPanel({
   };
   return <div className="automations-layout">
     <div className="dashboard-card automations-list">
-      <div className="section-heading"><div><h3>Automations</h3><p>Rules react to events and perform bounded actions.</p></div><button type="button" onClick={() => { setCreating(true); setSelectedId(null); setDraft(blank); setSecret(''); }}><Plus size={14} /> New rule</button></div>
-      {automations.map((automation) => <button type="button" key={automation.id} className={`automation-list-item ${!creating && selectedId === automation.id ? 'selected' : ''}`} onClick={() => choose(automation)}><strong>{automation.name}</strong><small>{automation.enabled ? 'Enabled' : 'Disabled'} · {automation.triggerType}</small></button>)}
-      {!automations.length && <p className="field-description">No rules yet.</p>}
+      <div className="automations-list-head">
+        <h3>Rules</h3>
+        <button type="button" className="secondary-button compact" onClick={() => { setCreating(true); setSelectedId(null); setDraft(blank); setSecret(''); }}><Plus size={14} /> New rule</button>
+      </div>
+      <p className="field-description">Rules react to events and perform bounded actions.</p>
+      {automations.map((automation) => {
+        const trigger = TRIGGERS[automation.triggerType] ?? { label: automation.triggerType, icon: Activity };
+        const Icon = trigger.icon;
+        return <button type="button" key={automation.id} className={`automation-list-item ${!creating && selectedId === automation.id ? 'selected' : ''}`} onClick={() => choose(automation)}>
+          <span className="automation-list-icon" aria-hidden="true"><Icon size={14} /></span>
+          <span><strong>{automation.name}</strong><small>{automation.enabled ? 'Enabled' : 'Disabled'} · {trigger.label}</small></span>
+        </button>;
+      })}
+      {!automations.length && <p className="automations-empty">No rules yet. Create one on the right.</p>}
     </div>
     <div className="automations-editor">
       <div className="section-heading"><div><h3>{creating ? 'Create an automation' : selected?.name ?? 'Automation'}</h3><p>Start with a webhook, message or schedule trigger and a message action.</p></div></div>
       <div className="dashboard-form">
         <label>Name<input value={current.name} disabled={!creating && !selected} onChange={(event) => set({ name: event.target.value })} /></label>
         <label>Description<input value={current.description ?? ''} onChange={(event) => set({ description: event.target.value })} /></label>
-        <label>Trigger<select value={current.triggerType} onChange={(event) => set({ triggerType: event.target.value as AutomationInput['triggerType'] })}><option value="webhook">Incoming webhook</option><option value="message">Channel message</option><option value="schedule">Schedule</option><option value="run">Agent run event</option></select></label>
+        <label>Trigger<select value={current.triggerType} onChange={(event) => set({ triggerType: event.target.value as AutomationInput['triggerType'] })}>{Object.entries(TRIGGERS).map(([value, trigger]) => <option key={value} value={value}>{trigger.label}</option>)}</select></label>
         {current.triggerType === 'schedule' && <label>Every minutes<input type="number" min="1" max="10080" value={Number(current.triggerConfig?.intervalMinutes ?? 60)} onChange={(event) => set({ triggerConfig: { ...current.triggerConfig, intervalMinutes: Number(event.target.value) } })} /></label>}
-        <fieldset><legend>Post message</legend><label>Conversation ID<input value={action.conversationId ?? ''} onChange={(event) => set({ actions: [{ ...action, conversationId: event.target.value }] })} placeholder="Channel or conversation id" /></label><label>Message<textarea value={action.body} onChange={(event) => set({ actions: [{ ...action, body: event.target.value }] })} /></label></fieldset>
+        <fieldset className="automation-action"><legend><Send size={13} aria-hidden="true" /> Then post a message</legend><label>Conversation ID<input value={action.conversationId ?? ''} onChange={(event) => set({ actions: [{ ...action, conversationId: event.target.value }] })} placeholder="Channel or conversation id" /></label><label>Message<textarea rows={4} placeholder="What to post when this rule runs" value={action.body} onChange={(event) => set({ actions: [{ ...action, body: event.target.value }] })} /></label></fieldset>
         <label className="permission-choice"><input type="checkbox" checked={current.enabled !== false} onChange={(event) => set({ enabled: event.target.checked })} /><span><strong>Enabled</strong><small>Loop protection and event deduplication apply automatically.</small></span></label>
         {secret && <div className="role-preview"><strong>Webhook secret — copy it now</strong><span>{secret}</span></div>}
         <div className="dashboard-actions"><button type="button" className="primary-button" disabled={busy || !current.name.trim() || !action.body.trim()} onClick={() => void save()}><Save size={14} /> Save rule</button>{!creating && selected && <button type="button" className="text-button danger" disabled={busy} onClick={() => void onDelete(selected.id)}><Trash2 size={14} /> Delete</button>}</div>

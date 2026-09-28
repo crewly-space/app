@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { FileCode2, PenLine, Plus } from 'lucide-react';
 import type { Agent, Skill } from '@crewly/sdk';
 import type { PlatformApi } from './platform-api';
 import { SkillPlanCard } from './SkillPlanCard';
@@ -27,16 +28,23 @@ export function SkillsPanel({ api, agents = [] }: { api: PlatformApi; agents?: A
   const [draft, setDraft] = useState({ name: '', description: '', instructions: '', manifest: '' });
 
   useEffect(() => {
-    void run(async () => setSkills(await api.skills()));
+    void run(async () => { setSkills(await api.skills()); setLoaded(true); });
   }, [api, run]);
 
+  const [loaded, setLoaded] = useState(false);
   const add = (skill: Skill) => setSkills((current) => [...current, skill].sort((a, b) => a.name.localeCompare(b.name)));
 
   return (
     <div className="dashboard-skills">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
       {notice && <p role="status" className="callout">{notice}</p>}
-      <table className="dashboard-table">
+      {loaded && skills.length === 0 && (
+        <div className="dashboard-empty">
+          <strong>No skills yet</strong>
+          <p>Write one below, install a manifest, or add a ready-made one from the catalog.</p>
+        </div>
+      )}
+      {skills.length > 0 && <table className="dashboard-table">
         <thead><tr><th>Skill</th><th>Settings</th><th>Source</th><th aria-label="Actions" /></tr></thead>
         <tbody>
           {skills.map((skill) => (
@@ -65,11 +73,11 @@ export function SkillsPanel({ api, agents = [] }: { api: PlatformApi; agents?: A
             </Fragment>
           ))}
         </tbody>
-      </table>
+      </table>}
 
       <div className="dashboard-tabs" role="tablist" aria-label="Add a skill">
-        <button type="button" role="tab" aria-selected={mode === 'write'} className={mode === 'write' ? 'selected' : ''} onClick={() => setMode('write')}>Write one</button>
-        <button type="button" role="tab" aria-selected={mode === 'install'} className={mode === 'install' ? 'selected' : ''} onClick={() => setMode('install')}>Install a manifest</button>
+        <button type="button" role="tab" aria-selected={mode === 'write'} className={mode === 'write' ? 'selected' : ''} onClick={() => setMode('write')}><PenLine size={14} /> Write one</button>
+        <button type="button" role="tab" aria-selected={mode === 'install'} className={mode === 'install' ? 'selected' : ''} onClick={() => setMode('install')}><FileCode2 size={14} /> Install a manifest</button>
       </div>
       <form className="dashboard-form form" onSubmit={(event) => {
         event.preventDefault();
@@ -92,7 +100,7 @@ export function SkillsPanel({ api, agents = [] }: { api: PlatformApi; agents?: A
             onChange={(event) => setDraft((current) => ({ ...current, manifest: event.target.value }))} />
         )}
         <button type="submit" className="primary-button" disabled={busy || (mode === 'write' ? !draft.name || !draft.instructions : !draft.manifest)}>
-          {mode === 'write' ? 'Add skill' : 'Install'}
+          <Plus size={14} /> {mode === 'write' ? 'Add skill' : 'Install'}
         </button>
       </form>
     </div>

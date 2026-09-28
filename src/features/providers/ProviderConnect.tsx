@@ -171,6 +171,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     const availability = devices ? deviceProviderAvailability(devices, deviceKind) : null;
     const ready = availability ? connectable(availability) : false;
     return <div className={`provider-option${ready ? '' : ' unavailable'}`} key={deviceKind}>
+      <ProviderLogo provider={deviceKind} small />
       <div>
         <strong>{title}</strong> <span>{subtitle}</span>
         <small>{availability ? explain(deviceKind, availability) : 'Checking your paired devices…'}</small>
@@ -219,6 +220,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
       {deviceOption('claude-subscription', 'Claude', 'Pro or Max subscription')}
       {deviceOption('ollama', 'Ollama', 'Local models')}
       <div className="provider-option unavailable">
+        <ProviderLogo provider="chatgpt" small />
         <div>
           <strong>ChatGPT</strong> <span>Plus or Pro subscription</span>
           <small>{codexDevice
@@ -246,6 +248,7 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     <section className="provider-class provider-class-gateway" aria-labelledby="provider-class-gateway">
       <h2 id="provider-class-gateway">Crewly Gateway {gateway?.state === 'ready' && !connectedKinds.includes('crewly-gateway') && <span className="provider-card-badge">Easiest</span>}</h2>
       <div className="provider-option">
+        <ProviderLogo provider="crewly-gateway" small />
         <div>
           <strong>Models through your Crewly account</strong>
           <small>{connectedKinds.includes('crewly-gateway')
