@@ -4,6 +4,12 @@ import type { PlatformApi } from './platform-api';
 import { useWork } from './useWork';
 
 const CAPABILITIES: McpCapability[] = ['shell', 'filesystem', 'network'];
+const BUILTIN_TOOLS = [
+  { name: 'Utilities', tools: 'calculate, current_time, generate_uuid, hash_text', detail: 'Deterministic arithmetic, clocks, identifiers and hashes. Always local; no credential or network access.' },
+  { name: 'Browser', tools: 'navigate, inspect, interact, screenshot', detail: 'An isolated browser with private-network blocking and per-agent approval policy.' },
+  { name: 'Artifacts', tools: 'create_artifact', detail: 'Publishes an intentional generated file into the conversation and run trace.' },
+  { name: 'Agent delegation', tools: 'delegate_to_agent', detail: 'Hands bounded work to another Crewly agent while preserving the root run and depth limit.' },
+] as const;
 
 /**
  * MCP servers: tools agents can call. Connecting one is here; giving its
@@ -26,11 +32,17 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
   return (
     <div className="dashboard-tools">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
+      <section className="dashboard-card">
+        <h2>Built-in tools</h2>
+        <p className="field-description">These ship inside Crewly. Availability still follows each agent's capability policy and the current run.</p>
+        <ul className="dashboard-logs">
+          {BUILTIN_TOOLS.map((tool) => <li key={tool.name}><strong>{tool.name}</strong><span>{tool.detail}</span><small>{tool.tools}</small></li>)}
+        </ul>
+      </section>
       {servers.length === 0 && (
         <div className="dashboard-empty">
-          <strong>No tools connected yet</strong>
-          <p>Tools let agents act beyond conversation: search an issue tracker, read a repository, query a database.
-            Connect an MCP server below, then choose which of its tools each agent may use.</p>
+          <strong>No MCP server connected yet</strong>
+          <p>Add one from the built-in catalog in Skills, or connect a custom server below. Then choose which discovered tools each agent may use.</p>
         </div>
       )}
       {servers.map((server) => (

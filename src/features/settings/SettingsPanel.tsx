@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, ModelInfo, ServerBranding, SlackImportChannel } from "@crewly/sdk";
-import { Check, ChevronLeft, ChevronRight, GitBranch, Laptop, LockKeyhole, Monitor, Moon, Plug, Plus, RefreshCw, Sun, X } from "lucide-react";
+import type { AuthUser, Connector, ConnectorGrant, ConnectorProvider, ConnectorProviderDefinition, DeviceInfo, DevicePairingInfo, ModelInfo, ServerBranding, SlackImportChannel } from "@crewly/sdk";
+import { Check, ChevronLeft, ChevronRight, Cloud, FileText, GitBranch, HardDrive, Laptop, LockKeyhole, Monitor, Moon, Plug, Plus, RefreshCw, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { client } from "../../lib/api/client";
 import { navigateToServerUrl } from "../../lib/safe-navigation";
@@ -26,13 +26,14 @@ const ADMIN_SECTIONS: Partial<Record<SettingsSectionId, AdminSectionId>> = {
   usage: "usage", runs: "runs", automations: "automations",
 };
 
-/** The apps a server can connect today, until connectors come from the server itself. */
-const CONNECTOR_APPS = [
-  { id: "github", name: "GitHub", description: "Repositories, issues and pull requests.", icon: GitBranch },
-  { id: "linear", name: "Linear", description: "Issues, projects and cycles.", icon: Plug },
-  { id: "slack", name: "Slack", description: "Channels and messages, with a one-time import.", icon: Plug },
-] as const;
-type ConnectorApp = (typeof CONNECTOR_APPS)[number]["id"];
+/** Old servers do not expose their provider catalog, so these remain a compatible fallback. */
+const DEFAULT_CONNECTOR_APPS: ConnectorProviderDefinition[] = [
+  { provider: "github", label: "GitHub", description: "Repositories, issues and pull requests.", capabilities: [], scopes: [] },
+  { provider: "linear", label: "Linear", description: "Issues, projects and cycles.", capabilities: [], scopes: [] },
+  { provider: "slack", label: "Slack", description: "Channels and messages, with a one-time import.", capabilities: [], scopes: [] },
+];
+const connectorIcon = (provider: ConnectorProvider) => provider === "github" || provider === "gitlab" ? GitBranch
+  : provider === "notion" ? FileText : provider === "google-drive" ? HardDrive : provider === "slack" ? Cloud : Plug;
 
 /** 128000 reads as noise; 128K is the number people compare. */
 function contextLabel(tokens: number): string {
@@ -114,6 +115,10 @@ export function SettingsPanel({
   const [pairingError, setPairingError] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
   const [connectorBusy, setConnectorBusy] = useState(false);
+  const [connectorApps, setConnectorApps] = useState<ConnectorProviderDefinition[]>(DEFAULT_CONNECTOR_APPS);
+  const [connectorAccess, setConnectorAccess] = useState<string | null>(null);
+  const [connectorGrants, setConnectorGrants] = useState<Record<string, ConnectorGrant[]>>({});
+  const [connectorGrantAgent, setConnectorGrantAgent] = useState<Record<string, string>>({});
   const [slackChannels, setSlackChannels] = useState<SlackImportChannel[]>([]);
   const [selectedSlackChannels, setSelectedSlackChannels] = useState<string[]>([]);
   const [slackHistory, setSlackHistory] = useState(0);
@@ -131,34 +136,60 @@ export function SettingsPanel({
   const open = (id: SettingsSectionId) => { setSection(id); setPane("content"); };
 
   useEffect(() => {
+    if (!canManageServer) return;
+    void client.connectors.providers().then((result) => setConnectorApps(result.providers)).catch(() => undefined);
+  }, [canManageServer]);
+
+  useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const code = query.get("code");
     const state = query.get("state");
     const provider = query.get("connector");
-    if (!provider || !["github", "linear", "slack"].includes(provider) || !code || !state || !canManageServer) return;
+    const app = connectorApps.find((entry) => entry.provider === provider);
+    if (!app || !code || !state || !canManageServer) return;
     setSection("connectors"); setPane("content");
     setConnectorBusy(true);
-    const complete = provider === "linear" ? client.connectors.completeLinearOAuth({ code, state }) : provider === "slack" ? client.connectors.completeSlackOAuth({ code, state }) : client.connectors.completeGitHubOAuth({ code, state });
-    const name = CONNECTOR_APPS.find((app) => app.id === provider)!.name;
+    const complete = client.connectors.completeOAuth(app.provider, { code, state });
+    const name = app.label;
     void complete.then(async () => {
       window.history.replaceState({}, "", window.location.pathname);
       await onConnectorsChanged();
       onNotify(`${name} connected.`);
     }).catch(() => onNotify(`${name} could not be connected.`)).finally(() => setConnectorBusy(false));
-  }, [canManageServer, onConnectorsChanged, onNotify]);
+  }, [canManageServer, connectorApps, onConnectorsChanged, onNotify]);
 
-  const connect = async (app: ConnectorApp) => {
+  const connect = async (app: ConnectorProvider) => {
     setConnectorBusy(true);
     const callbackUrl = `${window.location.origin}/?connector=${app}`;
     try {
-      const pending = app === "linear" ? await client.connectors.startLinearOAuth({ callbackUrl })
-        : app === "slack" ? await client.connectors.startSlackOAuth({ callbackUrl })
-        : await client.connectors.startGitHubOAuth({ callbackUrl });
+      const pending = await client.connectors.startOAuth(app, { callbackUrl });
       navigateToServerUrl(pending.authorizeUrl);
     } catch {
       setConnectorBusy(false);
-      onNotify(`${CONNECTOR_APPS.find((entry) => entry.id === app)!.name} OAuth is not configured on this server.`);
+      onNotify(`${connectorApps.find((entry) => entry.provider === app)?.label ?? app} OAuth is not configured on this server.`);
     }
+  };
+  const manageConnectorAccess = async (connector: Connector) => {
+    if (connectorAccess === connector.id) { setConnectorAccess(null); return; }
+    setConnectorBusy(true);
+    try {
+      const result = await client.connectors.grants(connector.id);
+      setConnectorGrants((current) => ({ ...current, [connector.id]: result.grants }));
+      setConnectorGrantAgent((current) => ({ ...current, [connector.id]: current[connector.id] ?? agents[0]?.id ?? "" }));
+      setConnectorAccess(connector.id);
+    } catch { onNotify("Connector access rules could not be loaded."); }
+    finally { setConnectorBusy(false); }
+  };
+  const toggleConnectorGrant = async (connector: Connector, agentId: string, capability: Connector["capabilities"][number], enabled: boolean) => {
+    const existing = connectorGrants[connector.id] ?? [];
+    const next = existing.filter((grant) => !(grant.granteeType === "agent" && grant.granteeId === agentId && grant.capability === capability));
+    if (enabled) next.push({ connectorId: connector.id, granteeType: "agent", granteeId: agentId, capability, createdAt: new Date().toISOString() });
+    setConnectorBusy(true);
+    try {
+      const saved = await client.connectors.setGrants(connector.id, next.map(({ granteeType, granteeId, capability: granted }) => ({ granteeType, granteeId, capability: granted })));
+      setConnectorGrants((current) => ({ ...current, [connector.id]: saved.grants }));
+    } catch { onNotify("Connector access rule could not be saved."); }
+    finally { setConnectorBusy(false); }
   };
   const saveBranding = async () => {
     setBrandingBusy(true); setBrandingError("");
@@ -253,29 +284,30 @@ export function SettingsPanel({
   ) : section === "connectors" ? (
     <>
       <div className="connector-apps">
-        {CONNECTOR_APPS.map((app) => {
-          const connected = connectors.filter((connector) => connector.provider === app.id);
-          const Icon = app.icon;
+        {connectorApps.map((app) => {
+          const connected = connectors.filter((connector) => connector.provider === app.provider);
+          const Icon = connectorIcon(app.provider);
           return (
-            <div className="connector-app" key={app.id}>
+            <div className="connector-app" key={app.provider}>
               <span className="connector-app-icon"><Icon size={18} /></span>
               <div>
-                <strong>{app.name}</strong>
+                <strong>{app.label}</strong>
                 <span>{app.description}</span>
               </div>
               {connected.some((connector) => connector.status === "connected")
                 ? <span className="connector-status connected">Connected</span>
-                : <button type="button" className="secondary-button compact" disabled={connectorBusy} onClick={() => void connect(app.id)}>Connect</button>}
+                : <button type="button" className="secondary-button compact" disabled={connectorBusy} onClick={() => void connect(app.provider)}>Connect</button>}
             </div>
           );
         })}
       </div>
       {connectors.map((connector) => (
         <div className="connector-card" key={connector.id}>
-          <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || CONNECTOR_APPS.find((app) => app.id === connector.provider)?.name || connector.provider}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
+          <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || connectorApps.find((app) => app.provider === connector.provider)?.label || connector.provider}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
           <p>{connector.scopes.length ? `Scopes: ${connector.scopes.join(", ")}` : "No permissions granted yet."}</p>
           <small>Capabilities are not available to agents until an explicit policy grant is added.</small>
           <div className="connector-card-actions">
+            {connector.status === "connected" && <button className="text-button" onClick={() => void manageConnectorAccess(connector)} disabled={connectorBusy}>Agent access</button>}
             <button className="text-button" onClick={() => void client.connectors.refresh(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}><RefreshCw size={13} /> Refresh</button>
             <button className="text-button danger" onClick={() => void client.connectors.revoke(connector.id).then(onConnectorsChanged)} disabled={connectorBusy}>Disconnect</button>
             {connector.provider === 'slack' && connector.status === 'connected' && <button className="text-button" onClick={() => {
@@ -286,6 +318,23 @@ export function SettingsPanel({
               }).catch(() => onNotify('Slack channels could not be loaded.')).finally(() => setConnectorBusy(false));
             }}>Import channels</button>}
           </div>
+          {connectorAccess === connector.id && <div className="connector-access">
+            <strong>Agent access</strong>
+            {!agents.length ? <p>Create an agent before granting connector tools.</p> : <>
+              <label>Agent <select value={connectorGrantAgent[connector.id] ?? agents[0]!.id} onChange={(event) => setConnectorGrantAgent((current) => ({ ...current, [connector.id]: event.target.value }))}>
+                {agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
+              </select></label>
+              <div className="dashboard-toggles">
+                {connector.capabilities.map((capability) => {
+                  const agentId = connectorGrantAgent[connector.id] ?? agents[0]!.id;
+                  const checked = (connectorGrants[connector.id] ?? []).some((grant) => grant.granteeType === "agent" && grant.granteeId === agentId && grant.capability === capability);
+                  return <label key={capability}><input type="checkbox" checked={checked} disabled={connectorBusy}
+                    onChange={(event) => void toggleConnectorGrant(connector, agentId, capability, event.target.checked)} /> {capability.replaceAll("_", " ")}</label>;
+                })}
+              </div>
+              <small>Reads still follow network policy. Writes also require external side-effect permission or an approval.</small>
+            </>}
+          </div>}
           {connector.provider === 'slack' && slackChannels.length > 0 && <div className="slack-import">
             <strong>QuickStart from Slack</strong>
             <p>Select exactly what Crewly should copy. Retrying is safe and does not duplicate imported items.</p>
