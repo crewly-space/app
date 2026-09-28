@@ -10,9 +10,17 @@ jobs:
       # Vendored copies must match the owning repo; clone it as a sibling.
       - name: Clone and build crewly-server
         # Needed twice over: vendor:check diffs the vendored protocol/sdk against
-        # it, and test/p0-ui.test.tsx renders the UI against a real server.
+        # it, and test/p0-ui.test.tsx renders the UI against a real server. For
+        # coordinated cross-repo changes, prefer a server branch with the same
+        # name as the app branch; otherwise validate against server/main.
         run: |
-          git clone --depth 1 https://github.com/crewly-space/server.git ../server
+          SERVER_REPOSITORY=https://github.com/crewly-space/server.git
+          SERVER_REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          if git ls-remote --exit-code --heads "$SERVER_REPOSITORY" "refs/heads/$SERVER_REF" >/dev/null 2>&1; then
+            git clone --depth 1 --branch "$SERVER_REF" "$SERVER_REPOSITORY" ../server
+          else
+            git clone --depth 1 "$SERVER_REPOSITORY" ../server
+          fi
           npm --prefix ../server ci
           npm --prefix ../server run build
       - run: npm ci
