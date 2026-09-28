@@ -1,3 +1,6 @@
+import { Cloud, Server } from "lucide-react";
+import { BrandGlyph } from "../brand/BrandGlyph";
+
 export function ProviderLogo({
   provider,
   small = false,
@@ -7,6 +10,23 @@ export function ProviderLogo({
 }) {
   const normalized = provider.toLowerCase();
   const className = `provider-logo${small ? " small" : ""}`;
+
+  // Before "openai": a compatible endpoint is not OpenAI, and should not wear its mark.
+  if (normalized.includes("compatible") || normalized.includes("custom")) {
+    return <div className={className} aria-hidden="true"><Server /></div>;
+  }
+
+  if (normalized.includes("gateway") || normalized.includes("crewly")) {
+    return <div className={className} aria-hidden="true"><Cloud /></div>;
+  }
+
+  if (normalized.includes("openrouter")) {
+    return <div className={className} aria-hidden="true"><BrandGlyph brand="openrouter" /></div>;
+  }
+
+  if (normalized.includes("deepseek")) {
+    return <div className={className} aria-hidden="true"><BrandGlyph brand="deepseek" /></div>;
+  }
 
   if (normalized.includes("claude") || normalized.includes("anthropic")) {
     return (
@@ -18,7 +38,7 @@ export function ProviderLogo({
     );
   }
 
-  if (normalized.includes("openai")) {
+  if (normalized.includes("openai") || normalized.includes("chatgpt") || normalized.includes("codex")) {
     return (
       <div className={className} aria-hidden="true">
         <svg viewBox="0 0 24 24">

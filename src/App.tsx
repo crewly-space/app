@@ -114,6 +114,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [replying, setReplying] = useState<Message | null>(null);
   const [threadRoot, setThreadRoot] = useState<Message | null>(null);
+  const closeThread = useCallback(() => setThreadRoot(null), []);
   const [creating, setCreating] = useState(false);
   // The channel dialog: {} creates one, { id } manages that one.
   const [channelDialog, setChannelDialog] = useState<{ id?: string } | null>(null);
@@ -791,6 +792,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   }
 
   function openConversation(id: string) {
+    if (id !== selected) setThreadRoot(null);
     setSelected(id);
     setView("messages");
     setMobileNav(false);
@@ -817,7 +819,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
 
   return (
     <>
-      <div className={`app-shell ${panel ? "panel-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
+      <div className={`app-shell ${panel || threadRoot ? "panel-open" : ""} ${threadRoot ? "thread-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
         {registry.multiServer && registry.servers.length > 0 && (
           <ServerRail
             servers={registry.servers}
@@ -1082,11 +1084,13 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               {view === "messages" && (
                 <>
                   <button
-                    className={`icon-button compact ${panel === "details" ? "selected" : ""}`}
-                    onClick={() =>
-                      setPanel(panel === "details" ? null : "details")
-                    }
-                    aria-expanded={panel === "details"}
+                    className={`icon-button compact ${panel === "details" && !threadRoot ? "selected" : ""}`}
+                    onClick={() => {
+                      // The thread and the details share the right column.
+                      if (threadRoot) { setThreadRoot(null); setPanel("details"); return; }
+                      setPanel(panel === "details" ? null : "details");
+                    }}
+                    aria-expanded={panel === "details" && !threadRoot}
                     aria-label="Conversation details"
                   >
                     <PanelRight size={18} />
@@ -1407,7 +1411,12 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
           )}
         </main>
 
-        {panel === "details" && (
+        {threadRoot ? (
+          <ThreadPanel root={threadRoot} agents={data.agents} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
+            setThreadRoot(updated);
+            setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
+          }} />
+        ) : panel === "details" && (
           <DetailsPanel
             conversation={conversation}
             agents={activeAgents}
@@ -1512,12 +1521,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               setSearching(false);
             }}
           />
-        )}
-        {threadRoot && (
-          <ThreadPanel root={threadRoot} agents={data.agents} onClose={() => setThreadRoot(null)} onRootUpdated={(updated) => {
-            setThreadRoot(updated);
-            setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
-          }} />
         )}
         {toast && (
           <div

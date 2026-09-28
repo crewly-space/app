@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Check, Cloud, Copy, ExternalLink, LoaderCircle } from 'lucide-react';
 import { CrewlyApiError, type AuthMode, type AuthSettings, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
@@ -59,6 +60,18 @@ function statusOf(reason: unknown): number | undefined {
 function explain(reason: unknown, fallback: string): string {
   if (statusOf(reason) === 404) return 'This server does not offer a Crewly connection. Update the server to connect Crewly.';
   return reason instanceof Error && reason.message ? reason.message : fallback;
+}
+
+/** Copies the link code, for approving from another device. */
+function CopyCode({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  if (typeof navigator === 'undefined' || !navigator.clipboard) return null;
+  return (
+    <button type="button" className="icon-button compact" aria-label={copied ? 'Copied' : 'Copy the code'} title={copied ? 'Copied' : 'Copy the code'}
+      onClick={() => void navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, () => undefined)}>
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </button>
+  );
 }
 
 /**
@@ -135,7 +148,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   return (
     <div className="dashboard-crewly">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
-      <p className="field-description">{STATUS_TEXT[connection.status]}</p>
+      {!pending && <p className="field-description">{STATUS_TEXT[connection.status]}</p>}
 
       {(connection.status === 'disconnected' || connection.status === 'revoked') && (
         <form className="dashboard-form form" onSubmit={(event) => {
@@ -170,13 +183,21 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
       )}
 
       {pending && (
-        <div className="dashboard-card">
-          <p>Approve this server in Crewly with the code</p>
-          <strong aria-label="Link code">{pending.userCode}</strong>
-          <div className="dashboard-actions">
-            {safeNavigationUrl(pending.verificationUrl) && <a className="primary-button" href={safeNavigationUrl(pending.verificationUrl)!} target="_blank" rel="noopener noreferrer">Open Crewly</a>}
-            <button type="button" className="text-button" disabled={busy}
-              onClick={() => void act(() => api.disconnectCrewly())}>Cancel</button>
+        <div className="dashboard-card crewly-link-card">
+          <span className="crewly-link-icon" aria-hidden="true"><Cloud size={18} /></span>
+          <div className="crewly-link-body">
+            <span className="crewly-link-status" role="status"><LoaderCircle size={12} aria-hidden="true" /> {STATUS_TEXT.pending}</span>
+            <strong>Approve this server in Crewly</strong>
+            <p>Open Crewly and check that it shows this code before you approve.</p>
+            <div className="crewly-link-code-row">
+              <code className="crewly-link-code" aria-label="Link code">{pending.userCode}</code>
+              <CopyCode value={pending.userCode} />
+            </div>
+            <div className="dashboard-actions">
+              {safeNavigationUrl(pending.verificationUrl) && <a className="primary-button" href={safeNavigationUrl(pending.verificationUrl)!} target="_blank" rel="noopener noreferrer">Open Crewly <ExternalLink size={14} aria-hidden="true" /></a>}
+              <button type="button" className="text-button" disabled={busy}
+                onClick={() => void act(() => api.disconnectCrewly())}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

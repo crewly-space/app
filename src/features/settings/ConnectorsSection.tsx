@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Connector, ConnectorCapability, ConnectorGrant, ConnectorProvider, ConnectorProviderDefinition, SlackImportChannel } from "@crewly/sdk";
-import { Box, CalendarDays, Check, Cloud, Copy, ExternalLink, FileText, GitBranch, HardDrive, ListChecks, LockKeyhole, Mail, Plug, RefreshCw, type LucideIcon } from "lucide-react";
+import { Check, Copy, ExternalLink, Hash, LockKeyhole, Plug, RefreshCw } from "lucide-react";
+import { BrandGlyph, isBrand } from "../brand/BrandGlyph";
 import { client } from "../../lib/api/client";
 import { navigateToServerUrl } from "../../lib/safe-navigation";
 import type { Agent } from "../../types";
@@ -42,10 +43,12 @@ const CAPABILITY_LABELS: Record<ConnectorCapability, string> = {
   send_email: "Send email",
 };
 
-const ICONS: Partial<Record<ConnectorProvider, LucideIcon>> = {
-  github: GitBranch, gitlab: GitBranch, asana: ListChecks, notion: FileText, "google-drive": HardDrive,
-  "google-calendar": CalendarDays, gmail: Mail, dropbox: Box, slack: Cloud,
-};
+/** Each app's own mark; Slack no longer publishes one for reuse, so it gets a channel sign. */
+function ConnectorIcon({ provider }: { provider: ConnectorProvider }) {
+  if (isBrand(provider)) return <BrandGlyph brand={provider} size={18} />;
+  const Icon = provider === "slack" ? Hash : Plug;
+  return <Icon size={18} />;
+}
 
 const STATUS_TEXT: Record<Connector["status"], string> = {
   pending: "Sign-in not finished",
@@ -279,7 +282,6 @@ export function ConnectorsSection({ connectors, agents, onNotify, onConnectorsCh
           const troubled = connector && !connected && connector.status !== "revoked";
           const needsSetup = info.configured === false && !connected;
           const expanded = open === info.provider;
-          const Icon = ICONS[info.provider] ?? Plug;
           const badge = needsSetup ? { text: "Needs server setup", tone: "warning" }
             : connected ? { text: connector.accountName ? `Connected as ${connector.accountName}` : "Connected", tone: "connected" }
             : troubled ? { text: STATUS_TEXT[connector.status], tone: "danger" }
@@ -287,7 +289,7 @@ export function ConnectorsSection({ connectors, agents, onNotify, onConnectorsCh
           const error = connectError?.provider === info.provider ? connectError.message : "";
           return (
             <div className={`connector-app${expanded ? " expanded" : ""}`} key={info.provider}>
-              <span className="connector-app-icon"><Icon size={18} /></span>
+              <span className="connector-app-icon"><ConnectorIcon provider={info.provider} /></span>
               <div>
                 <strong>{info.label}</strong>
                 <span>{info.description}</span>

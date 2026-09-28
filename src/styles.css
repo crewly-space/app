@@ -393,7 +393,7 @@ body {
 }
 .message {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 30px;
+  grid-template-columns: 36px minmax(0, 1fr);
   gap: 11px;
   padding: 10px 8px;
   margin: 0 -8px 3px;
@@ -491,20 +491,40 @@ body {
   border-radius: 4px;
   padding: 1px 3px;
 }
-.message-reply {
-  opacity: 0;
+.message-actions {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--line);
+  border-radius: 8px;
   background: var(--oc-panel-3);
+  box-shadow: var(--oc-shadow-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.message:hover .message-actions,
+.message-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.message-actions button {
+  width: 28px;
+  height: 26px;
+  border: 0;
   border-radius: 6px;
-  width: 29px;
-  height: 27px;
+  background: transparent;
   color: var(--oc-muted-strong);
   display: grid;
   place-items: center;
   cursor: pointer;
 }
-.message:hover .message-reply {
-  opacity: 1;
+.message-actions button:hover {
+  background: var(--oc-line-soft);
+  color: var(--oc-text-strong);
 }
 .reply-reference {
   display: flex;
@@ -1224,6 +1244,12 @@ body {
   width: 17px;
   height: 17px;
 }
+/* Generic marks (a custom endpoint, the Gateway) are drawn in strokes, not fills. */
+.provider-logo svg.lucide {
+  fill: none;
+}
+.provider-option > .provider-logo { flex: none; }
+.provider-option.unavailable > .provider-logo { opacity: .5; }
 .connected-label {
   color: var(--oc-success-text) !important;
   display: flex;
@@ -1640,6 +1666,58 @@ body {
   font-size: 13px;
   line-height: 1.6;
   margin: 0 0 24px;
+}
+/*
+ * Sign-in, first-admin and invite forms. Narrower than a setup step, with the
+ * form's own grid gap doing the spacing: the heading and prose margins above
+ * are for free-flowing cards and stacked on top of the gap here.
+ */
+.onboarding-card.auth-card {
+  width: min(400px, 92vw);
+  padding: var(--oc-space-6);
+}
+.auth-card h1 {
+  font-size: var(--oc-text-3xl);
+  margin: 0;
+}
+.auth-card > h1 + p {
+  margin: calc(-1 * var(--oc-space-2)) 0 0;
+}
+.auth-card .primary-button,
+.auth-card .secondary-button {
+  min-height: 44px;
+}
+.auth-card > .primary-button[type="submit"] {
+  margin-top: var(--oc-space-1);
+}
+/* "New to Crewly? Create an account": the link reads as part of the sentence,
+   not an 11px caption glued onto 13px prose. */
+.auth-card > p.auth-footer {
+  margin: 0;
+  padding-top: var(--oc-space-4);
+  border-top: 1px solid var(--oc-line-soft);
+  text-align: center;
+}
+.auth-footer .text-button {
+  font-size: inherit;
+  color: var(--oc-text);
+}
+.auth-footer .text-button:hover {
+  color: var(--oc-accent-text);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--oc-space-3);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-xs);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--oc-line);
 }
 /* Connecting a provider: three kinds of connection, each under its own
    heading, so a subscription is never presented as if it were an API key. */
@@ -3603,7 +3681,52 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
 .role-members h3 { margin: 0 0 5px; font-size: 14px; }
 .automations-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.5fr); gap: 18px; }
 .automations-list { align-self: start; padding: 14px; }
-.automation-list-item { width: 100%; display: grid; gap: 3px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--oc-text); text-align: left; cursor: pointer; }
+.automations-list-head { display: flex; align-items: center; justify-content: space-between; gap: var(--oc-space-2); margin-bottom: 4px; }
+.automations-list-head h3 { margin: 0; }
+.automations-list > .field-description { margin: 0 0 var(--oc-space-3); font-size: 12px; line-height: 1.5; }
+.automations-empty {
+  margin: 0;
+  padding: var(--oc-space-3);
+  border: 1px dashed var(--oc-line);
+  border-radius: var(--oc-radius-sm);
+  color: var(--oc-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.automation-list-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--oc-text); text-align: left; cursor: pointer; }
+.automation-list-item > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.automation-list-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--oc-panel-3);
+  color: var(--oc-muted-strong);
+}
+.automation-list-item.selected .automation-list-icon { color: var(--oc-accent); }
+.automations-editor .dashboard-form { max-width: none; }
+.automations-editor .section-heading h3 { margin: 0 0 4px; }
+.automations-editor .section-heading p { margin: 0 0 var(--oc-space-2); color: var(--oc-muted); font-size: 12px; }
+.automations-editor input[type="checkbox"] { accent-color: var(--oc-accent); width: 15px; height: 15px; }
+.automation-action {
+  display: grid;
+  gap: var(--oc-space-3);
+  margin: var(--oc-space-1) 0 !important;
+  padding: var(--oc-space-3) !important;
+  background: var(--oc-panel-2);
+}
+.automation-action legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  color: var(--oc-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.automation-action legend svg { color: var(--oc-accent); }
 .automation-list-item:hover, .automation-list-item.selected { background: var(--oc-line-soft); }
 .automation-list-item small, .automation-run small { color: var(--oc-muted); }
 .automations-editor { min-width: 0; }
@@ -4339,6 +4462,75 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
   font-size: 13px;
 }
 .dashboard-empty strong { color: var(--oc-text); }
+/* Linking to Crewly: the code is what a person compares, so it reads first. */
+.crewly-link-card { display: flex; align-items: flex-start; gap: var(--oc-space-3); padding: var(--oc-space-4); }
+.crewly-link-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--oc-accent-soft);
+  color: var(--oc-accent);
+}
+.crewly-link-body { display: grid; gap: 6px; min-width: 0; }
+.crewly-link-body > strong { font-size: 14px; }
+.crewly-link-body > p { margin: 0; color: var(--oc-muted); font-size: 12px; line-height: 1.5; }
+.crewly-link-status { display: inline-flex; align-items: center; gap: 6px; color: var(--oc-warning-text); font-size: 12px; font-weight: 500; }
+.crewly-link-status svg { animation: crewly-spin 1.2s linear infinite; }
+@keyframes crewly-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .crewly-link-status svg { animation: none; } }
+.crewly-link-code-row { display: flex; align-items: center; gap: var(--oc-space-2); margin: 4px 0 6px; }
+.crewly-link-code {
+  padding: 8px 14px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-3);
+  color: var(--oc-text);
+  font-family: var(--oc-font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+.crewly-link-body .dashboard-actions { margin: 4px 0 0; }
+.crewly-link-body .primary-button { display: inline-flex; align-items: center; gap: 6px; }
+/* A choice between two ways of doing one thing: a segmented control, not two loose buttons. */
+.dashboard-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin: var(--oc-space-2) 0 0;
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+}
+.dashboard-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 var(--oc-space-3);
+  border: 0;
+  border-radius: var(--oc-radius-sm);
+  background: transparent;
+  color: var(--oc-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.dashboard-tabs button:hover { color: var(--oc-text); }
+.dashboard-tabs button.selected {
+  background: var(--oc-line);
+  color: var(--oc-text);
+  box-shadow: var(--oc-shadow-sm);
+}
+:root[data-theme="light"] .dashboard-tabs button.selected { background: var(--oc-panel); }
+.dashboard-tabs button:focus-visible { outline: 2px solid var(--oc-accent-ring); outline-offset: 1px; }
+.dashboard-form .primary-button,
+.dashboard-actions .primary-button,
+.dashboard-actions .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .dashboard-empty p { margin: 0; line-height: 1.55; }
 
 /* ------------------------------------------------------- boot skeleton -- */
@@ -4410,28 +4602,145 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
   color: var(--oc-muted);
   font-size: 12px;
 }
-.message-thread {
-  align-self: flex-start;
+/* Threads: a summary chip under a message, and a side panel that holds the
+   root message, its replies, and a composer shaped like the channel's. */
+.thread-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 0 0 -7px;
+  padding: 4px 9px 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   background: transparent;
-  border: 0;
   color: var(--oc-muted);
+  font-size: 12px;
   cursor: pointer;
-  padding: 5px;
 }
-.thread-summary { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; border: 0; background: transparent; color: var(--oc-info); cursor: pointer; padding: 0; }
-.thread-summary.unread { font-weight: 700; }
-.thread-panel { position: fixed; z-index: 80; inset: 0 0 0 auto; width: min(440px, 100vw); background: var(--oc-panel); border-left: 1px solid var(--oc-border); box-shadow: -18px 0 45px rgb(0 0 0 / 24%); display: flex; flex-direction: column; }
-.thread-panel > header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--oc-border); }
-.thread-panel h2 { display: flex; gap: 8px; align-items: center; margin: 2px 0 0; }
-.thread-actions { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--oc-border); }
-.thread-actions button { display: inline-flex; align-items: center; gap: 5px; }
-.thread-messages { flex: 1; overflow: auto; padding: 16px 20px; }
-.thread-messages article { border-left: 2px solid var(--oc-border); padding: 8px 12px; margin-bottom: 10px; }
-.thread-messages article.thread-root { border-left-color: var(--oc-accent); background: color-mix(in srgb, var(--oc-accent) 7%, transparent); }
-.thread-messages time { margin-left: 8px; color: var(--oc-muted); font-size: 12px; }
-.thread-messages p { white-space: pre-wrap; margin: 5px 0 0; }
-.thread-composer { display: grid; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--oc-border); }
-.thread-composer textarea { min-height: 90px; resize: vertical; }
+.thread-summary strong { color: var(--oc-info-text); font-weight: 650; }
+.thread-summary.unread strong { color: var(--oc-text-strong); }
+.thread-summary-cta { color: var(--oc-muted-2); opacity: 0; transition: opacity var(--oc-transition); }
+.thread-summary:hover { border-color: var(--line); background: var(--oc-panel-3); }
+.thread-summary:hover .thread-summary-cta,
+.thread-summary:focus-visible .thread-summary-cta { opacity: 1; }
+.thread-status {
+  padding: 1px 7px;
+  border-radius: var(--oc-radius-full);
+  font-size: 10px;
+  font-weight: 650;
+  background: var(--oc-panel-3);
+  color: var(--oc-muted-strong);
+}
+.thread-status-resolved { background: var(--oc-success-soft); color: var(--oc-success-text); }
+/* Docked beside the conversation where there is room; above 1050px only, so
+   the narrower layouts' own panel rules still apply. */
+@media (min-width: 1051px) {
+  .app-shell.thread-open { grid-template-columns: 246px minmax(440px, 1fr) 400px; }
+  .app-shell.has-rail.thread-open { grid-template-columns: 62px 246px minmax(440px, 1fr) 400px; }
+}
+.thread-panel {
+  --surface: var(--oc-panel);
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--line-soft);
+}
+@media (max-width: 1050px) {
+  .thread-panel {
+    position: fixed;
+    z-index: 30;
+    inset: 0 0 0 auto;
+    width: min(400px, 100vw);
+    box-shadow: var(--oc-shadow-lg);
+  }
+}
+.thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 65px;
+  padding: 0 12px 0 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.thread-title { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--oc-muted); }
+.thread-title h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--oc-text-strong); }
+.thread-header-actions { display: flex; align-items: center; gap: 2px; }
+.thread-header-actions .icon-button:disabled { opacity: 0.45; cursor: default; }
+.thread-error {
+  margin: 10px 18px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--oc-danger-line);
+  border-radius: 8px;
+  background: var(--oc-danger-soft);
+  color: var(--oc-danger-text);
+  font-size: 12px;
+}
+.thread-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 10px; }
+.thread-message {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px;
+  border-radius: 9px;
+}
+.thread-message:hover { background: var(--oc-panel-2); }
+.thread-message-meta { display: flex; align-items: baseline; gap: 7px; min-height: 20px; }
+.thread-message-meta strong,
+.thread-message-meta button { font-size: 13px; font-weight: 650; color: var(--oc-text-strong); }
+.thread-message-meta button { padding: 0; border: 0; background: transparent; cursor: pointer; }
+.thread-message-meta button:hover { text-decoration: underline; }
+.thread-message-meta time { color: var(--oc-muted-2); font-size: 10px; }
+.thread-message p {
+  margin: 1px 0 0;
+  color: var(--oc-text);
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.thread-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 8px;
+  color: var(--oc-muted-2);
+  font-size: 11px;
+}
+.thread-divider::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+.thread-composer { padding: 8px 14px 16px; }
+.thread-composer .composer { display: block; }
+.thread-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  max-height: 160px;
+  field-sizing: content;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--oc-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.thread-composer textarea::placeholder { color: var(--oc-muted-2); }
+.thread-closed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 14px 16px;
+  padding: 10px 12px;
+  border: 1px dashed var(--oc-line-strong);
+  border-radius: 12px;
+  color: var(--oc-muted);
+  font-size: 12px;
+}
 
 /* ------------------------------------------------------------ server setup --
    The guided setup an owner sees on a new server: a step rail on the left,

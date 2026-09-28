@@ -134,20 +134,28 @@ export function MessageItem({
             </div>
           </div>
         )}
-        {message.thread && (
-          <button type="button" className={`thread-summary${message.thread.unread ? ' unread' : ''}`} onClick={onThread}>
-            <MessageSquare size={14} /> {message.thread.replyCount} {message.thread.replyCount === 1 ? 'reply' : 'replies'} · {message.thread.status}
+        {message.thread && (message.thread.replyCount > 0 || message.thread.status !== "open") && (
+          <button type="button" className={`thread-summary${message.thread.unread ? " unread" : ""}`} onClick={onThread}>
+            <MessageSquare size={13} />
+            <strong>{message.thread.replyCount} {message.thread.replyCount === 1 ? "reply" : "replies"}</strong>
+            {message.thread.status !== "open" && <span className={`thread-status thread-status-${message.thread.status}`}>{message.thread.status === "resolved" ? "Resolved" : "Archived"}</span>}
+            <span className="thread-summary-cta">View thread</span>
           </button>
         )}
       </div>
-      <button
-        className="message-reply"
-        onClick={onReply}
-        aria-label={`Reply to ${message.author === "you" ? "your message" : (agent?.name ?? "this message")}`}
-      >
-        <Reply size={15} />
-      </button>
-      <button className="message-thread" onClick={onThread} aria-label="Open message thread" title="Open thread"><MessageSquare size={15} /></button>
+      <div className="message-actions" role="toolbar" aria-label="Message actions">
+        <button
+          type="button"
+          onClick={onReply}
+          aria-label={`Reply to ${message.author === "you" ? "your message" : (agent?.name ?? "this message")}`}
+          title="Reply"
+        >
+          <Reply size={15} />
+        </button>
+        <button type="button" onClick={onThread} aria-label="Open message thread" title="Reply in thread">
+          <MessageSquare size={15} />
+        </button>
+      </div>
     </article>
   );
 }
