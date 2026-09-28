@@ -1641,6 +1641,58 @@ body {
   line-height: 1.6;
   margin: 0 0 24px;
 }
+/*
+ * Sign-in, first-admin and invite forms. Narrower than a setup step, with the
+ * form's own grid gap doing the spacing: the heading and prose margins above
+ * are for free-flowing cards and stacked on top of the gap here.
+ */
+.onboarding-card.auth-card {
+  width: min(400px, 92vw);
+  padding: var(--oc-space-6);
+}
+.auth-card h1 {
+  font-size: var(--oc-text-3xl);
+  margin: 0;
+}
+.auth-card > h1 + p {
+  margin: calc(-1 * var(--oc-space-2)) 0 0;
+}
+.auth-card .primary-button,
+.auth-card .secondary-button {
+  min-height: 44px;
+}
+.auth-card > .primary-button[type="submit"] {
+  margin-top: var(--oc-space-1);
+}
+/* "New to Crewly? Create an account": the link reads as part of the sentence,
+   not an 11px caption glued onto 13px prose. */
+.auth-card > p.auth-footer {
+  margin: 0;
+  padding-top: var(--oc-space-4);
+  border-top: 1px solid var(--oc-line-soft);
+  text-align: center;
+}
+.auth-footer .text-button {
+  font-size: inherit;
+  color: var(--oc-text);
+}
+.auth-footer .text-button:hover {
+  color: var(--oc-accent-text);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--oc-space-3);
+  color: var(--oc-muted);
+  font-size: var(--oc-text-xs);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--oc-line);
+}
 /* Connecting a provider: three kinds of connection, each under its own
    heading, so a subscription is never presented as if it were an API key. */
 .provider-class {

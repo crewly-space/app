@@ -78,7 +78,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   if (phase.name === 'ready') return <>{children}</>;
 
   const card = (content: ReactNode) => (
-    <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card form">{content}</div></div></div>
+    <div className="onboarding"><div className="onboarding-body"><div className="onboarding-card auth-card form">{content}</div></div></div>
   );
   // The shell's shape with the brand, not a card that only says "Connecting".
   if (phase.name === 'loading') return <Loading phase="Signing you in…" onRetry={() => void enter()} />;
@@ -90,7 +90,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
     </>);
   }
 
-  return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card form" onSubmit={async (event) => {
+  return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card auth-card form" onSubmit={async (event) => {
     event.preventDefault();
     setError('');
     try {
@@ -113,13 +113,13 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   }}>
     <h1>Sign in to Crewly</h1>
     {providers.map((provider) => (
-      <a key={provider.id} className="primary-button" href={`${base}/api/v1/auth/oauth/${provider.id}/start`}>Continue with {provider.label}</a>
+      <a key={provider.id} className="secondary-button" href={`${base}/api/v1/auth/oauth/${provider.id}/start`}>Continue with {provider.label}</a>
     ))}
+    {providers.length > 0 && <div className="auth-divider" role="separator">or</div>}
     <label>Email<input type="email" required autoComplete="username" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-    <label htmlFor="cloud-password">Password</label>
-    <input id="cloud-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+    <label>Password<input id="cloud-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" type="submit">Sign in</button>
-    {dashboardUrl && <p>New to Crewly? <a className="text-button" href={dashboardUrl}>Create an account</a></p>}
+    {dashboardUrl && <p className="auth-footer">New to Crewly? <a className="text-button" href={dashboardUrl}>Create an account</a></p>}
   </form></div></div>;
 }
