@@ -68,17 +68,17 @@ export function JoinInvite({
   );
 
   if (problem) {
-    return frame(<div className="onboarding-card form">
+    return frame(<div className="onboarding-card auth-card form">
       <h1>This invite can’t be used</h1>
       <p role="alert">{problem}</p>
       <p>Ask whoever invited you to send a new one.</p>
       <button type="button" className="secondary-button" onClick={() => { leaveInvitePage(); window.location.reload(); }}>Go to Crewly</button>
     </div>);
   }
-  if (!preview) return frame(<div className="onboarding-card form"><p role="status">Checking your invite…</p></div>);
+  if (!preview) return frame(<div className="onboarding-card auth-card form"><p role="status">Checking your invite…</p></div>);
 
   if (signedInAs) {
-    return frame(<div className="onboarding-card form">
+    return frame(<div className="onboarding-card auth-card form">
       <h1>You’re invited</h1>
       <p>Join this Crewly server as {role} with the account you’re signed in with, <strong>{signedInAs}</strong>.</p>
       {preview.email && preview.email !== signedInAs.toLowerCase() && (
@@ -91,7 +91,7 @@ export function JoinInvite({
     </div>);
   }
 
-  return frame(<form className="onboarding-card form" onSubmit={(event) => {
+  return frame(<form className="onboarding-card auth-card form" onSubmit={(event) => {
     event.preventDefault();
     void accept({ email: email.trim(), displayName: displayName.trim(), password });
   }}>
@@ -100,12 +100,11 @@ export function JoinInvite({
     <label>Name<input required autoComplete="name" maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
     <label>Email<input required type="email" autoComplete="email" spellCheck={false} readOnly={Boolean(preview.email)}
       value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-    <label htmlFor="join-password">Password</label>
-    <input id="join-password" type="password" required minLength={12} autoComplete="new-password"
-      aria-describedby="join-password-help" value={password} onChange={(event) => setPassword(event.target.value)} />
+    <label>Password<input id="join-password" type="password" required minLength={12} autoComplete="new-password"
+      aria-describedby="join-password-help" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
     <small id="join-password-help">Use at least 12 characters.</small>
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" type="submit" disabled={saving}>{saving ? "Joining…" : "Create account and join"}</button>
-    <p>Already have an account here? <button type="button" className="text-button" onClick={onSignIn}>Sign in to accept</button></p>
+    <p className="auth-footer">Already have an account here? <button type="button" className="text-button" onClick={onSignIn}>Sign in to accept</button></p>
   </form>);
 }
