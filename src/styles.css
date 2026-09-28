@@ -4155,6 +4155,24 @@ label.dashboard-form > :is(input, select, textarea) { width: 100%; }
 }
 .settings-models li { display: flex; flex-wrap: wrap; gap: 2px var(--oc-space-2); }
 .settings-models small { color: var(--oc-muted); }
+.settings-models .settings-model-ok { color: var(--oc-success-text); }
+.settings-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--oc-space-2) var(--oc-space-3);
+  margin: var(--oc-space-3) 0;
+  padding: var(--oc-space-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-panel-2);
+  color: var(--oc-warning-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.settings-warning > span { flex: 1 1 260px; }
+.settings-models .settings-model-failed { color: var(--oc-danger-text); flex-basis: 100%; }
 .settings-aside { margin: var(--oc-space-4) 0 0; color: var(--oc-muted); font-size: 12px; line-height: 1.6; }
 .text-button.inline { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; }
 .settings-subheading { margin: 0; font-size: 14px; font-weight: 650; }

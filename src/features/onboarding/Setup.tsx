@@ -343,6 +343,9 @@ function AgentsStep({ data, slot, onCreated, onGoToProvider }: {
   const [picked, setPicked] = useState<Set<string>>(() => new Set(data.agents.length ? [] : ["assistant", "engineer"]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+  // A model that failed the check and was kept anyway; asking twice would only nag.
+  const [unverified, setUnverified] = useState("");
   useEffect(() => { if (!providerId && firstConnected) setProviderId(firstConnected); }, [providerId, firstConnected]);
 
   if (!connected.length) {
@@ -362,6 +365,24 @@ function AgentsStep({ data, slot, onCreated, onGoToProvider }: {
   async function create() {
     if (!chosen.length || saving) return;
     if (!model.trim()) { setError("Choose a model for your crew first."); return; }
+    const key = `${providerId}/${model.trim()}`;
+    // Prove the model answers before the crew depends on it, rather than on its first reply.
+    if (unverified !== key) {
+      setChecking(true); setError("");
+      try {
+        await client.providers.verify(providerId, model.trim());
+      } catch (reason) {
+        // A server that cannot verify (older) or an account that may not is no verdict on the model.
+        const status = (reason as { status?: number }).status;
+        if (status !== 404 && status !== 403) {
+          setUnverified(key);
+          setError(`${messageOf(reason, "That model did not answer.")} Choose another model, or create the crew anyway.`);
+          setChecking(false);
+          return;
+        }
+      }
+      setChecking(false);
+    }
     setSaving(true); setError("");
     let made = 0;
     try {
@@ -419,8 +440,9 @@ function AgentsStep({ data, slot, onCreated, onGoToProvider }: {
     </div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {slot && chosen.length > 0 && createPortal(
-      <button type="button" className="primary-button" disabled={saving} onClick={() => void create()}>
-        {saving ? "Creating your crew…" : `Create ${chosen.length} agent${chosen.length === 1 ? "" : "s"}`} <ArrowRight size={16} />
+      <button type="button" className="primary-button" disabled={saving || checking} onClick={() => void create()}>
+        {checking ? "Checking the model answers…" : saving ? "Creating your crew…"
+          : `${unverified === `${providerId}/${model.trim()}` ? "Create anyway: " : "Create "}${chosen.length} agent${chosen.length === 1 ? "" : "s"}`} <ArrowRight size={16} />
       </button>, slot)}
   </div>;
 }

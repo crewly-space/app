@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPanel } from '../src/features/settings/SettingsPanel';
+import { client } from '../src/lib/api/client';
 import { SETTINGS_GROUPS, visibleGroups } from '../src/features/settings/sections';
 import type { DashboardApi } from '../src/features/dashboard/api';
 import type { Provider } from '../src/types';
@@ -26,13 +27,14 @@ function adminApi(overrides: Partial<DashboardApi> = {}): DashboardApi {
   } as DashboardApi;
 }
 
-function open({ role = 'owner', initialSection, api = adminApi() }: {
+function open({ role = 'owner', initialSection, api = adminApi(), providers = [provider] }: {
+  providers?: Provider[];
   role?: 'owner' | 'admin' | 'member';
   initialSection?: Parameters<typeof SettingsPanel>[0]['initialSection'];
   api?: DashboardApi;
 } = {}) {
   render(<SettingsPanel
-    providers={[provider]} connectors={[]} devices={[]} agents={[]}
+    providers={providers} connectors={[]} devices={[]} agents={[]}
     currentUser={{ id: 'u1', email: 'owner@example.test', displayName: 'Owner', role } as never}
     serverBranding={{ displayName: 'Acme', tagline: '', iconDataUrl: null }}
     onAvatarModeChange={() => {}} theme="system" onThemeChange={() => {}} onNotify={() => {}}
@@ -109,6 +111,34 @@ describe('one Settings for the person and the server', () => {
     await waitFor(() => expect(listModels).toHaveBeenCalledWith('openai-1'));
     expect(await dialog.findByText('GPT-4o mini')).toBeTruthy();
     expect(dialog.getByText('128K context')).toBeTruthy();
+  });
+
+  it('tests that a model answers, and shows why when it does not', async () => {
+    const listModels = vi.fn(async () => [
+      { id: 'gpt-4o-mini', providerId: 'openai-1', displayName: 'GPT-4o mini', contextWindow: 128_000 },
+    ]);
+    const verify = vi.spyOn(client.providers, 'verify')
+      .mockResolvedValueOnce({ ok: true, model: 'gpt-4o-mini', reply: 'ready', latencyMs: 1200 })
+      .mockRejectedValueOnce(new Error('The provider rejected its API key.'));
+    const dialog = open({ initialSection: 'providers', api: adminApi({ listModels }) as DashboardApi });
+    fireEvent.click(dialog.getByRole('button', { name: /models from/i }));
+    fireEvent.click(await dialog.findByRole('button', { name: 'Test GPT-4o mini' }));
+    expect(await dialog.findByText('Answered in 1.2s')).toBeTruthy();
+    expect(verify).toHaveBeenCalledWith('openai-1', 'gpt-4o-mini');
+    fireEvent.click(dialog.getByRole('button', { name: 'Test GPT-4o mini' }));
+    expect(await dialog.findByText('The provider rejected its API key.')).toBeTruthy();
+    verify.mockRestore();
+  });
+
+  it('says when an added Crewly Gateway stops working, with the way to fix it', async () => {
+    const status = vi.spyOn(client.providers, 'gatewayStatus').mockResolvedValue({
+      state: 'revoked', message: "This server's link to Crewly was revoked.", cloudUrl: null, missingScopes: [], models: [],
+    });
+    const dialog = open({ initialSection: 'providers', providers: [{ id: 'crewly-gateway', name: 'crewly-gateway', detail: '', status: 'connected' }] });
+    expect(await dialog.findByText(/link to Crewly was revoked/)).toBeTruthy();
+    fireEvent.click(dialog.getByRole('button', { name: 'Open Crewly Cloud' }));
+    expect(dialog.getByRole('heading', { name: 'Crewly Cloud' })).toBeTruthy();
+    status.mockRestore();
   });
 
   it('keeps the server identity fields as labelled fields in a form', () => {

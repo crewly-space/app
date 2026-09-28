@@ -1,7 +1,8 @@
-import { useState } from "react";
-import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, ModelInfo, ServerBranding } from "@crewly/sdk";
+import { useEffect, useState } from "react";
+import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, GatewayStatus, ModelInfo, ServerBranding } from "@crewly/sdk";
 import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
+import { client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
@@ -104,6 +105,19 @@ export function SettingsPanel({
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
   const [models, setModels] = useState<{ providerId: string; list: ModelInfo[] } | null>(null);
   const [modelsError, setModelsError] = useState("");
+  // The last "does this model answer?" check per model, keyed provider/model.
+  const [checks, setChecks] = useState<Record<string, { busy: boolean; ok?: boolean; text?: string }>>({});
+  // A Gateway already added can stop working when the server's Crewly link does; say so where it is listed.
+  const [gatewayProblem, setGatewayProblem] = useState<GatewayStatus | null>(null);
+  const hasGateway = providers.some((provider) => provider.name === "crewly-gateway");
+  useEffect(() => {
+    if (section !== "providers" || !hasGateway || !(role === "owner" || role === "admin")) return;
+    let live = true;
+    Promise.resolve().then(() => client.providers.gatewayStatus())
+      .then((status) => { if (live) setGatewayProblem(status.state === "ready" ? null : status); })
+      .catch(() => { if (live) setGatewayProblem(null); });
+    return () => { live = false; };
+  }, [section, hasGateway, role]);
   const [pairingCode, setPairingCode] = useState("");
   const [pairing, setPairing] = useState<DevicePairingInfo | null>(null);
   const [pairingError, setPairingError] = useState("");
@@ -143,6 +157,17 @@ export function SettingsPanel({
     reader.onload = () => { setBrandingIcon(typeof reader.result === 'string' ? reader.result : null); setBrandingError(""); };
     reader.onerror = () => setBrandingError("That icon could not be read.");
     reader.readAsDataURL(file);
+  };
+  /** Sends the smallest real request, so an admin knows a model answers before an agent needs it. */
+  const testModel = async (providerId: string, model: string) => {
+    const key = `${providerId}/${model}`;
+    setChecks((current) => ({ ...current, [key]: { busy: true } }));
+    try {
+      const result = await client.providers.verify(providerId, model);
+      setChecks((current) => ({ ...current, [key]: { busy: false, ok: true, text: `Answered in ${(result.latencyMs / 1000).toFixed(1)}s` } }));
+    } catch (reason) {
+      setChecks((current) => ({ ...current, [key]: { busy: false, ok: false, text: reason instanceof Error ? reason.message : "It did not answer." } }));
+    }
   };
   const browseModels = async (providerId: string) => {
     if (models?.providerId === providerId) { setModels(null); return; }
@@ -203,12 +228,26 @@ export function SettingsPanel({
           {models?.providerId === provider.id && (
             models.list.length === 0 ? <p className="field-description">This provider listed no models.</p> : (
               <ul className="settings-models">
-                {models.list.map((model) => <li key={model.id}><strong>{model.displayName}</strong><small>{model.id}</small>{model.contextWindow > 0 && <small>{contextLabel(model.contextWindow)}</small>}</li>)}
+                {models.list.map((model) => {
+                  const key = `${provider.id}/${model.id}`;
+                  const check = checks[key];
+                  return <li key={model.id}>
+                    <strong>{model.displayName}</strong><small>{model.id}</small>{model.contextWindow > 0 && <small>{contextLabel(model.contextWindow)}</small>}
+                    <button type="button" className="text-button inline" disabled={check?.busy} aria-label={`Test ${model.displayName}`}
+                      onClick={() => void testModel(provider.id, model.id)}>{check?.busy ? "Testing…" : "Test"}</button>
+                    {check?.text && <small className={check.ok ? "settings-model-ok" : "settings-model-failed"} role="status">{check.text}</small>}
+                  </li>;
+                })}
               </ul>
             )
           )}
         </div>
       ))}
+      {gatewayProblem && <div className="settings-warning" role="status">
+        <span><strong>Crewly Gateway needs attention.</strong> {gatewayProblem.message}</span>
+        {gatewayProblem.state !== "not_offered" && gatewayProblem.state !== "unavailable" &&
+          <button type="button" className="secondary-button compact" onClick={() => open("cloud")}>Open Crewly Cloud</button>}
+      </div>}
       {modelsError && <p className="form-error" role="alert">{modelsError}</p>}
       <div className="local-note">
         <LockKeyhole size={15} />
