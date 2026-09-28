@@ -5233,3 +5233,66 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
   align-items: baseline;
   gap: var(--oc-space-2);
 }
+
+/* Who answers: one conversation's reply mode, in the details panel. */
+.reply-mode {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 var(--oc-space-3);
+  padding: 0 0 var(--oc-space-3);
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  min-width: 0;
+}
+.reply-mode legend {
+  padding: 0;
+  color: var(--oc-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.reply-mode > p {
+  margin: 0 0 2px;
+  color: var(--oc-muted);
+  font-size: 12px;
+}
+.reply-mode label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 4px 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  color: var(--oc-muted-strong);
+  cursor: pointer;
+}
+.reply-mode label.selected {
+  border-color: var(--oc-accent-line-strong);
+  background: var(--oc-accent-wash);
+  color: var(--oc-text);
+}
+.reply-mode label:focus-within {
+  outline: 2px solid var(--oc-accent-ring);
+  outline-offset: 2px;
+}
+.reply-mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.reply-mode label > span {
+  display: grid;
+  gap: 2px;
+}
+.reply-mode strong {
+  color: var(--oc-text);
+  font-size: 13px;
+}
+.reply-mode small {
+  color: var(--oc-muted);
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 1.35;
+}
+.reply-mode:disabled label { cursor: progress; }

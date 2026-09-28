@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
+import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Approval, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
@@ -207,6 +207,9 @@ export const gateway = {
   async sendThread(rootMessageId: string, body: string, mentions: { targetId: string; targetType: 'user' | 'agent' }[] = []) {
     return messageView(await client.messages.sendThread(rootMessageId, { body, mentions }));
   },
+  replyMode: (conversationId: string) => client.conversations.replyMode(conversationId).then((result) => result.replyMode),
+  setReplyMode: (conversationId: string, replyMode: ConversationReplyMode) =>
+    client.conversations.setReplyMode(conversationId, { replyMode }).then((result) => result.replyMode),
   setThreadStatus: (rootMessageId: string, status: 'open' | 'resolved' | 'archived') => client.messages.setThreadStatus(rootMessageId, status),
   async uploadAttachment(conversationId: string, file: File): Promise<ApiAttachment> {
     const dataBase64 = await new Promise<string>((resolve, reject) => {

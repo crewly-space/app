@@ -4,6 +4,7 @@ import { statusLabel } from "../../lib/agent-status";
 import type { Agent, Conversation } from "../../types";
 import type { View } from "../../app-types";
 import { Avatar } from "../appearance/Avatar";
+import { ReplyModePicker } from "./ReplyModePicker";
 
 export function DetailsPanel({
   conversation,
@@ -63,6 +64,9 @@ export function DetailsPanel({
       </div>
       {tab === "people" ? (
         <div className="details-content">
+          {conversation.type !== "dm" && agents.length > 0 && (
+            <ReplyModePicker conversationId={conversation.id} onNotify={onNotify} />
+          )}
           {!agents.length && (
             <p className="detail-empty">
               No agents here yet.{conversation.type === "channel" ? " An admin can add one from the channel's settings." : ""}

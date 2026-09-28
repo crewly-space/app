@@ -1146,7 +1146,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     {channel
                       ? channel.topic ?? `The start of #${channel.name}. Mention an agent in the channel when you want their attention.`
                       : conversation.type === "group"
-                      ? "A shared room for you and your crew. Mention an agent when you want their attention."
+                      ? "A shared room for you and your crew. Talk to your agents like colleagues; details sets who answers when you name no one."
                       : `This is the beginning of your conversation with ${conversation.name}.`}
                   </p>
                 </div>
