@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AuthUser, Connector, ConnectorGrant, ConnectorProvider, ConnectorProviderDefinition, DeviceInfo, DevicePairingInfo, ModelInfo, ServerBranding, SlackImportChannel } from "@crewly/sdk";
-import { Check, ChevronLeft, ChevronRight, Cloud, FileText, GitBranch, HardDrive, Laptop, LockKeyhole, Monitor, Moon, Plug, Plus, RefreshCw, Sun, X } from "lucide-react";
+import { Box, CalendarDays, Check, ChevronLeft, ChevronRight, Cloud, FileText, GitBranch, HardDrive, Laptop, ListChecks, LockKeyhole, Mail, Monitor, Moon, Plug, Plus, RefreshCw, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { client } from "../../lib/api/client";
 import { navigateToServerUrl } from "../../lib/safe-navigation";
@@ -33,7 +33,11 @@ const DEFAULT_CONNECTOR_APPS: ConnectorProviderDefinition[] = [
   { provider: "slack", label: "Slack", description: "Channels and messages, with a one-time import.", capabilities: [], scopes: [] },
 ];
 const connectorIcon = (provider: ConnectorProvider) => provider === "github" || provider === "gitlab" ? GitBranch
-  : provider === "notion" ? FileText : provider === "google-drive" ? HardDrive : provider === "slack" ? Cloud : Plug;
+  : provider === "asana" ? ListChecks : provider === "notion" ? FileText : provider === "google-drive" ? HardDrive
+    : provider === "google-calendar" ? CalendarDays : provider === "gmail" ? Mail : provider === "dropbox" ? Box : provider === "slack" ? Cloud : Plug;
+const ConnectorIcon = ({ provider, size = 18 }: { provider: ConnectorProvider; size?: number }) => {
+  const Icon = connectorIcon(provider); return <Icon size={size} />;
+};
 
 /** 128000 reads as noise; 128K is the number people compare. */
 function contextLabel(tokens: number): string {
@@ -303,7 +307,7 @@ export function SettingsPanel({
       </div>
       {connectors.map((connector) => (
         <div className="connector-card" key={connector.id}>
-          <div className="connector-card-heading"><GitBranch size={19} /><div><strong>{connector.accountName || connectorApps.find((app) => app.provider === connector.provider)?.label || connector.provider}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
+          <div className="connector-card-heading"><ConnectorIcon provider={connector.provider} size={19} /><div><strong>{connector.accountName || connectorApps.find((app) => app.provider === connector.provider)?.label || connector.provider}</strong><span>{connector.provider} · {connector.status.replaceAll("_", " ")}</span></div><span className={`connector-status ${connector.status}`}>{connector.status === "connected" ? "Connected" : "Action needed"}</span></div>
           <p>{connector.scopes.length ? `Scopes: ${connector.scopes.join(", ")}` : "No permissions granted yet."}</p>
           <small>Capabilities are not available to agents until an explicit policy grant is added.</small>
           <div className="connector-card-actions">
