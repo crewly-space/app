@@ -399,7 +399,7 @@ export function SettingsPanel({
       </div>
       {/* The same full screen first run uses; from a panel it has to cover the
           app, or it renders inside a 330px column and runs off its edge. */}
-      {addingProvider && <div className="provider-connect-layer"><ProviderConnect onClose={() => setAddingProvider(false)} onConnected={() => {
+      {addingProvider && <div className="provider-connect-layer"><ProviderConnect onClose={() => setAddingProvider(false)} onOpenCrewly={canManageServer ? () => { setAddingProvider(false); open("cloud"); } : undefined} onConnected={() => {
         setAddingProvider(false); onProvidersChanged(); onNotify('Provider saved.');
       }} /></div>}
       {managingProvider && <ProviderCredentials

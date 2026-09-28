@@ -6,12 +6,14 @@ import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
 const create = vi.fn(async (..._args: unknown[]): Promise<Record<string, unknown>> => ({}));
 const enableOnDevices = vi.fn(async (..._args: unknown[]) => ({ devices: [] as unknown[] }));
 let devices: DeviceInfo[] = [];
+let gatewayStatus: () => Promise<unknown> = async () => { throw new Error('not supported'); };
 vi.mock('../src/lib/api/client', () => ({
   client: {
     providers: {
       create: (...args: unknown[]) => create(...args),
       enableOnDevices: (...args: unknown[]) => enableOnDevices(...args),
       oauthKinds: async () => ({ kinds: [] }),
+      gatewayStatus: () => gatewayStatus(),
     },
     devices: { list: async () => devices },
   },
@@ -26,7 +28,10 @@ function device(name: string, connected: boolean, capabilities: Record<string, u
 const claudeRuntime = (authenticated: boolean) => ({ id: 'claude-subscription', name: 'Claude Subscription', authenticated });
 
 afterEach(cleanup);
-beforeEach(() => { create.mockReset(); create.mockResolvedValue({}); enableOnDevices.mockReset(); devices = []; });
+beforeEach(() => {
+  create.mockReset(); create.mockResolvedValue({}); enableOnDevices.mockReset(); devices = [];
+  gatewayStatus = async () => { throw new Error('not supported'); };
+});
 
 describe('device provider availability', () => {
   it('asks for a device when none is paired', () => {
@@ -121,5 +126,30 @@ describe('connecting a provider', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Connect Claude' }));
     await waitFor(() => expect(onConnected).toHaveBeenCalled());
     expect(enableOnDevices).toHaveBeenCalledWith('claude-subscription');
+  });
+});
+
+describe('Crewly Gateway', () => {
+  const status = (state: string, message: string) => ({ state, message, cloudUrl: null, missingScopes: [], models: [] });
+
+  it('leads with the Gateway and connects it in one press once it is ready', async () => {
+    gatewayStatus = async () => ({ ...status('ready', 'Crewly Gateway is ready with 3 models.') });
+    const onConnected = vi.fn();
+    render(<ProviderConnect onConnected={onConnected} />);
+    expect(await screen.findByText('Crewly Gateway is ready with 3 models.')).toBeTruthy();
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(headings[0]).toMatch(/^Crewly Gateway/);
+    fireEvent.click(screen.getByRole('button', { name: 'Use Crewly Gateway' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith({ id: 'crewly-gateway', kind: 'crewly-gateway' }));
+    expect(onConnected).toHaveBeenCalled();
+  });
+
+  it('sends an admin to link the server instead of offering a Gateway that cannot answer', async () => {
+    gatewayStatus = async () => status('not_linked', 'Connect this server to Crewly with the AI Gateway service, then its models appear here.');
+    const onOpenCrewly = vi.fn();
+    render(<ProviderConnect onConnected={() => {}} onOpenCrewly={onOpenCrewly} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect this server to Crewly' }));
+    expect(onOpenCrewly).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Use Crewly Gateway' })).toBeNull();
   });
 });

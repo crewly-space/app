@@ -71,11 +71,13 @@ describe('Connect Crewly panel', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const api = services();
     render(<CrewlyPanel api={api} serverName="Acme production" />);
-    fireEvent.click(await screen.findByLabelText('Run Crewly AI models'));
+    // AI Gateway is one service, asked for by default, though it takes two scopes.
+    expect((await screen.findByLabelText(/^AI Gateway/) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Sign in with Crewly'));
     fireEvent.click(screen.getByRole('button', { name: 'Connect Crewly' }));
 
     expect(await screen.findByLabelText('Link code')).toHaveProperty('textContent', 'BCDF-GHJK');
-    expect(api.connectCrewly).toHaveBeenCalledWith({ name: 'Acme production', scopes: ['mail:send', 'inference'] });
+    expect(api.connectCrewly).toHaveBeenCalledWith({ name: 'Acme production', scopes: ['inference', 'models:read', 'mail:send', 'identity'] });
     expect(screen.getByRole('link', { name: 'Open Crewly' }).getAttribute('href')).toBe('https://app.crewly.space/#/connect/BCDF-GHJK');
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });

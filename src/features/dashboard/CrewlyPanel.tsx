@@ -4,14 +4,24 @@ import type { ServicesApi } from './services-api';
 import { useWork } from './useWork';
 import { safeNavigationUrl } from '../../lib/safe-navigation';
 
-/** What each capability lets this server do, in words. */
-const SERVICES: Array<{ scope: string; label: string }> = [
-  { scope: 'mail:send', label: 'Send email through Crewly Mail' },
-  { scope: 'mail:receive', label: 'Receive email replies through Crewly Mail' },
-  { scope: 'inference', label: 'Run Crewly AI models' },
-  { scope: 'models:read', label: 'List Crewly models' },
-  { scope: 'identity', label: 'Sign in with Crewly' },
+/**
+ * What each service lets this server do, in words, and the scopes behind it.
+ * AI Gateway needs two (run models, list them) but is one thing to a person.
+ */
+const SERVICES: Array<{ id: string; scopes: string[]; label: string }> = [
+  { id: 'gateway', scopes: ['inference', 'models:read'], label: 'AI Gateway: models for agents, billed to your Crewly account' },
+  { id: 'mail-send', scopes: ['mail:send'], label: 'Send email through Crewly Mail' },
+  { id: 'mail-receive', scopes: ['mail:receive'], label: 'Receive email replies through Crewly Mail' },
+  { id: 'identity', scopes: ['identity'], label: 'Sign in with Crewly' },
 ];
+const GATEWAY_SCOPES = SERVICES[0]!.scopes;
+
+/** The services a set of scopes amounts to, in words; scopes no service claims are named as they are. */
+function describeScopes(scopes: string[]): string[] {
+  const named = SERVICES.filter((service) => service.scopes.every((scope) => scopes.includes(scope)));
+  const claimed = new Set(named.flatMap((service) => service.scopes));
+  return [...named.map((service) => service.label.split(':')[0]!), ...scopes.filter((scope) => !claimed.has(scope))];
+}
 
 const STATUS_TEXT: Record<CrewlyConnection['status'], string> = {
   disconnected: 'Not connected. This server runs entirely on its own.',
@@ -59,7 +69,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const { busy, error, run, setError } = useWork();
   const [connection, setConnection] = useState<CrewlyConnection | null>(null);
   const [loadFailure, setLoadFailure] = useState('');
-  const [requested, setRequested] = useState<string[]>(['mail:send']);
+  const [requested, setRequested] = useState<string[]>([...GATEWAY_SCOPES, 'mail:send']);
   const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
 
   const load = useCallback(async () => {
@@ -135,13 +145,13 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           <fieldset>
             <legend>Services to ask for</legend>
             {SERVICES.map((service) => (
-              <label key={service.scope}>
+              <label key={service.id}>
                 <input
                   type="checkbox"
-                  checked={requested.includes(service.scope)}
+                  checked={service.scopes.every((scope) => requested.includes(scope))}
                   onChange={(event) => setRequested((current) => event.target.checked
-                    ? [...current, service.scope]
-                    : current.filter((scope) => scope !== service.scope))}
+                    ? [...new Set([...current, ...service.scopes])]
+                    : current.filter((scope) => !service.scopes.includes(scope)))}
                 />
                 {service.label}
               </label>
@@ -181,9 +191,14 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
           </dl>
           <p className="field-description">
             Services: {connection.scopes.length
-              ? connection.scopes.map((scope) => SERVICES.find((service) => service.scope === scope)?.label ?? scope).join(', ')
+              ? describeScopes(connection.scopes).join(', ')
               : 'none yet. Grant them from Connected servers in Crewly.'}
           </p>
+          {!GATEWAY_SCOPES.every((scope) => connection.scopes.includes(scope)) && (
+            <p className="field-description">
+              To use Crewly Gateway for agents, allow this server AI Gateway under Connected servers in Crewly, then Check again.
+            </p>
+          )}
           <div className="dashboard-actions">
             <button type="button" className="secondary-button" disabled={busy}
               onClick={() => void act(() => api.refreshCrewly())}>Check again</button>

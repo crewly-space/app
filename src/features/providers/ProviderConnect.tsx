@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CrewlyApiError, type DeviceInfo } from '@crewly/sdk';
+import { CrewlyApiError, type DeviceInfo, type GatewayStatus } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 import { useLayer } from '../../lib/layers';
 import { navigateToServerUrl } from '../../lib/safe-navigation';
@@ -53,8 +53,18 @@ function writePendingState(state: string | null): void {
     else window.sessionStorage?.setItem(PENDING_KEY, state);
   } catch { /* the flow still works; the user just cannot resume after a reload */ }
 }
-export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', embedded = false }: {
+/** What an admin does next for each Gateway state, when the Gateway is not ready yet. */
+const GATEWAY_NEXT: Partial<Record<GatewayStatus['state'], string>> = {
+  not_linked: 'Connect this server to Crewly',
+  link_pending: 'Finish linking in Crewly Cloud',
+  revoked: 'Reconnect this server to Crewly',
+  missing_scope: 'Open Crewly Cloud settings',
+};
+
+export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', embedded = false, onOpenCrewly }: {
   onConnected: () => void;
+  /** Opens this server's Crewly Cloud settings, where the Gateway is linked. */
+  onOpenCrewly?: () => void;
   onClose?: () => void;
   /** First run offers to skip rather than cancel. */
   closeLabel?: string;
@@ -79,6 +89,9 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
   // Escape and focus containment, as for any dialog, when it can be closed.
   const dialogRef = useLayer<HTMLFormElement>(() => onClose?.(), Boolean(onClose));
   const [connectingDevice, setConnectingDevice] = useState<DeviceProviderKind | null>(null);
+  // null until known; undefined when the server cannot say (older, or not an admin).
+  const [gateway, setGateway] = useState<GatewayStatus | null | undefined>(null);
+  const checkGateway = () => Promise.resolve().then(() => client.providers.gatewayStatus()).then(setGateway).catch(() => setGateway(undefined));
 
   useEffect(() => {
     let active = true;
@@ -112,6 +125,10 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     void Promise.resolve().then(() => client.providers.list())
       .then((list) => { if (active) setConnectedKinds(list.map((provider) => provider.kind)); })
       .catch(() => {});
+
+    void Promise.resolve().then(() => client.providers.gatewayStatus())
+      .then((status) => { if (active) setGateway(status); })
+      .catch(() => { if (active) setGateway(undefined); });
 
     void client.devices.list()
       .then((list) => { if (active) setDevices(list); })
@@ -178,6 +195,8 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
       onConnected();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not connect Crewly Gateway');
+      // The server explains a Gateway that is not ready; show its current state.
+      void checkGateway();
     } finally { setSaving(false); }
   };
 
@@ -222,8 +241,32 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
     finally { setSaving(false); }
   }}>
-    {!embedded && <><h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use a subscription through your own device, or a provider's API key.</p></>}
+    {!embedded && <><h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use Crewly Gateway through your Crewly account, a provider's API key, or a subscription on your own device.</p></>}
 
+    <section className="provider-class provider-class-gateway" aria-labelledby="provider-class-gateway">
+      <h2 id="provider-class-gateway">Crewly Gateway {gateway?.state === 'ready' && !connectedKinds.includes('crewly-gateway') && <span className="provider-card-badge">Easiest</span>}</h2>
+      <div className="provider-option">
+        <div>
+          <strong>Models through your Crewly account</strong>
+          <small>{connectedKinds.includes('crewly-gateway')
+            ? 'Connected. Agents can use Crewly models.'
+            : gateway === null ? 'Checking whether this server can use it…'
+            : gateway === undefined ? 'No key is stored on this server. Connect this server to Crewly first, then managed models appear here.'
+            : gateway.message}</small>
+        </div>
+        {connectedKinds.includes('crewly-gateway') ? <span className="provider-card-badge">Connected</span>
+          : gateway?.state === 'ready' || gateway === undefined ? (
+            <button type="button" className={gateway ? 'primary-button' : 'secondary-button'} disabled={saving} onClick={() => void connectGateway()}>
+              {saving ? 'Connecting…' : 'Use Crewly Gateway'}
+            </button>
+          ) : gateway && GATEWAY_NEXT[gateway.state] && onOpenCrewly ? (
+            <button type="button" className="secondary-button" onClick={onOpenCrewly}>{GATEWAY_NEXT[gateway.state]}</button>
+          ) : gateway ? (
+            <button type="button" className="text-button" onClick={() => { setGateway(null); void checkGateway(); }}>Check again</button>
+          ) : null}
+      </div>
+      {gateway && GATEWAY_NEXT[gateway.state] && !onOpenCrewly && <small className="field-description">Link it later in Settings → Crewly Cloud; until then, use a key or a device below.</small>}
+    </section>
     {deviceFirst && deviceSection}
     <section className="provider-class" aria-labelledby="provider-class-key">
     <h2 id="provider-class-key">With an API key</h2>
@@ -273,18 +316,6 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     )}
     </section>
     {!deviceFirst && deviceSection}
-    <section className="provider-class" aria-labelledby="provider-class-gateway">
-      <h2 id="provider-class-gateway">Crewly Gateway</h2>
-      <div className="provider-option">
-        <div>
-          <strong>Models through your Crewly account</strong>
-          <small>No key is stored on this server. Connect this server to Crewly first, then managed models appear here.</small>
-        </div>
-        <button type="button" className="secondary-button" disabled={saving} onClick={() => void connectGateway()}>
-          {saving ? 'Connecting…' : 'Connect Crewly Gateway'}
-        </button>
-      </div>
-    </section>
 
     {error && <p role="alert">{error}</p>}
     {onClose && <button type="button" className="secondary-button" onClick={onClose}>{closeLabel}</button>}
