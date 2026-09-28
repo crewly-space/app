@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { McpCapability, McpServer } from '@crewly/sdk';
+import type { McpCapability, McpServer, NormalizedTool, TrustLevel } from '@crewly/sdk';
+import { navigateToServerUrl } from '../../lib/safe-navigation';
 import type { PlatformApi } from './platform-api';
 import { RegistryPanel } from './RegistryPanel';
+import { healthLabel, healthTone, riskLabel, riskTone, trustDetail, trustLabel, trustTone, TRUST_LEVELS } from './tool-labels';
 import { useWork } from './useWork';
+
+/** Where an OAuth sign-in comes back to: this screen, told which server it was for. */
+export const mcpOAuthCallbackUrl = () => `${window.location.origin}/?mcp_oauth=1`;
 
 const CAPABILITIES: Array<{ id: McpCapability; label: string }> = [
   { id: 'network', label: 'Network' },
@@ -27,6 +32,32 @@ function serverStatus(server: McpServer, tested: string | undefined): { text: st
   return { text: `Connected · ${on} of ${server.tools.length} tools on`, failed: false };
 }
 
+/** What discovery learned about a server, and how far it is trusted. */
+function ServerFacts({ server, busy, onTrust }: { server: McpServer; busy: boolean; onTrust?: (trust: TrustLevel) => void }) {
+  const info = server.serverInfo ?? {};
+  const facts = [
+    info.name && `${info.title ?? info.name}${info.version ? ` ${info.version}` : ''}`,
+    info.protocolVersion && `MCP ${info.protocolVersion}`,
+    server.resources?.length ? `${server.resources.length} resource${server.resources.length === 1 ? '' : 's'}` : '',
+    server.prompts?.length ? `${server.prompts.length} prompt${server.prompts.length === 1 ? '' : 's'}` : '',
+    server.oauth?.signedIn ? `signed in${server.oauth.expiresAt ? `, renews before ${new Date(server.oauth.expiresAt).toLocaleString()}` : ''}` : '',
+    server.lastSuccessAt && `last worked ${new Date(server.lastSuccessAt).toLocaleString()}`,
+  ].filter(Boolean);
+  if (!facts.length && !onTrust) return null;
+  return (
+    <div className="tool-row">
+      <small className="tool-row-main">{facts.join(' · ')}</small>
+      {onTrust && server.trust && (
+        <label><small>Trust </small>
+          <select aria-label={`Trust for ${server.name}`} value={server.trust} disabled={busy} onChange={(event) => onTrust(event.target.value as TrustLevel)}>
+            {TRUST_LEVELS.map((level) => <option key={level} value={level}>{trustLabel(level)}</option>)}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 /**
  * MCP servers: tools agents can call. Adding one is here, from the catalog or
  * by address; giving its tools to an agent is in that agent's settings.
@@ -39,14 +70,40 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
     name: '', transport: 'http' as 'http' | 'stdio', url: '', command: '', args: '', authorization: '', capabilities: [] as McpCapability[],
   });
 
-  const reload = useCallback(() => run(async () => setServers(await api.mcpServers())), [api, run]);
+  const [catalog, setCatalog] = useState<NormalizedTool[]>([]);
+  const [notice, setNotice] = useState('');
+
+  const reload = useCallback(() => run(async () => {
+    setServers(await api.mcpServers());
+    if (api.toolCatalog) setCatalog(await api.toolCatalog().catch(() => []));
+  }), [api, run]);
   useEffect(() => { void reload(); }, [reload]);
 
+  // Finish an OAuth sign-in the authorization server redirected back from.
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (!query.has('mcp_oauth') || !api.completeMcpOAuth) return;
+    const code = query.get('code');
+    const state = query.get('state');
+    window.history.replaceState({}, '', window.location.pathname);
+    if (!code || !state) {
+      setNotice(query.get('error_description') ?? 'Sign-in was cancelled, so nothing changed.');
+      return;
+    }
+    void run(async () => {
+      const result = await api.completeMcpOAuth!(state, code);
+      setNotice(result.ok ? `${result.server.name} is signed in · ${result.tools.length} tools found` : result.error.message);
+      await reload();
+    });
+  }, [api, run, reload]);
+
   const replace = (updated: McpServer) => setServers((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+  const riskOf = (server: McpServer, tool: string) => catalog.find((entry) => entry.source.connectionId === server.id && entry.source.toolName === tool);
 
   return (
     <div className="dashboard-tools">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
+      {notice && <p role="status" className="callout">{notice}</p>}
       {servers.length === 0 && (
         <div className="dashboard-empty">
           <strong>No MCP servers yet</strong>
@@ -58,12 +115,20 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
         const status = serverStatus(server, testResult[server.id]);
         return (
           <section key={server.id} className="dashboard-card">
-            <header className="dashboard-row-actions">
-              <div style={{ marginRight: 'auto' }}>
+            <header className="tool-row">
+              <div className="tool-row-main">
                 <strong>{server.name}</strong>
                 <small> {server.transport === 'http' ? server.url : `${server.command} ${server.args.join(' ')}`}</small>
                 {server.capabilities.length > 0 && <small> · may use {server.capabilities.join(', ')}</small>}
               </div>
+              {server.status && <span className={`badge ${healthTone(server.status)}`}>{healthLabel(server.status)}</span>}
+              {server.trust && <span className={`badge ${trustTone(server.trust)}`} title={trustDetail(server.trust)}>{trustLabel(server.trust)}</span>}
+              {server.transport === 'http' && api.startMcpOAuth && (server.oauth?.signedIn
+                ? api.signOutMcp && <button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => replace(await api.signOutMcp!(server.id)))}>Sign out</button>
+                : <button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => {
+                  const pending = await api.startMcpOAuth!(server.id, mcpOAuthCallbackUrl());
+                  navigateToServerUrl(pending.authorizationUrl);
+                })}>Sign in</button>)}
               <button type="button" className="text-button" disabled={busy} onClick={() => void run(async () => {
                 const result = await api.testMcpServer(server.id);
                 replace(result.server);
@@ -71,6 +136,7 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
                   ...current,
                   [server.id]: result.ok ? `Connected · ${result.tools.length} tools found` : result.error.message,
                 }));
+                if (api.toolCatalog) setCatalog(await api.toolCatalog().catch(() => []));
               })}>Test connection</button>
               <button type="button" className="text-button danger" disabled={busy} aria-label={`Remove ${server.name}`} onClick={() => void run(async () => {
                 await api.deleteMcpServer(server.id);
@@ -78,6 +144,10 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
               })}>Remove</button>
             </header>
             <p role="status" className={status.failed ? 'dashboard-error' : 'field-description'}>{status.text}</p>
+            <ServerFacts server={server} busy={busy} onTrust={api.updateMcpServer ? (trust) => void run(async () => {
+              replace(await api.updateMcpServer!(server.id, { trust }));
+              if (api.toolCatalog) setCatalog(await api.toolCatalog().catch(() => []));
+            }) : undefined} />
             {server.tools.length > 0 && (
               <ul className="dashboard-toggles">
                 {server.tools.map((tool) => {
@@ -89,7 +159,9 @@ export function ToolsPanel({ api }: { api: PlatformApi }) {
                           const disabled = enabled ? [...server.disabledTools, tool.name] : server.disabledTools.filter((name) => name !== tool.name);
                           replace(await api.setDisabledTools(server.id, disabled));
                         })} />
-                        <strong>{tool.name}</strong> <small>{tool.description}</small>
+                        <strong>{tool.name}</strong>
+                        {riskOf(server, tool.name) && <span className={`badge ${riskTone(riskOf(server, tool.name)!.risk)}`} title={riskOf(server, tool.name)!.permission}>{riskLabel(riskOf(server, tool.name)!.risk)}</span>}
+                        {' '}<small>{tool.description}</small>
                       </label>
                     </li>
                   );

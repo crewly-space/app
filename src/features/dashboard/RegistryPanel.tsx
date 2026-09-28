@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { RegistryInstallation, RegistryItem, RegistrySettings } from '@crewly/sdk';
 import type { PlatformApi } from './platform-api';
+import { trustDetail, trustLabel, trustTone } from './tool-labels';
 import { useWork } from './useWork';
 
 const GROUPS: Record<RegistryItem['type'], { title: string; description: string; search: string }> = {
@@ -55,7 +56,7 @@ export function RegistryPanel({ api, type, showSource = false, onInstalled }: {
     onInstalled?.(item);
     setNotice(item.type === 'mcp_preset'
       ? `${item.name} added above.${item.requiredSecrets.length ? ` Add the secret ${item.requiredSecrets.join(', ')} in Secrets and grant it to ${item.name}, then` : ''} Test the connection and choose which agents get its tools.`
-      : `${item.name} added to the skill library. Turn it on in an agent’s settings.`);
+      : `${item.name} added to the skill library. Choose “Give to an agent” above to review the access it needs and authorize it.`);
   });
 
   return (
@@ -80,7 +81,14 @@ export function RegistryPanel({ api, type, showSource = false, onInstalled }: {
             <div>
               <strong>{item.name}{item.verified && <span className="catalog-verified"> · verified</span>}</strong>
               <span>{item.description}</span>
-              <small>{item.publisher} · version {latest}{item.requiredSecrets.length ? ` · needs secret ${item.requiredSecrets.join(', ')}` : ' · no key needed'}</small>
+              <small>{item.publisher} · version {latest}{item.requiredSecrets.length ? ` · needs secret ${item.requiredSecrets.join(', ')}` : item.listing?.auth === 'mcp_oauth' ? ' · signs in with OAuth' : ' · no key needed'}</small>
+              {item.listing && <span className="catalog-badges">
+                <span className={`badge ${trustTone(item.listing.trust)}`} title={trustDetail(item.listing.trust)}>{trustLabel(item.listing.trust)}</span>{' '}
+                <span className={`badge ${item.listing.risk === 'high' ? 'is-warning' : ''}`}>{item.listing.risk} risk</span>{' '}
+                {item.listing.category !== 'other' && item.listing.category !== 'skill' && <span className="badge">{item.listing.category.replace('_', ' ')}</span>}
+                {item.type === 'skill' && item.requiredCapabilities.length > 0 && <small> Needs {item.requiredCapabilities.map((capability) => capability.replaceAll('_', ' ')).join(', ')}</small>}
+                {item.type === 'skill' && item.listing.writePermissions.length > 0 && <small> · may {item.listing.writePermissions.map((permission) => permission.replace(':', ' ')).join(', ')}</small>}
+              </span>}
             </div>
             <button type="button" className="secondary-button compact" disabled={busy || upToDate || Boolean(current?.pinnedVersion && current.pinnedVersion !== latest)} onClick={() => install(item, latest)}>{!current ? 'Add' : upToDate ? 'Added' : 'Update'}</button>
           </li>;

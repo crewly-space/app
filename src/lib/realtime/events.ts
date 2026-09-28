@@ -17,6 +17,8 @@ export function startRealtime(
   onDevice: (presence: DevicePresence) => void = () => {},
   onAgentStatus: (status: AgentStatus) => void = () => {},
   onChannelsChanged: () => void = () => {},
+  /** A run ended; anything it asked approval for is waiting now. */
+  onRunFinished: () => void = () => {},
 ): () => void {
   const token = currentToken();
   if (!token) return () => {};
@@ -31,6 +33,7 @@ export function startRealtime(
     if (event.type === 'agent.status') onAgentStatus(event.payload as unknown as AgentStatus);
     // Names only which channel changed; what this reader may see of it comes from a refetch.
     if (event.type === 'channels.changed') onChannelsChanged();
+    if (event.type === 'agent.run.finished') onRunFinished();
     // Without these the devices panel only tells the truth on a page load: it
     // shows a freshly paired device as offline, and a stopped one as connected.
     if (event.type === 'device.connected' || event.type === 'device.disconnected') {

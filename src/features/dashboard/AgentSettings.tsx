@@ -20,6 +20,7 @@ import type {
 import { statusLabel } from '../../lib/agent-status';
 import type { PlatformApi } from './platform-api';
 import { useWork } from './useWork';
+import { AgentToolAccess } from './AgentToolAccess';
 
 const RUNTIMES: Array<{ id: RuntimeKind; label: string; detail: string }> = [
   { id: 'native', label: 'Chat', detail: 'Answers through its model provider. Nothing to install.' },
@@ -292,9 +293,12 @@ export function AgentSettings({
         ))}
       </section>
 
+      <AgentToolAccess api={api} agentId={agent.id} agentName={agent.name}
+        refreshKey={`${tools.map((tool) => `${tool.serverId}:${tool.toolName}`).join(',')}|${skills.map((skill) => `${skill.skillId}:${skill.authorizedAt ?? ''}`).join(',')}`} />
+
       <section className="dashboard-card">
         <h3>Execution capabilities</h3>
-        <p className="field-description">One policy applies across coding runtimes, MCP tools, connectors and the browser. “Ask” creates an exact, expiring approval for that action.</p>
+        <p className="field-description">Coarse rules for coding runtimes and the browser. For connector and MCP tools, Tool permissions above decide; a rule you save here still applies to them too — “Deny” blocks, “Ask” asks every time.</p>
         {CAPABILITIES.map((capability) => {
           const current = capabilityPolicies.find((policy) => policy.capability === capability.id)?.decision ?? 'ask';
           return (

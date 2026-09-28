@@ -28,6 +28,15 @@ import type {
   RegistrySettings,
   FederationConnection,
   FederationSettings,
+  AgentToolAccess,
+  ApprovalRequest,
+  Connection,
+  NormalizedTool,
+  SkillPlan,
+  ToolExecution,
+  ToolPolicy,
+  ToolPolicyMode,
+  ToolSelectorType,
 } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
 
@@ -90,6 +99,21 @@ export interface PlatformApi {
   createFederationConnection(input: { remoteUrl: string; scopes: string[] }): Promise<FederationConnection>;
   acceptFederationConnection(id: string): Promise<FederationConnection>;
   revokeFederationConnection(id: string): Promise<FederationConnection>;
+
+  // The tool platform. Optional so a screen still renders against a test double, or a server, without them.
+  connections?(): Promise<Connection[]>;
+  toolCatalog?(): Promise<NormalizedTool[]>;
+  startMcpOAuth?(id: string, callbackUrl: string): Promise<{ authorizationUrl: string }>;
+  completeMcpOAuth?(state: string, code: string): Promise<McpTestResult>;
+  signOutMcp?(id: string): Promise<McpServer>;
+  updateMcpServer?(id: string, input: Partial<McpServerInput>): Promise<McpServer>;
+  agentToolAccess?(agentId: string): Promise<AgentToolAccess[]>;
+  agentToolPolicies?(agentId: string): Promise<ToolPolicy[]>;
+  setAgentToolPolicies?(agentId: string, policies: Array<{ selectorType: ToolSelectorType; selector: string; mode: ToolPolicyMode }>): Promise<ToolPolicy[]>;
+  toolExecutions?(filter?: { agentId?: string; status?: ToolExecution['status']; limit?: number }): Promise<ToolExecution[]>;
+  approvalHistory?(): Promise<ApprovalRequest[]>;
+  skillPlan?(skillId: string): Promise<SkillPlan>;
+  authorizeSkill?(agentId: string, skillId: string, acknowledge: McpCapability[]): Promise<AgentSkill[]>;
 }
 
 export const platformApi: PlatformApi = {
@@ -146,4 +170,18 @@ export const platformApi: PlatformApi = {
   createFederationConnection: (input) => client.platform.createFederationConnection(input),
   acceptFederationConnection: (id) => client.platform.acceptFederationConnection(id),
   revokeFederationConnection: (id) => client.platform.revokeFederationConnection(id),
+
+  connections: async () => (await client.tools.connections()).connections,
+  toolCatalog: async () => (await client.tools.catalog()).tools,
+  startMcpOAuth: (id, callbackUrl) => client.mcp.startOAuth(id, callbackUrl),
+  completeMcpOAuth: (state, code) => client.mcp.completeOAuth(state, code),
+  signOutMcp: (id) => client.mcp.signOut(id),
+  updateMcpServer: (id, input) => client.mcp.update(id, input),
+  agentToolAccess: async (agentId) => (await client.tools.agentAccess(agentId)).tools,
+  agentToolPolicies: async (agentId) => (await client.tools.policies(agentId)).policies,
+  setAgentToolPolicies: async (agentId, policies) => (await client.tools.setPolicies(agentId, policies)).policies,
+  toolExecutions: async (filter) => (await client.tools.executions(filter)).executions,
+  approvalHistory: () => client.approvals.history(),
+  skillPlan: (skillId) => client.skills.plan(skillId),
+  authorizeSkill: async (agentId, skillId, acknowledge) => (await client.skills.authorize(agentId, skillId, { acknowledgeCapabilities: acknowledge })).skills,
 };

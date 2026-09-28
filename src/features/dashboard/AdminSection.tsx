@@ -16,6 +16,7 @@ import { RunsPanel } from './RunsPanel';
 import { SecretsPanel } from './SecretsPanel';
 import { SkillsPanel } from './SkillsPanel';
 import { ToolsPanel } from './ToolsPanel';
+import { ToolActivityPanel } from './ToolActivityPanel';
 import { UsagePanel } from './UsagePanel';
 import { CrewlyPanel } from './CrewlyPanel';
 import { InvitesManager } from '../people/InvitesManager';
@@ -30,10 +31,10 @@ import { FederationPanel } from './FederationPanel';
 export type AdminSectionId =
   | 'people' | 'roles' | 'agents' | 'status'
   | 'tools' | 'skills' | 'secrets' | 'mail' | 'cloud' | 'federation'
-  | 'usage' | 'runs' | 'automations';
+  | 'usage' | 'runs' | 'automations' | 'activity';
 
 /** The sections that need the agent list, to name agents or choose them. */
-const NEEDS_AGENTS: AdminSectionId[] = ['agents', 'usage', 'runs', 'secrets'];
+const NEEDS_AGENTS: AdminSectionId[] = ['agents', 'usage', 'runs', 'secrets', 'skills', 'activity'];
 
 function humanUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -271,7 +272,8 @@ export function AdminSection({
       {section === 'usage' && <UsagePanel api={platform} agents={agents} />}
       {section === 'runs' && <RunsPanel api={platform} agents={agents} />}
       {section === 'tools' && <ToolsPanel api={platform} />}
-      {section === 'skills' && <><SkillsPanel api={platform} /><RegistryPanel api={platform} type="skill" showSource /></>}
+      {section === 'skills' && <><SkillsPanel api={platform} agents={agents} /><RegistryPanel api={platform} type="skill" showSource /></>}
+      {section === 'activity' && <ToolActivityPanel api={platform} agents={agents} />}
       {section === 'secrets' && <SecretsPanel api={platform} agents={agents} />}
       {section === 'mail' && <MailPanel api={services} />}
       {section === 'cloud' && <CrewlyPanel api={services} serverName={serverName} />}

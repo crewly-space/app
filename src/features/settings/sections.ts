@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity, BarChart3, Bot, Building2, Cloud, Cpu, KeyRound, Laptop, Mail, Network, Palette,
-  Plug, ShieldCheck, Sparkles, UserRound, UserRoundPen, Wrench, Zap,
+  Plug, ScrollText, ShieldCheck, Sparkles, UserRound, UserRoundPen, Wrench, Zap,
 } from "lucide-react";
 
 /**
@@ -18,7 +18,7 @@ export type SettingsSectionId =
   | "general" | "people" | "roles"
   | "providers" | "agents"
   | "connectors" | "tools" | "skills" | "secrets" | "mail" | "cloud" | "federation"
-  | "usage" | "runs" | "automations";
+  | "usage" | "runs" | "automations" | "activity";
 
 export type SettingsAccess = "everyone" | "admin";
 
@@ -54,8 +54,8 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   ] },
   { id: "integrations", label: "Integrations", sections: [
     { id: "connectors", label: "Connectors", summary: "Apps like GitHub, Linear and Slack, connected with OAuth.", icon: Plug, access: "admin" },
-    { id: "tools", label: "MCP tools", summary: "MCP servers, from the catalog or your own, whose tools agents can call.", icon: Wrench, access: "admin" },
-    { id: "skills", label: "Skills", summary: "Reusable instructions agents can load.", icon: Sparkles, access: "admin" },
+    { id: "tools", label: "MCP tools", summary: "MCP servers, from the catalog or your own: their tools, health, trust and sign-in.", icon: Wrench, access: "admin" },
+    { id: "skills", label: "Skills", summary: "Workflows agents can be given, with the access each needs.", icon: Sparkles, access: "admin" },
     { id: "secrets", label: "Secrets", summary: "Encrypted values tools and agents can use without seeing them.", icon: KeyRound, access: "admin" },
     { id: "mail", label: "Email", summary: "Sending domains and outbound email.", icon: Mail, access: "admin" },
     { id: "cloud", label: "Crewly Cloud", summary: "Link this server to your Crewly account for mail, Gateway and sign-in.", icon: Cloud, access: "admin" },
@@ -64,6 +64,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   { id: "operations", label: "Operations", sections: [
     { id: "usage", label: "Usage", summary: "Tokens and spend by agent and provider.", icon: BarChart3, access: "admin" },
     { id: "runs", label: "Runs", summary: "What agents did, step by step.", icon: Activity, access: "admin" },
+    { id: "activity", label: "Tool activity", summary: "Every tool call agents made or asked for, and every approval.", icon: ScrollText, access: "admin" },
     { id: "automations", label: "Automations", summary: "Schedules and webhooks that start agent work.", icon: Zap, access: "admin" },
   ] },
 ];

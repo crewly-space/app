@@ -4869,3 +4869,58 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
   .setup-invite-row { grid-template-columns: 1fr; }
   .setup-actions .text-button { display: none; }
 }
+
+/* A skill's plan: what it needs, what it may do, and what always asks. */
+.skill-plan {
+  display: grid;
+  gap: var(--oc-space-2);
+  padding: var(--oc-space-2) 0;
+}
+
+.skill-plan h4 {
+  margin: var(--oc-space-2) 0 0;
+  color: var(--oc-muted);
+  font-size: var(--oc-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skill-plan .catalog-list .badge {
+  margin: 0 var(--oc-space-1) var(--oc-space-1) 0;
+}
+
+.catalog-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--oc-space-1);
+}
+
+/* One line about a tool or connection: what it is on the left, its state and actions on the right. */
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--oc-space-2);
+}
+
+.tool-row-main {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.tool-row-main small {
+  overflow-wrap: anywhere;
+}
+
+.tool-row select {
+  width: auto;
+  min-height: var(--oc-control-height-sm);
+}
+
+.skill-plan .catalog-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--oc-space-2);
+}

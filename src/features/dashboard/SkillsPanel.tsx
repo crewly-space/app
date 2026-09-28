@@ -1,15 +1,27 @@
-import { useEffect, useState } from 'react';
-import type { Skill } from '@crewly/sdk';
+import { Fragment, useEffect, useState } from 'react';
+import type { Agent, Skill } from '@crewly/sdk';
 import type { PlatformApi } from './platform-api';
+import { SkillPlanCard } from './SkillPlanCard';
 import { useWork } from './useWork';
+
+/** What a skill needs, in a line: capabilities, and whether it ever asks. */
+function needs(skill: Skill): string {
+  const requirements = skill.requirements;
+  if (!requirements) return '';
+  const parts = requirements.requires.map((entry) => entry.capability.replaceAll('_', ' '));
+  if (requirements.approvals.length) parts.push(`asks before ${requirements.approvals.length} action${requirements.approvals.length === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
 
 /**
  * Skills: how an agent works, written once and given to many agents. Not a
  * tool it calls, and not where it runs -- those are Tools and each agent's
  * runtime.
  */
-export function SkillsPanel({ api }: { api: PlatformApi }) {
+export function SkillsPanel({ api, agents = [] }: { api: PlatformApi; agents?: Agent[] }) {
   const { busy, error, run } = useWork();
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
   const [skills, setSkills] = useState<Skill[]>([]);
   const [mode, setMode] = useState<'write' | 'install'>('write');
   const [draft, setDraft] = useState({ name: '', description: '', instructions: '', manifest: '' });
@@ -23,21 +35,34 @@ export function SkillsPanel({ api }: { api: PlatformApi }) {
   return (
     <div className="dashboard-skills">
       {error && <p role="alert" className="dashboard-error">{error}</p>}
+      {notice && <p role="status" className="callout">{notice}</p>}
       <table className="dashboard-table">
         <thead><tr><th>Skill</th><th>Settings</th><th>Source</th><th aria-label="Actions" /></tr></thead>
         <tbody>
           {skills.map((skill) => (
-            <tr key={skill.id}>
-              <td><strong>{skill.name}</strong><small>{skill.description}</small></td>
+            <Fragment key={skill.id}>
+            <tr>
+              <td><strong>{skill.name}</strong><small>{skill.description}</small>{needs(skill) && <small>Needs {needs(skill)}</small>}</td>
               <td>{skill.configFields.map((field) => `${field.label}${field.secret ? ' (secret)' : ''}`).join(', ') || 'None'}</td>
               <td>{skill.source === 'installed' ? `Installed v${skill.version}` : 'Written here'}</td>
               <td className="dashboard-row-actions">
+                {api.skillPlan && (
+                  <button type="button" className="text-button" aria-expanded={reviewing === skill.id} onClick={() => setReviewing((current) => (current === skill.id ? null : skill.id))}>
+                    {reviewing === skill.id ? 'Close' : 'Give to an agent'}
+                  </button>
+                )}
                 <button type="button" className="text-button danger" disabled={busy} aria-label={`Remove ${skill.name}`} onClick={() => void run(async () => {
                   await api.deleteSkill(skill.id);
                   setSkills((current) => current.filter((row) => row.id !== skill.id));
                 })}>Remove</button>
               </td>
             </tr>
+            {reviewing === skill.id && (
+              <tr><td colSpan={4}>
+                <SkillPlanCard api={api} skill={skill} agents={agents} onAuthorized={(name) => { setReviewing(null); setNotice(`${skill.name} is installed on ${name}, with the access listed.`); }} />
+              </td></tr>
+            )}
+            </Fragment>
           ))}
         </tbody>
       </table>

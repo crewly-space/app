@@ -24,7 +24,7 @@ import { canOpen, findSection, visibleGroups, type SettingsSectionId } from "./s
 const ADMIN_SECTIONS: Partial<Record<SettingsSectionId, AdminSectionId>> = {
   people: "people", roles: "roles", agents: "agents",
   tools: "tools", skills: "skills", secrets: "secrets", mail: "mail", cloud: "cloud", federation: "federation",
-  usage: "usage", runs: "runs", automations: "automations",
+  usage: "usage", runs: "runs", automations: "automations", activity: "activity",
 };
 
 /** 128000 reads as noise; 128K is the number people compare. */

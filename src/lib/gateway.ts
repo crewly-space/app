@@ -1,6 +1,6 @@
-import type { Agent as ApiAgent, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
+import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
-import type { Agent, Conversation, Message, Provider } from '../types';
+import type { Agent, Approval, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
 import { deviceProviderAvailability, explain, type DeviceProviderKind } from '../features/providers/availability';
 
@@ -24,6 +24,37 @@ export function channelView(channel: Channel): Conversation {
 }
 /** Whether the reader can see a channel's history: any public one, or a private one they are in. */
 const readable = (channel: Channel) => channel.joined || channel.visibility === 'public';
+/**
+ * A pending approval as the conversation shows it. A tool approval says what
+ * would run, where, how risky it is and why it asked; the arguments come
+ * already redacted by the server.
+ */
+export function approvalView(approval: ApprovalRequest, now = Date.now()): Approval {
+  const details = approval.details as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === 'string' ? value : '');
+  const connection = (details.connection ?? {}) as { name?: string; trust?: string };
+  const tool = details.kind === 'tool';
+  const args = tool && details.arguments && typeof details.arguments === 'object' && Object.keys(details.arguments).length
+    ? JSON.stringify(details.arguments) : '';
+  const reason = text(details.reason);
+  const left = approval.expiresAt ? Date.parse(approval.expiresAt) - now : NaN;
+  const minutes = Math.max(0, Math.round(left / 60_000));
+  return {
+    id: approval.id,
+    conversationId: text(details.conversationId),
+    agentId: approval.agentId,
+    capability: approval.action,
+    description: tool
+      ? [`Wants to ${text(details.title) || approval.action}.`, reason && `Asked because of ${reason}.`, args && `With ${args.length > 400 ? `${args.slice(0, 400)}…` : args}`].filter(Boolean).join(' ')
+      : `Needs ${text(details.capability) || approval.action}.`,
+    workspace: tool
+      ? [connection.name, text(details.risk).replace('_', ' '), connection.trust].filter(Boolean).join(' · ')
+      : 'This server',
+    requestedAt: new Date(approval.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    expiresIn: Number.isNaN(left) ? '' : minutes >= 120 ? `${Math.round(minutes / 60)}h` : `${minutes}m`,
+  };
+}
+
 export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
     author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
@@ -70,7 +101,7 @@ export const gateway = {
     ]);
     const firstRound = performance.now();
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
-    const [apiProviders, users, apiConnectors, serverBranding, memories, histories] = await Promise.all([
+    const [apiProviders, users, apiConnectors, serverBranding, memories, histories, pendingApprovals] = await Promise.all([
       canManage ? client.providers.list() : client.providers.listAvailable(),
       canManage ? client.users.list() : Promise.resolve([]),
       canManage ? client.connectors.list().then((result) => result.connectors).catch(() => []) : Promise.resolve([]),
@@ -80,6 +111,7 @@ export const gateway = {
         ...apiConversations.map((c) => client.messages.list(c.id, 200)),
         ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
       ]),
+      client.approvals.list().catch(() => [] as ApprovalRequest[]),
     ]);
     recordBootTiming({ firstRoundMs: firstRound - started, secondRoundMs: performance.now() - firstRound });
     const agents = apiAgents.map((a, index) => agentView(a, memories[index]!.map((f) => f.content)));
@@ -112,7 +144,7 @@ export const gateway = {
       };
     });
     return { agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
-      approvals: [], currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
+      approvals: pendingApprovals.map((approval) => approvalView(approval)), currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
     const api = await client.agents.create({ name: input.name, avatarMode: input.avatarMode,
@@ -201,8 +233,12 @@ export const gateway = {
     link.remove();
     URL.revokeObjectURL(url);
   },
+  /** Approving a tool call runs it; "always" also stops this agent asking for that tool again. */
   async approve(id: string, decision: 'once' | 'always' | 'deny') {
-    await client.approvals.respond(id, decision === 'deny' ? 'deny' : 'approve'); return true;
+    await client.approvals.respond(id, decision === 'deny' ? 'deny' : 'approve', decision === 'always' ? { remember: true } : {}); return true;
+  },
+  async approvals(): Promise<Approval[]> {
+    return (await client.approvals.list()).map((approval) => approvalView(approval));
   },
   async dismissApproval(_id: string) { return false; },
   async createUser(input: { displayName: string; email: string; password: string; role: 'member' | 'admin' }) {

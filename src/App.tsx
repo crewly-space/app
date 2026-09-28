@@ -79,6 +79,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     const query = new URLSearchParams(window.location.search);
     if (query.has("pair")) return "devices";
     if (query.has("connector")) return "connectors";
+    if (query.has("mcp_oauth")) return "tools";
     if (window.location.pathname === "/admin") return "general";
     return undefined;
   });
@@ -95,7 +96,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [view, setView] = useState<View>("messages");
   const [panel, setPanel] = useState<Panel>(() => {
     const query = new URLSearchParams(window.location.search);
-    if (query.has("pair") || query.has("connector") || window.location.pathname === "/admin") return "settings";
+    if (query.has("pair") || query.has("connector") || query.has("mcp_oauth") || window.location.pathname === "/admin") return "settings";
     // Below 1050px the details panel lays over the conversation rather than
     // sitting beside it; opening it unasked there hides what was opened.
     return window.matchMedia("(max-width: 1050px)").matches ? null : "details";
@@ -203,7 +204,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         }),
         (status) => setData((current) => current && ({ ...current,
           agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })),
-        refreshChannels);
+        refreshChannels,
+        // A run that asked for approval has just stopped to wait for it.
+        () => void gateway.approvals().then((approvals) => setData((current) => current && ({ ...current, approvals }))).catch(() => {}));
     }).catch((error) => { recordBootstrapTiming('error'); if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
