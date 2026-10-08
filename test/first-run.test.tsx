@@ -29,6 +29,11 @@ describe('first run step', () => {
     expect(firstRunStep({ ...owner, hasConnectedProvider: true, skipped: { agent: true } })).toBe('home');
   });
 
+  it('sends someone joining a working team to its channels, not to build an agent', () => {
+    expect(firstRunStep({ canManageProviders: false, hasConnectedProvider: true, skipped: {} })).toBe('home');
+    expect(firstRunStep({ ...owner, hasConnectedProvider: true, hasAgents: true })).toBe('home');
+  });
+
   it('never offers a member a provider step they cannot complete', () => {
     expect(firstRunStep({ canManageProviders: false, hasConnectedProvider: false, skipped: {} })).toBe('home');
   });

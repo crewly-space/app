@@ -32,7 +32,7 @@ import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
 import { ChannelDialog } from "./features/channels/ChannelDialog";
 import { AccountProfileDialog } from "./features/account/AccountProfileDialog";
-import type { Attachment as ApiAttachment } from "@crewly/sdk";
+import type { Attachment as ApiAttachment, ConversationReplyMode } from "@crewly/sdk";
 
 const THEME_KEY = "crewly:theme";
 
@@ -309,6 +309,19 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  // Who answers an unaddressed message here. In "mentions" mode a message that
+  // names nobody and matches no agent's role gets no reply at all, which reads
+  // as a broken product unless the composer says so before it is sent.
+  const openConversationId = data?.conversations.find((item) => item.id === selected)?.id ?? data?.conversations[0]?.id;
+  const [replyMode, setReplyMode] = useState<{ id: string; mode: ConversationReplyMode } | null>(null);
+  const loadReplyMode = useCallback(() => {
+    if (!openConversationId) return;
+    gateway.replyMode(openConversationId)
+      .then((mode) => setReplyMode({ id: openConversationId, mode }))
+      .catch(() => undefined);
+  }, [openConversationId]);
+  useEffect(loadReplyMode, [loadReplyMode]);
+
   if (!data) {
     const serverName = registry.selected?.name;
     const retry = () => { setLoadError(""); setBootAttempt((value) => value + 1); };
@@ -386,7 +399,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     // returning owner with a provider never sees the provider step again.
     const hasConnectedProvider = data.providers.some((provider) => provider.status === "connected");
     const canManageProviders = data.currentUser.role === "owner" || data.currentUser.role === "admin";
-    const step = firstRunStep({ hasConnectedProvider, canManageProviders, skipped: firstRun.skipped });
+    const step = firstRunStep({ hasConnectedProvider, canManageProviders, hasAgents: data.agents.length > 0, skipped: firstRun.skipped });
     if (step === "provider") return <ProviderConnect closeLabel="Skip for now"
       onConnected={() => { void gateway.bootstrap().then(setData); notify("Provider saved."); }}
       onClose={() => firstRun.skip("provider")} />;
@@ -433,6 +446,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const activeAgents = data.agents.filter((agent) =>
     conversation.agentIds.includes(agent.id),
   );
+  const unaddressed = conversation.type !== "dm" && activeAgents.length > 0
+    && replyMode?.id === conversation.id && replyMode.mode === "mentions"
+    && Boolean(composer.trim()) && !composer.includes("@");
   const visibleMessages = data.messages.filter(
     (message) => message.conversationId === conversation.id,
   );
@@ -1240,6 +1256,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     ref={composerRef}
                     className="composer-editor"
                     contentEditable={!sending && connected}
+                    // The mode can change in the details panel meanwhile.
+                    onFocus={loadReplyMode}
                     suppressContentEditableWarning
                     onInput={(event) => {
                       setComposer(readComposer(event.currentTarget));
@@ -1353,7 +1371,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                         <AtSign size={17} />
                       </button>
                     </div>
-                    <span>Shift + Enter for new line</span>
+                    {unaddressed
+                      ? <span className="composer-unaddressed" role="status">No @mention: an agent replies only if this matches its role</span>
+                      : <span>Shift + Enter for new line</span>}
                     <button
                       className="send"
                       disabled={(!composer.trim() && !pendingAttachments.length) || sending || uploadingAttachment}

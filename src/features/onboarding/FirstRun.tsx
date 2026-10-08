@@ -19,11 +19,16 @@ export function firstRunStep(state: {
   hasConnectedProvider: boolean;
   /** Only owners and admins can connect a provider. */
   canManageProviders: boolean;
+  /** The server already has agents: someone joining it is not here to build one. */
+  hasAgents?: boolean;
   skipped: FirstRunSkips;
 }): FirstRunStep {
   if (!state.hasConnectedProvider) {
     return state.canManageProviders && !state.skipped.provider ? 'provider' : 'home';
   }
+  // A member invited into a working team used to land on "Create an agent"
+  // instead of the team's channels.
+  if (state.hasAgents || !state.canManageProviders) return 'home';
   return state.skipped.agent ? 'home' : 'agent';
 }
 

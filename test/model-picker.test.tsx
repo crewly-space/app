@@ -26,6 +26,21 @@ function picker(overrides: Partial<Parameters<typeof ModelPicker>[0]> = {}) {
 }
 
 describe('choosing a model', () => {
+  it('picks the only model there is, so a first crew is not blocked on finding it', async () => {
+    const onChange = picker({ loadModels: async () => [models[0]!] });
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('claude-opus-5'));
+  });
+
+  it('leaves the choice to the person when there are several, or one is already set', async () => {
+    const several = picker();
+    await screen.findByRole('option', { name: /Claude Opus 5/ });
+    expect(several).not.toHaveBeenCalled();
+    cleanup();
+    const chosen = picker({ value: 'claude-opus-5', loadModels: async () => [models[0]!] });
+    await screen.findByRole('option', { name: /Claude Opus 5/ });
+    expect(chosen).not.toHaveBeenCalled();
+  });
+
   it('lists what the provider actually offers', async () => {
     picker();
     expect(await screen.findByRole('option', { name: /Claude Opus 5/ })).toBeTruthy();

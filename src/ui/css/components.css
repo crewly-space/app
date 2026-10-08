@@ -479,10 +479,12 @@
   cursor: default;
 }
 
+::placeholder,
 .form input::placeholder,
 .form textarea::placeholder,
 .oc-input::placeholder {
-  color: var(--oc-muted);
+  color: var(--oc-placeholder);
+  opacity: 1;
 }
 
 /*

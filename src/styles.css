@@ -5296,3 +5296,14 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
   line-height: 1.35;
 }
 .reply-mode:disabled label { cursor: progress; }
+
+/* Said before sending: in "mentions" mode nobody may answer this message.
+   Phones hide the footer's keyboard hint, but not this one. */
+.composer-tools > span.composer-unaddressed {
+  display: block;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: right;
+  color: var(--oc-warning-text);
+}

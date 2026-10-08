@@ -45,6 +45,10 @@
   --oc-muted-strong: #b0b0b6;
   --oc-muted: #8b8b93;
   --oc-muted-2: #66666d;
+  /* Example text inside an empty field. Lighter than any text level on
+     purpose: a placeholder read as a value ("you@company.com", a server name
+     to type back) looks already filled in. */
+  --oc-placeholder: var(--oc-muted-2);
 
   /* Scrims sit over content, so they are their own role rather than a tint of
      --oc-bg: in the light theme a dialog backdrop still darkens, it does not
@@ -259,6 +263,7 @@
   --oc-l-muted-strong: #3f3f47;
   --oc-l-muted: #5b5b64;
   --oc-l-muted-2: #6a6a73;
+  --oc-l-placeholder: #9a9aa3;
 
   /* A scrim still darkens in the light theme; it does not invert. */
   --oc-l-scrim: rgba(24, 24, 28, 0.32);
@@ -321,6 +326,7 @@
   --oc-muted-strong: var(--oc-l-muted-strong);
   --oc-muted: var(--oc-l-muted);
   --oc-muted-2: var(--oc-l-muted-2);
+  --oc-placeholder: var(--oc-l-placeholder);
   --oc-scrim: var(--oc-l-scrim);
   --oc-scrim-strong: var(--oc-l-scrim-strong);
   --oc-scrim-veil: var(--oc-l-scrim-veil);
@@ -380,6 +386,7 @@
     --oc-muted-strong: var(--oc-l-muted-strong);
     --oc-muted: var(--oc-l-muted);
     --oc-muted-2: var(--oc-l-muted-2);
+    --oc-placeholder: var(--oc-l-placeholder);
     --oc-scrim: var(--oc-l-scrim);
     --oc-scrim-strong: var(--oc-l-scrim-strong);
     --oc-scrim-veil: var(--oc-l-scrim-veil);

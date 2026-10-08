@@ -49,7 +49,7 @@ function platform(overrides: Partial<PlatformApi> = {}): PlatformApi {
     })),
     deleteBudget: vi.fn(async () => {}),
     providerHealth: async () => [],
-    failedRuns: async () => [],
+    recentRuns: async () => [],
     run: vi.fn(),
     secrets: async () => [],
     createSecret: vi.fn(),

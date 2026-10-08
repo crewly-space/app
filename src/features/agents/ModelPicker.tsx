@@ -50,6 +50,9 @@ export function ModelPicker({
   const [search, setSearch] = useState('');
   const [custom, setCustom] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  // Read when the list arrives, so a choice made meanwhile is never overwritten.
+  const current = useRef({ value, onChange });
+  current.current = { value, onChange };
 
   useEffect(() => {
     // Nothing to ask until a provider is chosen; asking anyway would report a
@@ -67,6 +70,9 @@ export function ModelPicker({
         if (!active) return;
         setModels(result);
         setState('ready');
+        // A single model is no choice: picking it saves hunting for a row to
+        // click before "Create" stops answering "Choose a model first".
+        if (!current.current.value && result.length === 1) current.current.onChange(result[0]!.id);
       })
       .catch((reason) => {
         if (!active) return;
@@ -102,7 +108,7 @@ export function ModelPicker({
 
   return (
     <div className="model-picker">
-      <span className="model-picker-label">Model <em>Required</em></span>
+      <span className="model-picker-label">Model <em>(required)</em></span>
 
       {state === 'idle' && (
         <p className="field-description">Connect a provider first, then its models are listed here.</p>

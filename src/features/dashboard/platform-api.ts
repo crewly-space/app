@@ -52,7 +52,7 @@ export interface PlatformApi {
   deleteBudget(id: string): Promise<void>;
   providerHealth(): Promise<ProviderHealth[]>;
 
-  failedRuns(): Promise<AgentRun[]>;
+  recentRuns(): Promise<AgentRun[]>;
   run(runId: string): Promise<RunTrace>;
 
   secrets(): Promise<Secret[]>;
@@ -123,7 +123,7 @@ export const platformApi: PlatformApi = {
   deleteBudget: (id) => client.usage.deleteBudget(id),
   providerHealth: async () => (await client.providers.health()).providers,
 
-  failedRuns: async () => (await client.runs.list({ status: 'failed', limit: 50 })).runs,
+  recentRuns: async () => (await client.runs.list({ limit: 50 })).runs,
   run: (runId) => client.runs.get(runId),
 
   secrets: async () => (await client.secrets.list()).secrets,
