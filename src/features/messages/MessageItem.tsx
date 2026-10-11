@@ -4,6 +4,7 @@ import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
 import type { MentionOption } from "../../app-types";
 import { Avatar, UserAvatar } from "../appearance/Avatar";
+import { MessageBody } from "./MessageBody";
 
 export function MessageItem({
   message,
@@ -65,7 +66,7 @@ export function MessageItem({
           {agent ? (
             <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
           ) : (
-            <strong>{someoneElse ?? "You"}</strong>
+            <strong>{someoneElse ?? authorName(message.author, agents)}</strong>
           )}
           {agent && (
             <span
@@ -90,10 +91,8 @@ export function MessageItem({
           )}
         </div>
         {(message.body || message.streaming) && (
-          <p>
-            {renderMentions(message.body, agents, onAgentClick)}
-            {message.streaming && <i className="cursor" />}
-          </p>
+          <MessageBody body={message.body} agents={agents} onAgentClick={onAgentClick}
+            streaming={message.streaming} renderMentions={renderMentions} />
         )}
         {message.attachments.length > 0 && (
           <div className="message-attachments" aria-label="Message attachments">
@@ -255,7 +254,7 @@ export function ApprovalMessage({
 export function authorName(id: string, agents: Agent[]) {
   return id === "you"
     ? "You"
-    : (agents.find((agent) => agent.id === id)?.name ?? "Agent");
+    : (agents.find((agent) => agent.id === id)?.name ?? (id === "Automation" || id === "Webhook" ? id : "Agent"));
 }
 
 export function renderMentions(

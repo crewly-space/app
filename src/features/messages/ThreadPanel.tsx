@@ -5,6 +5,7 @@ import type { Agent, Message } from '../../types';
 import { gateway } from '../../lib/gateway';
 import { Avatar, UserAvatar } from '../appearance/Avatar';
 import { renderMentions } from './MessageItem';
+import { MessageBody } from './MessageBody';
 
 type ThreadStatus = 'open' | 'resolved' | 'archived';
 
@@ -75,6 +76,7 @@ export function ThreadPanel({ root, agents, people, onClose, onRootUpdated, onAg
   const author = (message: Message) => {
     const agent = agents.find((item) => item.id === message.author);
     if (agent) return { name: agent.name, avatar: <Avatar agent={agent} size="small" />, agent };
+    if (message.author !== 'you') return { name: message.author, avatar: <UserAvatar id={message.author} name={message.author} mode="name" size="small" />, agent: undefined };
     const person = message.userId ? people.byId.get(message.userId) : undefined;
     const mine = !message.userId || message.userId === people.me.id;
     const name = mine ? 'You' : person?.name ?? 'Someone';
@@ -94,7 +96,7 @@ export function ThreadPanel({ root, agents, people, onClose, onRootUpdated, onAg
           {who.agent ? <button type="button" onClick={() => onAgentClick(who.agent!.id)}>{who.name}</button> : <strong>{who.name}</strong>}
           <time>{message.time}</time>
         </div>
-        {message.body && <p>{renderMentions(message.body, agents, onAgentClick)}</p>}
+        {message.body && <MessageBody body={message.body} agents={agents} onAgentClick={onAgentClick} renderMentions={renderMentions} />}
       </div>
     </article>;
   };

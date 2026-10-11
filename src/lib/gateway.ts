@@ -57,7 +57,8 @@ export function approvalView(approval: ApprovalRequest, now = Date.now()): Appro
 
 export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
-    author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
+    author: message.authorType === 'user' ? 'you' : message.authorType === 'integration'
+      ? message.authorId.startsWith('automation:') ? 'Automation' : 'Webhook' : message.authorId,
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
     body: message.body, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     attachments: message.attachments ?? [],
