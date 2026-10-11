@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { CrewlyApiError } from '../../sdk/errors';
 import { clientFor, storeServerToken } from '../../lib/servers/session';
 import type { RegistryServer } from '../../lib/servers/types';
@@ -79,7 +79,7 @@ export function AddServerDialog({ onClose, onAdded, onJoined, initialInvite }: {
   onAdded: () => void;
   /** A server joined with an invite, ready to open. */
   onJoined?: (server: RegistryServer) => void;
-  /** An invite link to use straight away, from the address the app was opened with. */
+  /** An invite link the app was opened with; it fills in the form and waits for Join. */
   initialInvite?: string | null;
 }) {
   const [mode, setMode] = useState<'join' | 'add'>('join');
@@ -102,15 +102,6 @@ export function AddServerDialog({ onClose, onAdded, onJoined, initialInvite }: {
       setSaving(false);
     }
   }
-  const started = useRef(false);
-  useEffect(() => {
-    if (!initialInvite || started.current) return;
-    started.current = true;
-    void join(initialInvite);
-    // Once, for the link the app was opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialInvite]);
-
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving || !cloudUrl) return;
@@ -151,6 +142,10 @@ export function AddServerDialog({ onClose, onAdded, onJoined, initialInvite }: {
             <input required autoFocus autoComplete="off" spellCheck={false} value={invite}
               onChange={(event) => setInvite(event.target.value)} placeholder="https://app.crewly.space/join?server=…#invite=…" />
           </label>
+          {initialInvite && invite === initialInvite && (
+            // A link only fills this in; joining is always the person's own click.
+            <p className="field-description">You opened an invite link. Join only if you expected an invite to this server.</p>
+          )}
           {error && <p role="alert">{error}</p>}
           <div className="form-actions">
             <button type="button" className="text-button" onClick={() => { setError(''); setMode('add'); }}>Add a self-hosted server instead</button>
