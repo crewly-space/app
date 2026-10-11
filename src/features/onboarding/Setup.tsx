@@ -69,6 +69,12 @@ export function useSetupState() {
     started: Boolean(state.step),
     finished: Boolean(state.finished),
     step: state.step ?? "welcome",
+    start: useCallback(() => setState((current) => {
+      if (current.step) return current;
+      const next: SetupState = { ...current, step: "welcome" };
+      writeState(next);
+      return next;
+    }), []),
     go: useCallback((step: SetupStep) => update({ step }), [update]),
     finish: useCallback(() => update({ finished: true }), [update]),
     reopen: useCallback(() => update({ finished: false, step: "welcome" }), [update]),
@@ -190,13 +196,13 @@ export function SetupWizard({
     people: data.users.length > 1 || invited > 0,
     ready: false,
   };
-  const { go, started } = setup;
+  const { go, started, start } = setup;
   const next = () => go(STEPS[Math.min(index + 1, STEPS.length - 1)].id);
   const back = () => go(STEPS[Math.max(index - 1, 0)].id);
   const finish = (conversationId?: string) => { setup.finish(); onFinish(conversationId); };
 
   // Remember that setup started, so a refresh after the first agent resumes it.
-  useEffect(() => { if (!started) go("welcome"); }, [started, go]);
+  useEffect(() => { if (!started) start(); }, [started, start]);
 
   let body: ReactNode = null;
   let primary: ReactNode = <button type="button" className="primary-button" onClick={next}>Continue <ArrowRight size={16} /></button>;

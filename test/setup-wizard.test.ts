@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { isNewServer, needsSetup } from '../src/features/onboarding/Setup';
+import { isNewServer, needsSetup, useSetupState } from '../src/features/onboarding/Setup';
+import { act, renderHook } from '@testing-library/react';
 import type { Bootstrap } from '../src/app-types';
 
 const general = { id: 'c1', name: 'general', type: 'channel' as const, agentIds: [], preview: '', time: '' };
@@ -16,6 +17,18 @@ function server(overrides: Partial<Bootstrap> = {}, role: 'owner' | 'admin' | 'm
 }
 
 describe('server setup', () => {
+  it('does not reset a selected step when initialization runs late', () => {
+    localStorage.clear();
+    const { result, unmount } = renderHook(() => useSetupState());
+    const initialize = result.current.start;
+    act(() => {
+      result.current.go('provider');
+      initialize();
+    });
+    expect(result.current.step).toBe('provider');
+    unmount();
+    localStorage.clear();
+  });
   it('walks an owner through a server nobody has used', () => {
     expect(isNewServer(server())).toBe(true);
     expect(needsSetup(server(), { started: false, finished: false })).toBe(true);
