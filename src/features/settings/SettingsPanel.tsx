@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, GatewayStatus, ModelInfo, ServerBranding } from "@crewly/sdk";
 import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
-import { client } from "../../lib/api/client";
+import { activeServerOrigin, client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
 import { ProviderLogo } from "../providers/ProviderLogo";
@@ -305,7 +305,7 @@ export function SettingsPanel({
         <div className="empty-state">
           <Laptop size={24} />
           <strong>No trusted devices yet</strong>
-          <p>Run <code>crewly connect {window.location.origin}</code> on a computer, then enter its code above.</p>
+          <p>Run <code>crewly connect {activeServerOrigin()}</code> on a computer, then enter its code above.</p>
         </div>
       )}
     </>

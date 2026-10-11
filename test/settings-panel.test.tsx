@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPanel } from '../src/features/settings/SettingsPanel';
-import { client } from '../src/lib/api/client';
+import { activateServer, client } from '../src/lib/api/client';
 import { SETTINGS_GROUPS, visibleGroups } from '../src/features/settings/sections';
 import type { DashboardApi } from '../src/features/dashboard/api';
 import type { Provider } from '../src/types';
@@ -139,6 +139,20 @@ describe('one Settings for the person and the server', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Open Crewly Cloud' }));
     expect(dialog.getByRole('heading', { name: 'Crewly Cloud' })).toBeTruthy();
     status.mockRestore();
+  });
+
+  it('tells a device to connect to the server it pairs with, not the page the app is on', () => {
+    // Hosted, the app is on app.crewly.space and the server answers elsewhere.
+    activateServer({
+      id: 'srv-1', kind: 'cloud', name: 'Acme', endpoint: 'https://production.acme.servers.crewly.space/',
+      status: 'ready', role: 'owner', organizationId: 'org-1', reachable: true,
+    });
+    try {
+      const dialog = open({ initialSection: 'devices' });
+      expect(dialog.getByText('crewly connect https://production.acme.servers.crewly.space')).toBeTruthy();
+    } finally {
+      activateServer(null);
+    }
   });
 
   it('keeps the server identity fields as labelled fields in a form', () => {
