@@ -54,6 +54,11 @@ export function activeServerOrigin(): string {
   return (active?.endpoint ?? window.location.origin).replace(/\/+$/, '');
 }
 
+/** The active server, as the registry describes it; null on a self-hosted install. */
+export function activeServer(): RegistryServer | null {
+  return active;
+}
+
 /**
  * Points the app at one server. Sessions are per server, so this never signs
  * anyone out of the others -- it changes which one is being read.

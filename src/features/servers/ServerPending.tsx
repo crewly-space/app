@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AuthGate } from '../auth/AuthGate';
-import { AddServerDialog } from './AddServerDialog';
+import { AddServerDialog, pendingInvite } from './AddServerDialog';
 import { ServerRail } from './ServerRail';
 import { AccountProfileDialog } from '../account/AccountProfileDialog';
 import type { ServerRegistry } from './useServerRegistry';
@@ -16,7 +16,9 @@ const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_U
  * visitor to start a server; on app.crewly.space they do not run one.
  */
 export function ServerPending({ registry }: { registry: ServerRegistry }) {
-  const [adding, setAdding] = useState(false);
+  // An invite link the app was opened with is used as soon as there is an account.
+  const [invite] = useState(() => pendingInvite());
+  const [adding, setAdding] = useState(Boolean(invite));
   const [profileOpen, setProfileOpen] = useState(false);
   const [slow, setSlow] = useState(false);
   const { selected, connection } = registry;
@@ -102,8 +104,10 @@ export function ServerPending({ registry }: { registry: ServerRegistry }) {
     </main>
     {adding && (
       <AddServerDialog
+        initialInvite={invite}
         onClose={() => setAdding(false)}
         onAdded={() => { setAdding(false); refresh(); }}
+        onJoined={(server) => { setAdding(false); void registry.refresh().catch(() => {}).then(() => registry.select(server)); }}
       />
     )}
     {profileOpen && registry.account && registry.accountClient && (

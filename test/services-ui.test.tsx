@@ -77,7 +77,7 @@ describe('Connect Crewly panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Connect Crewly' }));
 
     expect(await screen.findByLabelText('Link code')).toHaveProperty('textContent', 'BCDF-GHJK');
-    expect(api.connectCrewly).toHaveBeenCalledWith({ name: 'Acme production', scopes: ['inference', 'models:read', 'mail:send', 'identity'] });
+    expect(api.connectCrewly).toHaveBeenCalledWith({ name: 'Acme production', scopes: ['inference', 'models:read', 'mail:send', 'connectors', 'identity'] });
     expect(screen.getByRole('link', { name: 'Open Crewly' }).getAttribute('href')).toBe('https://app.crewly.space/#/connect/BCDF-GHJK');
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });

@@ -14,6 +14,7 @@ const SERVICES: Array<{ id: string; scopes: string[]; label: string }> = [
   { id: 'mail-send', scopes: ['mail:send'], label: 'Send email through Crewly Mail' },
   { id: 'mail-receive', scopes: ['mail:receive'], label: 'Receive email replies through Crewly Mail' },
   { id: 'identity', scopes: ['identity'], label: 'Sign in with Crewly' },
+  { id: 'connectors', scopes: ['connectors'], label: 'Connect GitHub, Linear and more with one click, no OAuth apps to set up' },
 ];
 const GATEWAY_SCOPES = SERVICES[0]!.scopes;
 
@@ -90,7 +91,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const { busy, error, run, setError } = useWork();
   const [connection, setConnection] = useState<CrewlyConnection | null>(null);
   const [loadFailure, setLoadFailure] = useState('');
-  const [requested, setRequested] = useState<string[]>([...GATEWAY_SCOPES, 'mail:send']);
+  const [requested, setRequested] = useState<string[]>([...GATEWAY_SCOPES, 'mail:send', 'connectors']);
   const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
 
   const load = useCallback(async () => {

@@ -7,7 +7,8 @@ import { client } from "./lib/api/client";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
-import { AddServerDialog } from "./features/servers/AddServerDialog";
+import { AddServerDialog, pendingInvite } from "./features/servers/AddServerDialog";
+import type { RegistryServer } from "./lib/servers/types";
 import { ServerPending } from "./features/servers/ServerPending";
 import { hasWorkspace, readWorkspace, writeWorkspace } from "./lib/boot-cache";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
@@ -84,7 +85,12 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     if (window.location.pathname === "/admin") return "general";
     return undefined;
   });
-  const [addingServer, setAddingServer] = useState(false);
+  const [joinInvite] = useState(() => (registry.multiServer ? pendingInvite() : null));
+  const [addingServer, setAddingServer] = useState(Boolean(joinInvite));
+  const serverJoined = (server: RegistryServer) => {
+    setAddingServer(false);
+    void registry.refresh().catch(() => {}).then(() => registry.select(server));
+  };
   const [profileOpen, setProfileOpen] = useState(false);
   // Which run the inspector shows: the run behind a message, or one picked from its tree.
   const [inspecting, setInspecting] = useState<{ messageId?: string; runId?: string } | null>(null);
@@ -382,7 +388,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
         unread={registry.unread} failures={registry.failures} />
       <main className="server-pending-main">{content}</main>
-      {addingServer && <AddServerDialog onClose={() => setAddingServer(false)}
+      {addingServer && <AddServerDialog initialInvite={joinInvite} onJoined={serverJoined} onClose={() => setAddingServer(false)}
         onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
     </div>;
   }
@@ -425,7 +431,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
         unread={registry.unread} failures={registry.failures} />
       <main className="server-pending-main">{wizard}</main>
-      {addingServer && <AddServerDialog onClose={() => setAddingServer(false)}
+      {addingServer && <AddServerDialog initialInvite={joinInvite} onJoined={serverJoined} onClose={() => setAddingServer(false)}
         onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
       {toastView}
     </div>;
@@ -929,6 +935,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         )}
         {addingServer && (
           <AddServerDialog
+            initialInvite={joinInvite}
+            onJoined={serverJoined}
             onClose={() => setAddingServer(false)}
             onAdded={() => { setAddingServer(false); void registry.refresh(); }}
           />

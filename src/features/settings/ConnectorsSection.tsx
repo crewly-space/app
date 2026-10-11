@@ -305,15 +305,20 @@ export function ConnectorsSection({ connectors, agents, onNotify, onConnectorsCh
                     {expanded ? "Done" : "Manage"}
                   </button>
                 ) : (
-                  <button type="button" className="primary-button compact" disabled={busy} onClick={() => void connect(info, connector)}>
-                    {connector ? "Reconnect" : "Connect"}
+                  <button type="button" className="primary-button compact" disabled={busy} onClick={() => void connect(info, connector)}
+                    title={info.managed ? `Sign in to ${info.label} through Crewly. Nothing to set up.` : undefined}>
+                    {connector ? "Reconnect" : info.managed ? "Authorize" : "Connect"}
                   </button>
                 )}
               </div>
               {error && <p className="form-error connector-app-detail" role="alert">{error}</p>}
               {troubled && !needsSetup && connector.lastError && !error && <p className="connector-app-detail connector-app-note">{connector.lastError}</p>}
               {expanded && needsSetup && <div className="connector-app-detail">
-                <p className="field-description">An admin with access to the server's configuration does this once; after that anyone who manages this server can press Connect.</p>
+                <p className="field-description">
+                  <strong>The easy way:</strong> connect this server to Crewly with one-click connectors, then just press Authorize — Crewly's own {info.label} app is used and there is nothing to register.{" "}
+                  <button type="button" className="text-button inline" onClick={() => onOpenSection("cloud")}>Connect to Crewly</button>
+                </p>
+                <p className="field-description">Or use an OAuth app of your own. An admin with access to the server's configuration does this once; after that anyone who manages this server can press Connect.</p>
                 <SetupSteps info={info} />
                 <div className="form-actions">
                   <button type="button" className="text-button" disabled={busy} onClick={() => void loadCatalog()}><RefreshCw size={13} /> Check again</button>

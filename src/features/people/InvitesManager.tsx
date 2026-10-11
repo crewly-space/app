@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Copy, Mail, Plus, X } from "lucide-react";
 import type { Invite, UserRole } from "@crewly/sdk";
 import { useDialog } from "../../lib/layers";
-import { activeServerOrigin } from "../../lib/api/client";
+import { activeServer, activeServerOrigin } from "../../lib/api/client";
 
 type InviteRole = Exclude<UserRole, "owner">;
 
@@ -17,7 +17,13 @@ export interface InvitesApi {
   revokeInvite(inviteId: string): Promise<void>;
 }
 
-export const inviteLink = (code: string) => `${activeServerOrigin()}/join#invite=${code}`;
+/** A Cloud server is used through this app, so its invites open here; any other on the server itself. */
+export const inviteLink = (code: string) => {
+  const server = activeServer();
+  return server?.kind === "cloud"
+    ? `${window.location.origin}/join?server=${encodeURIComponent(server.id)}#invite=${code}`
+    : `${activeServerOrigin()}/join#invite=${code}`;
+};
 
 /** Where an invite stands; servers older than invite states only say whether it was used. */
 export function inviteStatus(invite: Invite): NonNullable<Invite["status"]> {

@@ -19,6 +19,8 @@ export type RegistryServer = {
   organizationId: string | null;
   reachable: boolean;
   authMode?: 'local' | 'crewly' | 'both';
+  /** A hosted server joined with an invite, outside the workspace that pays for it. */
+  guest?: boolean;
 };
 
 export type CloudAccountProfile = {

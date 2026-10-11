@@ -3,6 +3,7 @@ import type { CloudAccount } from '../../lib/cloud/account';
 import { PasswordField } from '../auth/PasswordField';
 import { BrandGlyph, isBrand } from '../brand/BrandGlyph';
 import { Loading } from '../shell/BrandMark';
+import { takeInviteFromUrl } from './AddServerDialog';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
 
@@ -60,6 +61,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   }, [account]);
 
   useEffect(() => {
+    takeInviteFromUrl();
     takeRequestedServer();
     void enter();
     fetch(`${base}/api/v1/auth/oauth/providers`, { credentials: 'include' })
