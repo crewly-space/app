@@ -49,6 +49,7 @@ afterEach(async () => {
 it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores its reply after remount', async () => {
   // The fake provider listens on loopback, which only a self-hosted server may reach.
   vi.stubEnv('CREWLY_ALLOW_PRIVATE_NETWORK', 'true');
+  vi.stubEnv('VITE_CREWLY_CLOUD_URL', '');
   provider = createServer(async (req, res) => {
     if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return; }
     const chunks: Buffer[] = [];
