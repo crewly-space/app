@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
+import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, DirectoryUser, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Approval, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
@@ -6,15 +6,17 @@ import { deviceProviderAvailability, explain, type DeviceProviderKind } from '..
 
 function agentView(agent: ApiAgent, memory: string[] = []): Agent {
   const [role = '', ...instructions] = agent.personality.split('\n');
-  return { id: agent.id, name: agent.name, avatarMode: agent.avatarMode ?? 'bloop', initials: agent.name[0]?.toUpperCase() ?? '?',
+  return { id: agent.id, ownerUserId: agent.ownerUserId, name: agent.name, avatarMode: agent.avatarMode ?? 'bloop', initials: agent.name[0]?.toUpperCase() ?? '?',
     role: role || 'Agent', instructions: instructions.join('\n'), color: '#7857d8', status: 'unknown',
     model: agent.modelPolicy.defaultModel, providerId: agent.modelPolicy.defaultProviderId,
     runtime: 'Chat', memoryEnabled: true, memory };
 }
-function conversationView(conversation: ApiConversation, agents: Agent[]): Conversation {
+function conversationView(conversation: ApiConversation, agents: Agent[], people: DirectoryUser[] = [], currentUserId?: string): Conversation {
   const agentIds = conversation.participants.filter((p) => p.participantType === 'agent').map((p) => p.participantId);
-  return { id: conversation.id, name: conversation.kind === 'group' ? conversation.name ?? 'Group DM'
-      : agents.find((a) => a.id === agentIds[0])?.name ?? 'DM',
+  const personIds = conversation.participants.filter((p) => p.participantType === 'user' && p.participantId !== currentUserId).map((p) => p.participantId);
+  const peer = !agentIds.length && conversation.kind === 'dm' ? people.find((person) => person.id === personIds[0]) : undefined;
+  return { personIds, ...(peer ? { peer } : {}), id: conversation.id, name: conversation.kind === 'group' ? conversation.name ?? 'Group DM'
+      : agents.find((a) => a.id === agentIds[0])?.name ?? peer?.displayName ?? 'Direct message',
     type: conversation.kind, agentIds, preview: '', time: '' };
 }
 /** A channel is a conversation to the rest of the app; the channel rides along for what only channels have. */
@@ -59,7 +61,7 @@ export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
     author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
-    body: message.body, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    body: message.body, createdAt: message.createdAt, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     attachments: message.attachments ?? [],
     replyTo: message.replyToMessageId ?? undefined,
     threadRootId: message.threadRootId ?? undefined,
@@ -77,6 +79,20 @@ function recordBootTiming(timing: { firstRoundMs: number; secondRoundMs: number 
 }
 
 export const gateway = {
+  async agentRuntime(agentId: string) {
+    const runtime = await client.agents.runtime(agentId);
+    return { runtime: runtime.runtimeKind === 'native' ? 'Chat' : runtime.runtimeKind,
+      workspace: runtime.binding?.workspaceName || undefined, runtimeSessions: runtime.sessions };
+  },
+  async messageContext(messageId: string): Promise<Message[]> {
+    return (await client.messages.context(messageId)).messages.map(messageView);
+  },
+  async history(conversationId: string, before?: string): Promise<Message[]> {
+    return (await client.messages.list(conversationId, 200, before)).map(messageView);
+  },
+  async searchMessages(query: string): Promise<Message[]> {
+    return (await client.messages.search(query)).messages.map(messageView);
+  },
   /*
    * Everything one server's workspace needs, in two rounds instead of five.
    *
@@ -88,6 +104,8 @@ export const gateway = {
   */
   async bootstrap() {
     const started = performance.now();
+    // Capture changes during bootstrap without replaying all old messages.
+    const realtimeSeq = await client.realtimeCursor().then((result) => result.seq).catch(() => undefined);
     const [currentUser, apiAgents, apiConversations, devices, people, channelList, statuses] = await Promise.all([
       client.auth.me(),
       client.agents.list(),
@@ -101,21 +119,29 @@ export const gateway = {
     ]);
     const firstRound = performance.now();
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
-    const [apiProviders, users, apiConnectors, serverBranding, memories, histories, pendingApprovals] = await Promise.all([
+    const [apiProviders, users, apiConnectors, serverBranding, memories, histories, pendingApprovals, runtimes] = await Promise.all([
       canManage ? client.providers.list() : client.providers.listAvailable(),
       canManage ? client.users.list() : Promise.resolve([]),
       canManage ? client.connectors.list().then((result) => result.connectors).catch(() => []) : Promise.resolve([]),
       client.server.branding().catch(() => ({ displayName: 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null })),
-      Promise.all(apiAgents.map((a) => client.memory.listFacts(a.id))),
+      Promise.all(apiAgents.map((agent) => canManage || agent.ownerUserId === currentUser.id
+        ? client.memory.listFacts(agent.id).catch(() => []) : Promise.resolve([]))),
       Promise.all([
         ...apiConversations.map((c) => client.messages.list(c.id, 200)),
         ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
       ]),
       client.approvals.list().catch(() => [] as ApprovalRequest[]),
+      Promise.all(apiAgents.map((agent) => (canManage || agent.ownerUserId === currentUser.id) ? client.agents.runtime(agent.id).catch(() => null) : Promise.resolve(null))),
     ]);
     recordBootTiming({ firstRoundMs: firstRound - started, secondRoundMs: performance.now() - firstRound });
-    const agents = apiAgents.map((a, index) => agentView(a, memories[index]!.map((f) => f.content)));
-    const conversations = [...apiConversations.map((c) => conversationView(c, agents)), ...channelList.channels.map(channelView)];
+    const agents = apiAgents.map((a, index) => {
+      const agent = agentView(a, memories[index]!.map((f) => f.content));
+      const runtime = runtimes[index];
+      if (!runtime) return agent;
+      return { ...agent, runtime: runtime.runtimeKind === 'native' ? 'Chat' : runtime.runtimeKind,
+        workspace: runtime.binding?.workspaceName || undefined, runtimeSessions: runtime.sessions };
+    });
+    const conversations = [...apiConversations.map((c) => conversationView(c, agents, people, currentUser.id)), ...channelList.channels.map(channelView)];
     const messages = histories.flat().map(messageView);
     const providers: Provider[] = apiProviders.map((p) => {
       const local = p.kind === 'claude-subscription' || p.kind === 'ollama';
@@ -143,7 +169,7 @@ export const gateway = {
         status: agent.providerId && reachable.has(agent.providerId) ? ('online' as const) : ('offline' as const),
       };
     });
-    return { agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
+    return { realtimeSeq, agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
       approvals: pendingApprovals.map((approval) => approvalView(approval)), currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
@@ -172,6 +198,16 @@ export const gateway = {
   /** Changes the signed-in person's own avatar, for everyone on this server. */
   async setMyAvatarMode(avatarMode: NonNullable<Agent['avatarMode']>): Promise<void> {
     await client.users.updateMe({ avatarMode });
+  },
+  async conversations(agents: Agent[], people: DirectoryUser[], currentUserId: string): Promise<Conversation[]> {
+    return (await client.conversations.list()).filter((conversation) => conversation.kind !== 'channel')
+      .map((conversation) => conversationView(conversation, agents, people, currentUserId));
+  },
+  async createConversation(participants: { participantId: string; participantType: 'user' | 'agent' }[], name: string, agents: Agent[], people: DirectoryUser[], currentUserId: string): Promise<Conversation> {
+    const conversation = participants.length === 1
+      ? await client.conversations.createDm(participants[0])
+      : await client.conversations.createGroup({ name, participants });
+    return conversationView(conversation, agents, people, currentUserId);
   },
   async createDm(agentId: string, agents: Agent[]): Promise<Conversation> {
     const dm = await client.conversations.createDm({ participantId: agentId, participantType: 'agent' });

@@ -7,7 +7,15 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 // The SDK, protocol and brand assets are vendored under src/. They used to be
 // sibling repos linked with file:, which needed an fs.allow escape hatch here.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), {
+    name: 'development-csp',
+    apply: 'serve',
+    // Vite injects styles and the React refresh preamble in development.
+    // Built HTML keeps the strict policy served by the production server.
+    transformIndexHtml: (html) => html
+      .replace("style-src 'self';", "style-src 'self' 'unsafe-inline';")
+      .replace("script-src 'self';", "script-src 'self' 'unsafe-inline';"),
+  }],
   resolve: {
     alias: {
       "@crewly/sdk": r("./src/sdk/index.ts"),

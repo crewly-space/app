@@ -159,13 +159,13 @@
   min-height: var(--oc-control-height);
   padding: 0 17px;
   border-radius: var(--oc-radius);
-  background: var(--oc-accent);
+  background: var(--oc-action);
   color: var(--oc-on-accent);
   box-shadow: var(--oc-shadow-accent);
 }
 
 .primary-button:hover:not(:disabled) {
-  background: var(--oc-accent-light);
+  background: var(--oc-action-hover);
   transform: translateY(-1px);
 }
 
@@ -272,7 +272,7 @@
   padding: var(--oc-space-1) 2px;
   border: 0;
   background: none;
-  color: var(--oc-muted);
+  color: var(--oc-muted-strong);
   font: inherit;
   text-align: center;
   text-decoration: underline;
@@ -606,7 +606,7 @@
   text-transform: uppercase;
   font-size: var(--oc-text-2xs);
   letter-spacing: 0.16em;
-  color: var(--oc-accent);
+  color: var(--oc-accent-text);
   font-weight: 700;
 }
 
@@ -642,7 +642,7 @@
 
 .badge.is-success {
   background: var(--oc-success-soft);
-  color: var(--oc-success);
+  color: var(--oc-success-text);
 }
 
 .badge.is-warning {

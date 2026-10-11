@@ -44,6 +44,7 @@ export interface DashboardApi {
   removeRole(id: string): Promise<void>;
   assignRole(roleId: string, userId: string): Promise<void>;
   unassignRole(roleId: string, userId: string): Promise<void>;
+  listConversationTargets?(): Promise<{ id: string; name: string }[]>;
   listAutomations(): Promise<Automation[]>;
   listAutomationRuns(automationId?: string): Promise<AutomationRun[]>;
   createAutomation(input: AutomationInput): Promise<{ automation: Automation; webhookSecret?: string }>;
@@ -72,6 +73,11 @@ export const serverApi: DashboardApi = {
   removeRole: (id) => client.roles.remove(id),
   assignRole: (roleId, userId) => client.roles.assign(roleId, userId),
   unassignRole: (roleId, userId) => client.roles.unassign(roleId, userId),
+  listConversationTargets: async () => {
+    const [channels, conversations] = await Promise.all([client.channels.list(), client.conversations.list()]);
+    return [...channels.channels.filter((channel) => !channel.archivedAt).map((channel) => ({ id: channel.id, name: `#${channel.name}` })),
+      ...conversations.filter((conversation) => conversation.kind !== 'channel').map((conversation) => ({ id: conversation.id, name: conversation.name ?? 'Direct message' }))];
+  },
   listAutomations: async () => (await client.automations.list()).automations,
   listAutomationRuns: async (automationId) => (await client.automations.runs(automationId)).runs,
   createAutomation: (input) => client.automations.create(input),

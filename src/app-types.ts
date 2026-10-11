@@ -4,6 +4,7 @@ import type { Agent, Approval, Conversation, Message, Provider } from "./types";
 import type { Connector } from "@crewly/sdk";
 
 export type Bootstrap = {
+  realtimeSeq?: number;
   agents: Agent[];
   conversations: Conversation[];
   /** Sidebar sections that channels sit in; empty from a server before channels. */
@@ -41,6 +42,7 @@ export type MentionOption = {
   label: string;
   description: string;
   color: string;
-  kind: "agent" | "everyone" | "here" | "role";
+  kind: "agent" | "user" | "everyone" | "here" | "role";
   agent?: Agent;
+  person?: DirectoryUser;
 };

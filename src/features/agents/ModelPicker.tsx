@@ -165,7 +165,7 @@ export function ModelPicker({
           />
           <ul className="model-list" role="listbox" aria-label="Models" aria-busy={state === 'loading'}>
             {matches.map((model) => (
-              <li key={model.id}>
+              <li role="presentation" key={model.id}>
                 <button
                   type="button"
                   role="option"

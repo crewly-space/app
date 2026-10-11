@@ -79,17 +79,17 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   vi.resetModules();
   const { default: App } = await import('../src/App');
   const { AuthGate } = await import('../src/features/auth/AuthGate');
-  const { render, fireEvent, within, waitFor, cleanup } = await import('@testing-library/react');
+  const { render, fireEvent, within, waitFor, cleanup, act } = await import('@testing-library/react');
   cleanupUi = cleanup;
   const React = await import('react');
   const UI = () => React.createElement(AuthGate, null, React.createElement(App));
   const page = within(win.document.body);
   const view = render(React.createElement(UI), { container: win.document.getElementById('root')! });
-  await page.findByRole('heading', { name: 'Create first admin' });
+  await page.findByRole('heading', { name: 'Create your workspace' });
   fireEvent.change(page.getByLabelText('Name'), { target: { value: 'Owner' } });
   fireEvent.change(page.getByLabelText('Email'), { target: { value: 'owner@example.test' } });
   fireEvent.change(page.getByLabelText('Password'), { target: { value: 'test-password-1' } });
-  fireEvent.change(page.getByLabelText(/Claim token/), { target: { value: 'test-claim-token' } });
+  fireEvent.change(page.getByLabelText(/Server setup code/), { target: { value: 'test-claim-token' } });
   fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
   // A new server walks its owner through setup -- provider, agents, channels,
   // people -- but it is not a gate: skipping lands on the empty server, and
@@ -106,7 +106,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // A new server opens on #general, so skipping setup lands in a channel with
   // a composer rather than on an empty page (CRE-114).
   await page.findByRole('heading', { name: '# general' });
-  expect(page.getByRole('combobox', { name: 'Message general' })).toBeTruthy();
+  expect(page.getByRole('textbox', { name: 'Message general' })).toBeTruthy();
   expect(page.queryByText('Groups')).toBeNull();
   expect(page.getAllByRole('button', { name: 'Create channel' })).toHaveLength(1);
   expect(page.queryByRole('dialog', { name: 'Create an agent' })).toBeNull();
@@ -140,7 +140,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.click(await dialog.findByRole('button', { name: /Enter a model ID instead/ }));
   fireEvent.change(dialog.getByRole('textbox', { name: /Model ID/ }), { target: { value: 'test-model' } });
   fireEvent.click(dialog.getByRole('button', { name: /Create agent/ }));
-  const composer = await page.findByRole('combobox', { name: 'Message Echo' });
+  const composer = await page.findByRole('textbox', { name: 'Message Echo' });
   Object.defineProperty(composer, 'innerText', { configurable: true, value: 'Hello' });
   fireEvent.input(composer);
   await waitFor(() => expect(page.getByRole('button', { name: 'Send message' }).hasAttribute('disabled')).toBe(false));
@@ -220,5 +220,9 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   await waitFor(() => expect(win.location.pathname).toBe('/'), { timeout: 10_000 });
   expect(db.prepare('SELECT email, role FROM users WHERE email = ?').get('sam@example.test')).toEqual({ email: 'sam@example.test', role: 'member' });
   expect(db.prepare('SELECT used_at IS NOT NULL AS used FROM invites').get()).toEqual({ used: 1 });
-  joinView.unmount();
+  // A joined member must reach messaging even though the owner's private
+  // memory and configuration are not readable by that member.
+  expect((await page.findAllByRole('button', { name: 'New message' }, { timeout: 5000 })).length).toBeGreaterThan(0);
+  expect(page.queryByRole('button', { name: 'Try again' })).toBeNull();
+  await act(async () => { joinView.unmount(); await new Promise<void>((resolve) => setImmediate(resolve)); });
 }, 60_000);

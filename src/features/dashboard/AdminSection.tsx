@@ -34,7 +34,7 @@ export type AdminSectionId =
   | 'usage' | 'runs' | 'automations' | 'activity';
 
 /** The sections that need the agent list, to name agents or choose them. */
-const NEEDS_AGENTS: AdminSectionId[] = ['agents', 'usage', 'runs', 'secrets', 'skills', 'activity'];
+const NEEDS_AGENTS: AdminSectionId[] = ['agents', 'usage', 'runs', 'secrets', 'skills', 'activity', 'automations'];
 
 function humanUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -75,6 +75,8 @@ export function AdminSection({
   const [busy, setBusy] = useState(false);
   const [roleCatalog, setRoleCatalog] = useState<RolesCatalog | null>(null);
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [automationsLoaded, setAutomationsLoaded] = useState(false);
+  const [automationTargets, setAutomationTargets] = useState<{ id: string; name: string }[]>([]);
   const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
 
   const canAdminister = currentUser.role === 'owner' || currentUser.role === 'admin';
@@ -101,7 +103,7 @@ export function AdminSection({
 
   useEffect(() => {
     if (!canAdminister || section !== 'automations') return;
-    void run(async () => { const [rules, runs] = await Promise.all([api.listAutomations(), api.listAutomationRuns()]); setAutomations(rules); setAutomationRuns(runs); });
+    void run(async () => { const [rules, runs, targets] = await Promise.all([api.listAutomations(), api.listAutomationRuns(), api.listConversationTargets?.() ?? Promise.resolve([])]); setAutomations(rules); setAutomationRuns(runs); setAutomationTargets(targets); setAutomationsLoaded(true); });
   }, [api, canAdminister, run, section]);
 
   useEffect(() => {
@@ -223,7 +225,8 @@ export function AdminSection({
         />
       )}
 
-      {section === 'automations' && <AutomationsPanel automations={automations} runs={automationRuns} busy={busy}
+      {section === 'automations' && !automationsLoaded && !error && <p role="status">Loading automations…</p>}
+      {section === 'automations' && automationsLoaded && <AutomationsPanel agents={agents} targets={automationTargets} automations={automations} runs={automationRuns} busy={busy}
         onCreate={async (input) => { const result = await api.createAutomation(input); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); return result; }}
         onUpdate={async (id, input) => { const result = await api.updateAutomation(id, input); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); return result; }}
         onDelete={async (id) => { await api.removeAutomation(id); setAutomations(await api.listAutomations()); setAutomationRuns(await api.listAutomationRuns()); }} />}

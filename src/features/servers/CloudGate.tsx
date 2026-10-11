@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { CloudAccount } from '../../lib/cloud/account';
+import { PasswordField } from '../auth/PasswordField';
+import { BrandGlyph, isBrand } from '../brand/BrandGlyph';
 import { Loading } from '../shell/BrandMark';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
@@ -44,6 +46,8 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const createAccountUrl = dashboardUrl ? `${dashboardUrl}${dashboardUrl.includes('?') ? '&' : '?'}auth=signup` : `${cloudUrl.replace(/\/+$/, '')}/dashboard/?auth=signup`;
   const base = cloudUrl.replace(/\/+$/, '');
 
   const enter = useCallback(async () => {
@@ -92,13 +96,15 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
 
   return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card auth-card form" onSubmit={async (event) => {
     event.preventDefault();
+    if (saving) return;
+    setSaving(true);
     setError('');
     try {
       const response = await fetch(`${base}/api/v1/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
@@ -109,17 +115,21 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
       await enter();
     } catch {
       setError('Crewly is not answering. Try again in a moment.');
-    }
+    } finally { setSaving(false); }
   }}>
+    <div className="auth-brand">Crewly<span>Your people. Your agents.</span></div>
     <h1>Sign in to Crewly</h1>
+    <p>Welcome back. Your workspace is waiting.</p>
+    <div className="auth-social-options">
     {providers.map((provider) => (
-      <a key={provider.id} className="secondary-button" href={`${base}/api/v1/auth/oauth/${provider.id}/start`}>Continue with {provider.label}</a>
+      <a key={provider.id} className="secondary-button" href={`${base}/api/v1/auth/oauth/${provider.id}/start`}>{isBrand(provider.id) && <BrandGlyph brand={provider.id} size={18} />}Continue with {provider.label}</a>
     ))}
-    {providers.length > 0 && <div className="auth-divider" role="separator">or</div>}
-    <label>Email<input type="email" required autoComplete="username" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-    <label>Password<input id="cloud-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+    </div>
+    {providers.length > 0 && <div className="auth-divider" role="separator">or use email</div>}
+    <label>Email<input placeholder="you@example.com" disabled={saving} type="email" required autoComplete="username" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+    <PasswordField id="cloud-password" value={password} onChange={setPassword} disabled={saving} />
     {error && <p role="alert">{error}</p>}
-    <button className="primary-button" type="submit">Sign in</button>
-    {dashboardUrl && <p className="auth-footer">New to Crewly? <a className="text-button" href={dashboardUrl}>Create an account</a></p>}
+    <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Signing you in…' : 'Sign in'}</button>
+    <p className="auth-footer">New to Crewly? <a className="text-button" href={createAccountUrl}>Create an account</a></p>
   </form></div></div>;
 }

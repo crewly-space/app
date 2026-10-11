@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Hash, Search } from "lucide-react";
 import { useDialog } from "../../lib/layers";
 import type { Agent, Conversation, Message } from "../../types";
-import { Avatar } from "../appearance/Avatar";
+import { Avatar, UserAvatar } from "../appearance/Avatar";
+import { gateway } from "../../lib/gateway";
 
 export function SearchDialog({
   agents,
@@ -15,11 +16,29 @@ export function SearchDialog({
   conversations: Conversation[];
   messages: Message[];
   onClose: () => void;
-  onSelect: (conversationId: string) => void;
+  onSelect: (conversationId: string, message?: Message) => void;
 }) {
   const dialogRef = useDialog(onClose);
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
+  const [history, setHistory] = useState<{ query: string; messages: Message[] }>({ query: '', messages: [] });
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    setError('');
+    setPending(Boolean(needle));
+    if (!needle) return;
+    const timer = window.setTimeout(() => {
+      void gateway.searchMessages(query.trim()).then((found) => {
+        if (active) setHistory({ query: needle, messages: found });
+      }).catch((reason) => {
+        if (active) setError(reason instanceof Error ? reason.message : 'History search could not be completed');
+      }).finally(() => { if (active) setPending(false); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [needle]);
+  const matches = history.query === needle ? history.messages : [];
   // Searching names alone cannot find a phrase you remember saying, which is
   // what people actually reach for search to do.
   const spoken = useMemo(() => {
@@ -36,7 +55,7 @@ export function SearchDialog({
       .join(" ");
     return `${conversation.name} ${conversation.preview} ${people} ${spoken.get(conversation.id) ?? ""}`
       .toLowerCase()
-      .includes(needle);
+      .includes(needle) || matches.some((message) => message.conversationId === conversation.id);
   });
   return (
     <div
@@ -59,11 +78,13 @@ export function SearchDialog({
             spellCheck={false}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a conversation or agent…"
+            placeholder="Search messages, conversations and agents…"
           />
           <kbd>Esc</kbd>
         </div>
         <div className="search-results">
+          {pending && <p role="status">Searching message history…</p>}
+          {error && <p role="alert">{error}</p>}
           <label>
             {query
               ? `${results.length} ${results.length === 1 ? "result" : "results"}`
@@ -76,10 +97,10 @@ export function SearchDialog({
             return (
               <button
                 key={conversation.id}
-                onClick={() => onSelect(conversation.id)}
+                onClick={() => onSelect(conversation.id, needle ? matches.find((message) => message.conversationId === conversation.id) ?? messages.find((message) => message.conversationId === conversation.id && message.body.toLowerCase().includes(needle)) : undefined)}
               >
                 {conversation.type === "dm" ? (
-                  <Avatar agent={agent} size="small" />
+                  conversation.peer ? <UserAvatar id={conversation.peer.id} name={conversation.peer.displayName} mode={conversation.peer.avatarMode} size="small" /> : <Avatar agent={agent} size="small" />
                 ) : (
                   <span className="hash-avatar">
                     <Hash size={14} />
@@ -87,13 +108,13 @@ export function SearchDialog({
                 )}
                 <span>
                   <strong>{conversation.name}</strong>
-                  <small>{conversation.preview}</small>
+                  <small>{matches.find((message) => message.conversationId === conversation.id)?.body ?? conversation.preview}</small>
                 </span>
                 <em>{conversation.time}</em>
               </button>
             );
           })}
-          {results.length === 0 && (
+          {results.length === 0 && !pending && !error && (
             <div className="empty-search">
               <Search size={22} />
               <strong>No conversations found</strong>

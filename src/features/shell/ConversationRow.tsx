@@ -1,6 +1,6 @@
 import { Hash, Lock } from "lucide-react";
 import type { Agent, Conversation } from "../../types";
-import { Avatar } from "../appearance/Avatar";
+import { Avatar, UserAvatar } from "../appearance/Avatar";
 
 export function ConversationRow({
   item,
@@ -20,7 +20,7 @@ export function ConversationRow({
       onClick={onClick}
     >
       {item.type === "dm" ? (
-        <Avatar agent={agent} size="tiny" />
+        item.peer ? <UserAvatar id={item.peer.id} name={item.peer.displayName} mode={item.peer.avatarMode} size="tiny" /> : <Avatar agent={agent} size="tiny" />
       ) : (
         <span className="hash-avatar">
           {item.channel?.visibility === "private" ? <Lock size={13} /> : <Hash size={14} />}

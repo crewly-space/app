@@ -2,7 +2,8 @@ import type { AvatarMode } from "@crewly/protocol";
 import { Activity, Check, Download, Folder, MessageSquare, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
-import type { MentionOption } from "../../app-types";
+import { MessageBody } from "./MessageBody";
+export { renderMentions } from "./mentions";
 import { Avatar, UserAvatar } from "../appearance/Avatar";
 
 export function MessageItem({
@@ -37,14 +38,14 @@ export function MessageItem({
     ? people.byId.get(message.userId)?.name ?? "Someone"
     : null;
   return (
-    <article className={`message ${message.streaming ? "streaming" : ""}`}>
+    <article data-message-id={message.id} className={`message ${message.streaming ? "streaming" : ""}`}>
       {message.author === "you" ? (
         <UserAvatar
           id={message.userId ?? people.me.id}
           name={(message.userId && people.byId.get(message.userId)?.name) || people.me.name}
           mode={(message.userId && people.byId.get(message.userId)?.mode) || people.me.mode}
         />
-      ) : (
+      ) : agent ? (
         <button
           className="avatar-button message-avatar-button"
           onClick={() => agent && onAgentClick(agent.id)}
@@ -52,12 +53,12 @@ export function MessageItem({
         >
           <Avatar agent={agent} />
         </button>
-      )}
+      ) : <Avatar agent={undefined} />}
       <div className="message-content">
         {replied && (
           <div className="reply-reference">
             <Reply size={12} />
-            <strong>{authorName(replied.author, agents)}</strong>
+            <strong>{replied.author === "you" && replied.userId && replied.userId !== people.me.id ? people.byId.get(replied.userId)?.name ?? "Someone" : authorName(replied.author, agents)}</strong>
             <span>{replied.body}</span>
           </div>
         )}
@@ -65,7 +66,7 @@ export function MessageItem({
           {agent ? (
             <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
           ) : (
-            <strong>{someoneElse ?? "You"}</strong>
+            <strong>{someoneElse ?? (message.author === "you" ? "You" : message.author === "Webhook" ? "Webhook" : "Agent")}</strong>
           )}
           {agent && (
             <span
@@ -90,10 +91,10 @@ export function MessageItem({
           )}
         </div>
         {(message.body || message.streaming) && (
-          <p>
-            {renderMentions(message.body, agents, onAgentClick)}
+          <div className="message-body">
+            <MessageBody body={message.body} agents={agents} onAgentClick={onAgentClick} />
             {message.streaming && <i className="cursor" />}
-          </p>
+          </div>
         )}
         {message.attachments.length > 0 && (
           <div className="message-attachments" aria-label="Message attachments">
@@ -256,81 +257,4 @@ export function authorName(id: string, agents: Agent[]) {
   return id === "you"
     ? "You"
     : (agents.find((agent) => agent.id === id)?.name ?? "Agent");
-}
-
-export function renderMentions(
-  body: string,
-  agents: Agent[],
-  onAgentClick: (agentId: string) => void,
-) {
-  const roleOptions = Array.from(new Set(agents.map((agent) => agent.role))).map(
-    (role): MentionOption => ({
-      id: `role-${role}`,
-      label: `@${role}`,
-      description: "Role",
-      color: "var(--oc-info)",
-      kind: "role",
-    }),
-  );
-  const options: MentionOption[] = [
-    {
-      id: "everyone",
-      label: "@everyone",
-      description: "Everyone",
-      color: "var(--oc-accent)",
-      kind: "everyone",
-    },
-    {
-      id: "here",
-      label: "@here",
-      description: "Online now",
-      color: "var(--oc-success)",
-      kind: "here",
-    },
-    ...agents.map((agent) => ({
-      id: `agent-${agent.id}`,
-      label: `@${agent.name}`,
-      description: agent.role,
-      color: agent.color,
-      kind: "agent" as const,
-      agent,
-    })),
-    ...roleOptions,
-  ];
-  const escapedLabels = options
-    .map((option) => option.label.slice(1))
-    .sort((a, b) => b.length - a.length)
-    .map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const matcher = new RegExp(
-    `(@(?:${escapedLabels.join("|")}))(?![\\p{L}\\p{N}_-])`,
-    "giu",
-  );
-  return body.split(matcher).map((part, index) => {
-    const option = options.find(
-      (item) => item.label.toLowerCase() === part.toLowerCase(),
-    );
-    if (!option) return part;
-    const mentionStyle = {
-      "--mention-color": option.color,
-    } as React.CSSProperties;
-    return option.agent ? (
-      <button
-        type="button"
-        className={`mention mention-${option.kind}`}
-        style={mentionStyle}
-        key={`${option.id}-${index}`}
-        onClick={() => onAgentClick(option.agent!.id)}
-      >
-        {part}
-      </button>
-    ) : (
-      <mark
-        className={`mention mention-${option.kind}`}
-        style={mentionStyle}
-        key={`${option.id}-${index}`}
-      >
-        {part}
-      </mark>
-    );
-  });
 }

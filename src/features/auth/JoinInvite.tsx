@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { InvitePreview } from "@crewly/sdk";
+import { PasswordField } from "./PasswordField";
 import { client } from "../../lib/api/client";
 
 /** The invite code an invite link carries (`/join#invite=<code>`), if this page was opened from one. */
@@ -79,7 +80,8 @@ export function JoinInvite({
 
   if (signedInAs) {
     return frame(<div className="onboarding-card auth-card form">
-      <h1>You’re invited</h1>
+      <div className="auth-brand">Crewly<span>Make yourself at home.</span></div>
+    <h1>You’re invited</h1>
       <p>Join this Crewly server as {role} with the account you’re signed in with, <strong>{signedInAs}</strong>.</p>
       {preview.email && preview.email !== signedInAs.toLowerCase() && (
         <p className="field-description">This invite is for <strong>{preview.email}</strong>. Sign in with that account to accept it.</p>
@@ -93,16 +95,16 @@ export function JoinInvite({
 
   return frame(<form className="onboarding-card auth-card form" onSubmit={(event) => {
     event.preventDefault();
+    if (saving) return;
     void accept({ email: email.trim(), displayName: displayName.trim(), password });
   }}>
+    <div className="auth-brand">Crewly<span>Make yourself at home.</span></div>
     <h1>You’re invited</h1>
     <p>Create your account to join this Crewly server as {role}. You choose your own password.</p>
-    <label>Name<input required autoComplete="name" maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-    <label>Email<input required type="email" autoComplete="email" spellCheck={false} readOnly={Boolean(preview.email)}
+    <label>Name<input placeholder="Your full name" disabled={saving} required autoComplete="name" maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+    <label>Email<input placeholder="you@example.com" disabled={saving} required type="email" autoComplete="email" spellCheck={false} readOnly={Boolean(preview.email)}
       value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-    <label>Password<input id="join-password" type="password" required minLength={12} autoComplete="new-password"
-      aria-describedby="join-password-help" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-    <small id="join-password-help">Use at least 12 characters.</small>
+    <PasswordField id="join-password" value={password} onChange={setPassword} creating disabled={saving} />
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" type="submit" disabled={saving}>{saving ? "Joining…" : "Create account and join"}</button>
     <p className="auth-footer">Already have an account here? <button type="button" className="text-button" onClick={onSignIn}>Sign in to accept</button></p>

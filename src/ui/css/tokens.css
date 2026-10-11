@@ -68,14 +68,9 @@
   /* Accent read as text on --oc-accent-soft, where the flat accent is too
      heavy to read. Pills and inline error text want this, not --oc-accent. */
   --oc-accent-text: #f18a75;
-  /*
-   * Text on a filled accent. It is pinned white in both themes, because the
-   * fill barely changes between them: --oc-text-strong inverts, so a primary
-   * button that read white-on-orange in the dark theme turned black-on-orange
-   * in the light one. Contrast here is 3.35:1 on the dark accent and 4.2:1 on
-   * the light one -- a brand-level limit of the accent itself, not something a
-   * label colour can fix.
-   */
+  /* Button fills meet 4.5:1 contrast with white text in both themes. */
+  --oc-action: #bf3b25;
+  --oc-action-hover: #c64229;
   --oc-on-accent: #ffffff;
   /*
    * The two tones of a display headline that swells along a word. They are

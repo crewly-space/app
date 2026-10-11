@@ -20,11 +20,12 @@ import type { Agent, Approval, Conversation, Message, Provider } from "./types";
 import type { Bootstrap, Panel, Toast, View, Theme, MentionOption } from "./app-types";
 import { AgentEditor } from "./features/agents/AgentEditor";
 import { AgentProfileDialog } from "./features/agents/AgentProfileDialog";
-import { Avatar } from "./features/appearance/Avatar";
+import { Avatar, UserAvatar } from "./features/appearance/Avatar";
 import { DetailsPanel } from "./features/conversations/DetailsPanel";
 import { UtilityView } from "./features/inbox/UtilityView";
 import { MessageItem, ApprovalMessage, authorName } from "./features/messages/MessageItem";
 import { ThreadPanel } from "./features/messages/ThreadPanel";
+import { NewConversationDialog } from "./features/conversations/NewConversationDialog";
 import { SearchDialog } from "./features/search/SearchDialog";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import type { SettingsSectionId } from "./features/settings/sections";
@@ -114,13 +115,17 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [replying, setReplying] = useState<Message | null>(null);
   const [threadRoot, setThreadRoot] = useState<Message | null>(null);
-  const closeThread = useCallback(() => setThreadRoot(null), []);
+  const [threadFocusId, setThreadFocusId] = useState<string | null>(null);
+  const closeThread = useCallback(() => { setThreadRoot(null); setThreadFocusId(null); }, []);
   const [creating, setCreating] = useState(false);
   // The channel dialog: {} creates one, { id } manages that one.
   const [channelDialog, setChannelDialog] = useState<{ id?: string } | null>(null);
   const [profileAgentId, setProfileAgentId] = useState<string | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyEnd, setHistoryEnd] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [joiningChannelId, setJoiningChannelId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -155,6 +160,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const composerRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
+  const searchFocusRef = useRef<{ id: string; conversationId: string } | null>(null);
 
   useEffect(() => {
     // Not asked until the server is connected: before then there is no
@@ -189,7 +195,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       // Replay events after history loads so a reply arriving during bootstrap
       // cannot be discarded while data is still null.
       stopRealtime = startRealtime((message) => setData((current) => current && ({ ...current,
-        messages: current.messages.some((m) => m.id === message.id) ? current.messages : [...current.messages, message] })),
+        messages: current.messages.some((m) => m.id === message.id)
+          ? current.messages.map((m) => m.id === message.id ? message : m) : [...current.messages, message] })),
         (error) => notify(error, 'error'),
         (presence) => setData((current) => {
           if (!current) return current;
@@ -203,17 +210,39 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 lastSeenAt: presence.connected ? new Date().toISOString() : device.lastSeenAt }
             : device) };
         }),
-        (status) => setData((current) => current && ({ ...current,
-          agents: current.agents.map((agent) => (agent.id === status.agentId ? withStatus(agent, status) : agent)) })),
+        (status) => {
+          setData((current) => current && ({ ...current, agents: current.agents.map((agent) => agent.id === status.agentId ? withStatus(agent, status) : agent) }));
+          if (initial.currentUser.role === 'owner' || initial.currentUser.role === 'admin' || initial.agents.find((agent) => agent.id === status.agentId)?.ownerUserId === initial.currentUser.id) {
+            void gateway.agentRuntime(status.agentId).then((runtime) => {
+              if (!cancelled) setData((current) => current && ({ ...current, agents: current.agents.map((agent) => agent.id === status.agentId ? { ...agent, ...runtime } : agent) }));
+            }).catch(() => {});
+          }
+        },
         refreshChannels,
         // A run that asked for approval has just stopped to wait for it.
-        () => void gateway.approvals().then((approvals) => setData((current) => current && ({ ...current, approvals }))).catch(() => {}));
+        () => void gateway.approvals().then((approvals) => setData((current) => current && ({ ...current, approvals }))).catch(() => {}),
+        () => {
+          void client.users.directory().then(async ({ users: people }) => {
+            const conversations = await gateway.conversations(initial.agents, people, initial.currentUser.id);
+            if (!cancelled) setData((current) => current && ({ ...current, people, conversations: [...conversations, ...current.conversations.filter((item) => item.type === 'channel')] }));
+          }).catch(() => {});
+        }, initial.realtimeSeq);
     }).catch((error) => { recordBootstrapTiming('error'); if (!cancelled) setLoadError(String(error)); });
     return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
     // while connected to another would be a lie.
   }, [registry.epoch, connected, bootAttempt]);
+  useEffect(() => {
+    if (!connected || !selected || !data?.conversations.some((item) => item.id === selected)) return;
+    let active = true;
+    void gateway.history(selected).then((messages) => {
+      if (!active) return;
+      setData((current) => current && ({ ...current, messages: [...messages, ...current.messages.filter((message) => !messages.some((entry) => entry.id === message.id))]
+        .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')) }));
+    }).catch((reason) => { if (active) notify(reason instanceof Error ? reason.message : 'Could not load messages', 'error'); });
+    return () => { active = false; };
+  }, [connected, selected, Boolean(data?.conversations.some((item) => item.id === selected)), notify]);
   // Remember what this server looked like, for switching back to it.
   useEffect(() => {
     if (data) writeWorkspace(serverKey, data, selected);
@@ -233,7 +262,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     return () => media.removeEventListener("change", apply);
   }, [theme]);
   useEffect(() => {
-    stickToBottomRef.current = true;
+    stickToBottomRef.current = searchFocusRef.current?.conversationId !== selected;
     setShowJumpToLatest(false);
   }, [selected]);
   useEffect(() => {
@@ -250,6 +279,18 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     });
     return () => window.cancelAnimationFrame(frame);
   }, [data?.messages, selected, view, composer, replying]);
+  useEffect(() => {
+    const target = searchFocusRef.current;
+    if (!target || target.conversationId !== selected) return;
+    const frame = requestAnimationFrame(() => {
+      const element = document.querySelector(`[data-message-id="${CSS.escape(target.id)}"]`);
+      if (!element) return;
+      stickToBottomRef.current = false;
+      element.scrollIntoView({ block: 'center' });
+      searchFocusRef.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [data?.messages, selected]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -312,14 +353,16 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   // Who answers an unaddressed message here. In "mentions" mode a message that
   // names nobody and matches no agent's role gets no reply at all, which reads
   // as a broken product unless the composer says so before it is sent.
-  const openConversationId = data?.conversations.find((item) => item.id === selected)?.id ?? data?.conversations[0]?.id;
+  const routingConversation = data?.conversations.find((item) => item.id === selected) ?? data?.conversations[0];
+  const openConversationId = routingConversation?.id;
+  const canLoadReplyMode = Boolean(routingConversation && (!routingConversation.channel || routingConversation.channel.canPost));
   const [replyMode, setReplyMode] = useState<{ id: string; mode: ConversationReplyMode } | null>(null);
   const loadReplyMode = useCallback(() => {
-    if (!openConversationId) return;
+    if (!openConversationId || !canLoadReplyMode) { setReplyMode(null); return; }
     gateway.replyMode(openConversationId)
       .then((mode) => setReplyMode({ id: openConversationId, mode }))
       .catch(() => undefined);
-  }, [openConversationId]);
+  }, [openConversationId, canLoadReplyMode]);
   useEffect(loadReplyMode, [loadReplyMode]);
 
   if (!data) {
@@ -390,7 +433,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const ownConversations = data.conversations.filter((item) => item.type !== "channel");
   const hasChannels = data.conversations.length > ownConversations.length;
   const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);
-  if (!ownConversations.length && panel !== "settings") {
+  if (!ownConversations.length && panel !== "settings" && data.currentUser.role !== "member") {
     // A DM is on its way from the effect above; showing "create your first
     // agent" to someone who already has one would be a lie that flashes past.
     if (data.agents.length && !firstDmFailed) return <Loading />;
@@ -431,14 +474,20 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     </div>;
   }
 
-  if (!data.conversations.length) return <div className="empty-settings-shell">
-    <SettingsPanel
-    providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser}
-    serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding} initialSection={settingsSection}
-    onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme}
-    onNotify={notify} onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)} onProfileChanged={() => gateway.bootstrap().then(setData)}
-    onDevicesChanged={() => gateway.bootstrap().then(setData)}
-    onClose={closeSettings} />{toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}</div>;
+  if (!data.conversations.length) return <div className="first-run">
+    <header><BrandMark /><button className="text-button" onClick={() => openSettings()}>Settings</button><button className="text-button" onClick={() => void gateway.logout()}>Log out</button></header>
+    <main className="empty-workspace"><h1>Welcome to {serverBranding.displayName}</h1><p>Start a private conversation with a teammate or an agent. New conversations appear here as your team invites you.</p><button className="primary-button" onClick={() => setNewMessage(true)}>New message</button></main>
+    {newMessage && <NewConversationDialog agents={data.agents} people={data.people} currentUserId={data.currentUser.id} onClose={() => setNewMessage(false)} onCreate={async (participants, name) => {
+      const created = await gateway.createConversation(participants, name, data.agents, data.people, data.currentUser.id);
+      setData((current) => current && ({ ...current, conversations: [...current.conversations, created] }));
+      resubscribeConversations(); openConversation(created.id); setNewMessage(false);
+    }} />}
+    {panel === "settings" && <SettingsPanel providers={data.providers} connectors={data.connectors} devices={data.devices} agents={data.agents} currentUser={data.currentUser}
+      serverBranding={serverBranding} onServerBrandingChanged={updateServerBranding} initialSection={settingsSection}
+      onAvatarModeChange={updateMyAvatar} theme={theme} onThemeChange={updateTheme} onNotify={notify}
+      onProvidersChanged={() => gateway.bootstrap().then(setData)} onConnectorsChanged={() => gateway.bootstrap().then(setData)} onProfileChanged={() => gateway.bootstrap().then(setData)} onDevicesChanged={() => gateway.bootstrap().then(setData)} onClose={closeSettings} />}
+    {toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}
+  </div>;
 
   const conversation =
     data.conversations.find((item) => item.id === selected) ??
@@ -450,8 +499,24 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     && replyMode?.id === conversation.id && replyMode.mode === "mentions"
     && Boolean(composer.trim()) && !composer.includes("@");
   const visibleMessages = data.messages.filter(
-    (message) => message.conversationId === conversation.id,
+    (message) => message.conversationId === conversation.id && !message.threadRootId,
   );
+  const loadOlder = async () => {
+    if (loadingHistory || !visibleMessages.length) return;
+    const id = conversation.id;
+    const list = messageListRef.current;
+    const height = list?.scrollHeight ?? 0;
+    const top = list?.scrollTop ?? 0;
+    stickToBottomRef.current = false;
+    setLoadingHistory(true);
+    try {
+      const older = await gateway.history(id, visibleMessages[0].id);
+      setData((current) => current && ({ ...current, messages: [...older.filter((entry) => !current.messages.some((message) => message.id === entry.id)), ...current.messages] }));
+      if (older.length < 200) setHistoryEnd((current) => [...current, id]);
+      requestAnimationFrame(() => { if (list && list === messageListRef.current) list.scrollTop = top + list.scrollHeight - height; });
+    } catch (reason) { notify(reason instanceof Error ? reason.message : 'Could not load earlier messages', 'error'); }
+    finally { setLoadingHistory(false); }
+  };
   const conversationApprovals = data.approvals.filter(
     (approval) => approval.conversationId === conversation.id,
   );
@@ -514,6 +579,11 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       kind: "agent",
       agent,
     })),
+    ...data.people.filter((person) => person.id !== data.currentUser.id && (channel
+      ? channel.members.some((member) => member.participantType === 'user' && member.participantId === person.id)
+      : conversation.personIds?.includes(person.id))).map((person): MentionOption => ({
+        id: `user-${person.id}`, label: `@${person.displayName}`, description: 'Teammate', color: 'var(--oc-info)', kind: 'user', person,
+      })),
     ...roleMentions,
   ];
   const mentionOptions = allMentionOptions.filter((option) =>
@@ -532,14 +602,20 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
    */
   function mentionedAgents(editor: HTMLElement | null) {
     const ids = new Set<string>();
+    const userIds = new Set<string>();
     editor?.querySelectorAll<HTMLElement>(".mention-token").forEach((token) => {
       const kind = token.dataset.mentionKind;
+      if (kind === "user" && token.dataset.mentionId) userIds.add(token.dataset.mentionId);
+      if (kind === "everyone") {
+        const members = channel ? channel.members.filter((member) => member.participantType === "user").map((member) => member.participantId) : conversation.personIds ?? [];
+        members.filter((id) => id !== data!.currentUser.id).forEach((id) => userIds.add(id));
+      }
       if (kind === "agent" && token.dataset.mentionId) ids.add(token.dataset.mentionId);
       if (kind === "everyone") activeAgents.forEach((agent) => ids.add(agent.id));
       if (kind === "here") activeAgents.filter((agent) => agent.status === "online").forEach((agent) => ids.add(agent.id));
       if (kind === "role") activeAgents.filter((agent) => `@${agent.role}` === token.dataset.mentionLabel).forEach((agent) => ids.add(agent.id));
     });
-    return [...ids].map((targetId) => ({ targetId, targetType: "agent" as const }));
+    return [...[...ids].map((targetId) => ({ targetId, targetType: "agent" as const })), ...[...userIds].map((targetId) => ({ targetId, targetType: "user" as const }))];
   }
 
   async function addAttachments(event: React.ChangeEvent<HTMLInputElement>) {
@@ -649,6 +725,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     token.dataset.mentionLabel = option.label;
     token.dataset.mentionKind = option.kind;
     if (option.agent) token.dataset.mentionId = option.agent.id;
+    if (option.person) token.dataset.mentionId = option.person.id;
     token.style.setProperty("--mention-color", option.color);
     token.textContent = option.label;
     range.insertNode(token);
@@ -940,9 +1017,10 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               <span>Activity</span>
             </button>
           </nav>
-          {directConversations.length > 0 && <SidebarSection
+          <SidebarSection
             title="Direct messages"
-            action={() => setCreating(true)}
+            action={() => { setNewMessage(true); setMobileNav(false); }}
+            actionLabel="New message"
           >
             {directConversations.map((item) => (
                 <ConversationRow
@@ -953,7 +1031,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   onClick={() => openConversation(item.id)}
                 />
               ))}
-          </SidebarSection>}
+          </SidebarSection>
           {groupConversations.length > 0 && <SidebarSection title="Group DMs">
             {groupConversations.map((item) => (
                 <ConversationRow
@@ -1002,6 +1080,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 </button>
               </div>
             )}
+            <button onClick={() => { setNewMessage(true); setMobileNav(false); }}><MessageCircle size={17} /><span>New message</span></button>
             <button onClick={() => setCreating(true)}>
               <Plus size={17} />
               <span>New agent</span>
@@ -1059,6 +1138,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 <Lock size={18} />
               ) : conversation.type !== "dm" ? (
                 <Hash size={18} />
+              ) : conversation.peer ? (
+                <UserAvatar id={conversation.peer.id} name={conversation.peer.displayName} mode={conversation.peer.avatarMode} size="small" />
               ) : (
                 <button
                   className="avatar-button"
@@ -1084,8 +1165,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       : channel
                         ? channel.topic ?? `${channel.members.filter((m) => m.participantType === "user").length} people · ${activeAgents.length} agents`
                         : conversation.type === "group"
-                          ? `${activeAgents.length} agents · you`
-                          : activeAgents[0]?.role}
+                          ? `${(conversation.personIds?.length ?? 0) + 1} people · ${activeAgents.length} agents`
+                          : activeAgents[0]?.role ?? "Private conversation"}
                 </span>
               </div>
             </div>
@@ -1111,17 +1192,11 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   >
                     <PanelRight size={18} />
                   </button>
-                  <button
+                  {channel && <button
                     className="icon-button compact"
-                    onClick={() =>
-                      channel
-                        ? setChannelDialog({ id: conversation.id })
-                        : notify("More conversation actions are coming soon.")
-                    }
-                    aria-label={channel ? "Channel settings" : "More actions"}
-                  >
-                    <MoreHorizontal size={19} />
-                  </button>
+                    onClick={() => setChannelDialog({ id: conversation.id })}
+                    aria-label="Channel settings"
+                  ><MoreHorizontal size={19} /></button>}
                 </>
               )}
             </div>
@@ -1166,6 +1241,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       : `This is the beginning of your conversation with ${conversation.name}.`}
                   </p>
                 </div>
+                {visibleMessages.length >= 200 && !historyEnd.includes(conversation.id) && <button type="button" className="text-button" disabled={loadingHistory} onClick={() => void loadOlder()}>{loadingHistory ? 'Loading earlier messages…' : 'Load earlier messages'}</button>}
                 <div className="date-divider">
                   <span>Today</span>
                 </div>
@@ -1177,7 +1253,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     people={people}
                     allMessages={visibleMessages}
                     onReply={() => setReplying(message)}
-                    onThread={() => setThreadRoot(message)}
+                    onThread={() => { setThreadFocusId(null); setThreadRoot(message); }}
                     onAgentClick={openAgentProfile}
                     onInspect={() => setInspecting({ messageId: message.id })}
                     onAttachmentDownload={(id, filename) => {
@@ -1306,10 +1382,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       setComposer(readComposer(event.currentTarget));
                     }}
                     data-placeholder={`Message ${conversation.type !== "dm" ? "#" : ""}${conversation.name}`}
-                    aria-expanded={showMentions}
                     aria-controls={showMentions ? "mention-suggestions" : undefined}
                     aria-autocomplete="list"
-                    role="combobox"
+                    role="textbox"
                     aria-activedescendant={
                       showMentions
                         ? `mention-option-${mentionOptions[mentionIndex]?.id}`
@@ -1432,12 +1507,14 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         </main>
 
         {threadRoot ? (
-          <ThreadPanel root={threadRoot} agents={data.agents} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
+          <ThreadPanel focusMessageId={threadFocusId} liveMessages={data.messages} root={threadRoot} agents={data.agents} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
             setThreadRoot(updated);
             setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
           }} />
         ) : panel === "details" && (
           <DetailsPanel
+            canManageMemory={(id) => data.currentUser.role === 'owner' || data.currentUser.role === 'admin' || data.agents.find((agent) => agent.id === id)?.ownerUserId === data.currentUser.id}
+            people={data.people.filter((person) => channel ? channel.members.some((member) => member.participantType === 'user' && member.participantId === person.id) : conversation.personIds?.includes(person.id) || person.id === data.currentUser.id)}
             conversation={conversation}
             agents={activeAgents}
             onClose={() => setPanel(null)}
@@ -1530,15 +1607,28 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             }}
           />
         )}
+        {newMessage && <NewConversationDialog agents={data.agents} people={data.people} currentUserId={data.currentUser.id} onClose={() => setNewMessage(false)} onCreate={async (participants, name) => {
+          const created = await gateway.createConversation(participants, name, data.agents, data.people, data.currentUser.id);
+          setData((current) => current && ({ ...current, conversations: current.conversations.some((item) => item.id === created.id) ? current.conversations : [...current.conversations, created] }));
+          resubscribeConversations(); openConversation(created.id);
+        }} />}
         {searching && (
           <SearchDialog
             agents={data.agents}
             conversations={data.conversations}
             messages={data.messages}
             onClose={() => setSearching(false)}
-            onSelect={(id) => {
+            onSelect={(id, message) => {
+              searchFocusRef.current = message && !message.threadRootId ? { id: message.id, conversationId: id } : null;
               openConversation(id);
               setSearching(false);
+              if (message) void gateway.messageContext(message.id).then((context) => {
+                stickToBottomRef.current = false;
+                setData((current) => current && ({ ...current, messages: [...current.messages.filter((entry) => !context.some((found) => found.id === entry.id)), ...context]
+                  .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')) }));
+                if (message.threadRootId) { setThreadFocusId(message.id); setThreadRoot(context.find((entry) => entry.id === message.threadRootId) ?? null); }
+
+              }).catch((reason) => notify(reason instanceof Error ? reason.message : 'Could not open this message', 'error'));
             }}
           />
         )}

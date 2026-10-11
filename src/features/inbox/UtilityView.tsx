@@ -1,4 +1,4 @@
-import { Activity, ChevronRight, Inbox, MessageCircle, Settings, ShieldCheck } from "lucide-react";
+import { Activity, ChevronRight, Inbox, MessageCircle, ShieldCheck } from "lucide-react";
 import { NotificationsSection } from "../notifications/NotificationsSection";
 import type { Agent, Approval, Conversation } from "../../types";
 import type { View } from "../../app-types";
@@ -37,9 +37,7 @@ export function UtilityView({
         )}
         {approvals.map((approval) => {
           const agent = agents.find((item) => item.id === approval.agentId);
-          const conversation = conversations.find((item) =>
-            item.agentIds.includes(approval.agentId),
-          );
+          const conversation = conversations.find((item) => item.id === approval.conversationId);
           return (
             <button
               className="inbox-item"
@@ -93,6 +91,7 @@ export function UtilityView({
   }
 
   const runtimeAgents = agents.filter((agent) => agent.runtime !== "Chat");
+  const sessions = runtimeAgents.flatMap((agent) => (agent.runtimeSessions ?? []).map((session) => ({ agent, session })));
   return (
     <section className="utility-view">
       <div className="utility-intro">
@@ -106,7 +105,7 @@ export function UtilityView({
         <div>
           <strong>
             {
-              runtimeAgents.filter((agent) => agent.status === "thinking")
+              sessions.filter(({ session }) => session.status === "running")
                 .length
             }
           </strong>
@@ -117,40 +116,37 @@ export function UtilityView({
           <span>Configured</span>
         </div>
         <div>
-          <strong>1</strong>
-          <span>Workspace</span>
+          <strong>{new Set(runtimeAgents.map((agent) => agent.workspace).filter(Boolean)).size}</strong>
+          <span>Workspaces</span>
         </div>
       </div>
-      {runtimeAgents.length > 0 && (
+      {sessions.length > 0 && (
         <div className="utility-section-title">
           <span>Sessions</span>
           <small>Live</small>
         </div>
       )}
-      {runtimeAgents.map((agent) => {
+      {sessions.map(({ agent, session }) => {
         const conversation = conversations.find((item) =>
-          item.agentIds.includes(agent.id),
+          item.id === session.conversationId,
         );
         return (
           <button
             className="session-row"
-            key={agent.id}
+            key={session.id}
+            disabled={!conversation}
             onClick={() => conversation && onOpenConversation(conversation.id)}
           >
             <Avatar agent={agent} />
             <span>
               <strong>{agent.name}</strong>
               <small>
-                {agent.runtime} · {agent.workspace ?? "No workspace"}
+                {conversation?.name ?? 'Conversation unavailable'} · {agent.runtime} · {agent.workspace ?? "No workspace"}
               </small>
             </span>
             <span className={`session-state ${agent.status}`}>
               <i />
-              {agent.status === "thinking"
-                ? "Running"
-                : agent.status === "online"
-                  ? "Ready"
-                  : "Offline"}
+              {session.status.replace(/_/g, ' ')}
             </span>
             <ChevronRight size={16} />
           </button>
@@ -162,6 +158,7 @@ export function UtilityView({
           sessions here.
         </p>
       )}
+      {runtimeAgents.length > 0 && sessions.length === 0 && <p className="utility-empty">No runtime sessions yet. Message an agent to start one.</p>}
     </section>
   );
 }

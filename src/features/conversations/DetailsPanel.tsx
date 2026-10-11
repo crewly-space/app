@@ -3,12 +3,14 @@ import { Bot, ChevronRight, Cpu, Database, Folder, X } from "lucide-react";
 import { statusLabel } from "../../lib/agent-status";
 import type { Agent, Conversation } from "../../types";
 import type { View } from "../../app-types";
-import { Avatar } from "../appearance/Avatar";
+import { Avatar, UserAvatar } from "../appearance/Avatar";
 import { ReplyModePicker } from "./ReplyModePicker";
 
 export function DetailsPanel({
   conversation,
   agents,
+  people = [],
+  canManageMemory = () => false,
   onClose,
   onNotify,
   onAgentClick,
@@ -16,6 +18,8 @@ export function DetailsPanel({
 }: {
   conversation: Conversation;
   agents: Agent[];
+  people?: { id: string; displayName: string; avatarMode: import("@crewly/protocol").AvatarMode }[];
+  canManageMemory?: (agentId: string) => boolean;
   onClose: () => void;
   onNotify: (message: string) => void;
   onAgentClick: (agentId: string) => void;
@@ -38,7 +42,7 @@ export function DetailsPanel({
     <aside className="detail-panel" aria-label="Conversation details">
       <header>
         <strong>
-          {conversation.type === "channel" ? "Channel" : conversation.type === "group" ? "Conversation" : "Agent"} details
+          {conversation.type === "channel" ? "Channel" : conversation.type === "group" ? "Conversation" : "Conversation"} details
         </strong>
         <button
           className="icon-button compact"
@@ -67,7 +71,8 @@ export function DetailsPanel({
           {conversation.type !== "dm" && agents.length > 0 && (
             <ReplyModePicker conversationId={conversation.id} onNotify={onNotify} />
           )}
-          {!agents.length && (
+          {people.map((person) => <div className="detail-person" key={person.id}><UserAvatar id={person.id} name={person.displayName} mode={person.avatarMode} size="small" /><span>{person.displayName}</span></div>)}
+          {!agents.length && !people.length && (
             <p className="detail-empty">
               No agents here yet.{conversation.type === "channel" ? " An admin can add one from the channel's settings." : ""}
             </p>
@@ -133,6 +138,7 @@ export function DetailsPanel({
               <span>{memoryAgent?.name} uses this across conversations.</span>
             </div>
           </div>
+          {!memoryAgent || !canManageMemory(memoryAgent.id) ? <p className="field-description">Memory is private to the agent owner and server admins.</p> : <>
           <textarea
             aria-labelledby="memory-heading"
             value={memory}
@@ -154,6 +160,8 @@ export function DetailsPanel({
                       .filter(Boolean),
                   });
                   onNotify(`Memory saved for ${memoryAgent.name}.`);
+                } catch (reason) {
+                  onNotify(reason instanceof Error ? reason.message : "Memory could not be saved.");
                 } finally {
                   setSavingMemory(false);
                 }
@@ -165,7 +173,7 @@ export function DetailsPanel({
           <p className="muted-copy">
             You control what this agent remembers. Conversation history is
             managed separately.
-          </p>
+          </p></>}
         </div>
       )}
     </aside>

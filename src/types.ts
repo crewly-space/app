@@ -5,6 +5,7 @@ export type Status = "online" | "thinking" | "offline" | "unknown";
 export type Agent = {
   id: string;
   name: string;
+  ownerUserId?: string;
   /** How the agent is drawn, chosen by its owner; the same for everyone. */
   avatarMode?: AvatarMode;
   initials: string;
@@ -21,6 +22,7 @@ export type Agent = {
   providerId?: string;
   runtime: string;
   workspace?: string;
+  runtimeSessions?: { id: string; conversationId: string; status: string; updatedAt: string }[];
   instructions?: string;
   memoryEnabled?: boolean;
   memory: string[];
@@ -30,6 +32,8 @@ export type Conversation = {
   name: string;
   type: "dm" | "group" | "channel";
   agentIds: string[];
+  personIds?: string[];
+  peer?: { id: string; displayName: string; avatarMode: AvatarMode };
   /** Set for a channel: who is in it, who may post, where it sits in the sidebar. */
   channel?: Channel;
   unread?: number;
@@ -43,6 +47,7 @@ export type Message = {
   /** The person who wrote it, when a person did: seeds their avatar. */
   userId?: string;
   body: string;
+  createdAt?: string;
   time: string;
   attachments: ApiAttachment[];
   replyTo?: string;

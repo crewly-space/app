@@ -57,7 +57,15 @@ function statusOf(reason: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined;
 }
 
+const ERROR_TEXT: Record<string, string> = {
+  local_admin_recovery_required: 'Set a local password for an owner or admin first. Without one, nobody could sign in if Crewly were unreachable.',
+  crewly_identity_scope_required: 'Allow “Sign in with Crewly” for this server under Connected servers in Crewly, then Check again.',
+  crewly_identity_unavailable: 'Crewly sign-in could not be reached just now. Try again in a moment.',
+};
+
 function explain(reason: unknown, fallback: string): string {
+  const known = reason instanceof Error ? ERROR_TEXT[reason.message.match(/\(([a-z_]+)\)/)?.[1] ?? reason.message] : undefined;
+  if (known) return known;
   if (statusOf(reason) === 404) return 'This server does not offer a Crewly connection. Update the server to connect Crewly.';
   return reason instanceof Error && reason.message ? reason.message : fallback;
 }
@@ -114,7 +122,7 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
     } catch (reason) {
       if (statusOf(reason) === 404 || statusOf(reason) === 409) {
         await load();
-        setError(statusOf(reason) === 409 && reason instanceof Error ? reason.message : 'That link had already changed. This is its current state.');
+        setError(statusOf(reason) === 409 && reason instanceof Error ? explain(reason, reason.message) : 'That link had already changed. This is its current state.');
         return;
       }
       throw reason;
@@ -204,8 +212,8 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
 
       {connection.status === 'connected' && (
         <>
-          <dl className="dashboard-facts">
-            <div><dt>Instance</dt><dd>{connection.instanceId}</dd></div>
+          <dl className="dashboard-facts compact">
+            <div><dt>Instance</dt><dd className="mono">{connection.instanceId}</dd></div>
             <div><dt>Crewly</dt><dd>{connection.cloudUrl}</dd></div>
             <div><dt>Credential</dt><dd>Version {connection.credentialVersion}</dd></div>
             <div><dt>Last checked</dt><dd>{connection.lastCheckedAt ? new Date(connection.lastCheckedAt).toLocaleString() : 'Never'}</dd></div>
@@ -236,7 +244,10 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
                 <span>Authentication mode</span>
                 <select value={authSettings.mode} disabled={busy} onChange={(event) => {
                   const mode = event.target.value as AuthMode;
-                  void run(async () => setAuthSettings(await api.updateAuthSettings(mode)));
+                  void run(async () => {
+                    try { setAuthSettings(await api.updateAuthSettings(mode)); }
+                    catch (reason) { throw new Error(explain(reason, 'Could not change the sign-in mode.')); }
+                  });
                 }}>
                   <option value="local">Local passwords only</option>
                   <option value="both">Local passwords and Crewly</option>
