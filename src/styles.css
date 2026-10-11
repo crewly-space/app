@@ -5375,3 +5375,24 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
 .auth-social-options > .secondary-button { font-size: 12px; min-height: 44px; gap: 8px; padding-inline: 8px; }
 .auth-social-options > .secondary-button:first-child { grid-column: 1 / -1; }
 .auth-social-options svg { flex: 0 0 auto; }
+
+/* The hosted app's front door shares the crew's welcoming, quiet identity. */
+.signin-page { min-height: 100dvh; overflow-y: auto; background: var(--oc-bg); color: var(--oc-text); padding: 28px 48px; }
+.signin-header { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.signin-header a { color: var(--oc-muted-strong); text-decoration: none; font-size: 13px; }
+.signin-header .signin-brand { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 650; color: var(--oc-text-strong); }
+.signin-layout { max-width: 920px; margin: 72px auto; display: grid; grid-template-columns: 1fr 420px; gap: 80px; align-items: center; }
+.signin-story > img { display: block; margin-bottom: 32px; }
+.signin-eyebrow { color: var(--oc-accent-text); font-size: 12px; font-weight: 600; }
+.signin-story h2 { font: 600 42px / 1.12 var(--oc-font-display); letter-spacing: -.04em; color: var(--oc-text-strong); margin: 16px 0 20px; }
+.signin-story > p:not(.signin-eyebrow) { max-width: 330px; font-size: 16px; line-height: 1.75; color: var(--oc-muted-strong); }
+.signin-story-note { display: block; margin-top: 48px; font-size: 12px; color: var(--oc-muted-strong); }
+.onboarding-card.auth-card.signin-form { width: 100%; padding: 32px; background: var(--oc-panel); border: 1px solid var(--oc-line-soft); border-radius: 20px; gap: 20px; box-shadow: none; }
+.signin-form h1 { margin: 0; }
+.signin-form .auth-social-options:empty { display: none; }
+.signin-form .auth-social-options > a { min-height: 48px; }
+.signin-form > .primary-button { min-height: 48px; }
+.signin-form .signin-legal { font-size: 11px; line-height: 1.6; color: var(--oc-muted-strong); text-align: center; }
+.signin-legal a { color: inherit; text-underline-offset: 3px; }
+@media (max-width: 850px) { .signin-layout { max-width: 420px; grid-template-columns: 1fr; margin: 48px auto; gap: 0; } .signin-story { display: none; } }
+@media (max-width: 520px) { .signin-page { padding: 20px 16px; } .signin-layout { margin: 32px auto; } .onboarding-card.auth-card.signin-form { padding: 26px 20px; } }

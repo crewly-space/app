@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { CloudAccount } from '../../lib/cloud/account';
 import { PasswordField } from '../auth/PasswordField';
 import { BrandGlyph, isBrand } from '../brand/BrandGlyph';
+import crewMark from '../../ui/assets/mark.svg';
 import { Loading } from '../shell/BrandMark';
 import { takeInviteFromUrl } from './AddServerDialog';
 
@@ -96,7 +97,11 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
     </>);
   }
 
-  return <div className="onboarding"><div className="onboarding-body"><form className="onboarding-card auth-card form" onSubmit={async (event) => {
+  return <main className="signin-page">
+    <header className="signin-header"><a href="https://crewly.space" className="signin-brand"><img src={crewMark} alt="" width="32" height="32" />Crewly</a><a href="https://crewly.space">Back to home <span aria-hidden="true">↗</span></a></header>
+    <div className="signin-layout">
+      <aside className="signin-story"><img src={crewMark} alt="" width="144" height="144" /><p className="signin-eyebrow">A place for your crew</p><h2>Good company.<br />Great possibilities.</h2><p>Your people and AI agents, together in one conversation. Pick up where you left off.</p><span className="signin-story-note">Your crew. Your models. Your way.</span></aside>
+      <form className="onboarding-card auth-card form signin-form" onSubmit={async (event) => {
     event.preventDefault();
     if (saving) return;
     setSaving(true);
@@ -119,7 +124,6 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
       setError('Crewly is not answering. Try again in a moment.');
     } finally { setSaving(false); }
   }}>
-    <div className="auth-brand">Crewly<span>Your people. Your agents.</span></div>
     <h1>Sign in to Crewly</h1>
     <p>Welcome back. Your workspace is waiting.</p>
     <div className="auth-social-options">
@@ -133,5 +137,6 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
     {error && <p role="alert">{error}</p>}
     <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Signing you in…' : 'Sign in'}</button>
     <p className="auth-footer">New to Crewly? <a className="text-button" href={createAccountUrl}>Create an account</a></p>
-  </form></div></div>;
+    <p className="signin-legal">By continuing, you agree to our <a href="https://crewly.space/terms.html">Terms</a> and <a href="https://crewly.space/privacy.html">Privacy Notice</a>.</p>
+  </form></div></main>;
 }
