@@ -95,7 +95,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // people -- but it is not a gate: skipping lands on the empty server, and
   // everything is set up from Settings like any other time. Hashing the
   // password is deliberately slow (scrypt, N=2^17).
-  await page.findByRole('heading', { name: /^Welcome to / }, { timeout: 5000 });
+  await page.findByRole('heading', { name: /^Welcome to / }, { timeout: 15000 });
   expect(page.getByText('You own this server')).toBeTruthy();
   // A local owner signed in with a password here, not with a Crewly account.
   expect(page.getByText(/signed in as/).textContent).not.toMatch(/Crewly account/);
