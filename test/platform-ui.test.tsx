@@ -73,6 +73,12 @@ function platform(overrides: Partial<PlatformApi> = {}): PlatformApi {
     channels: async () => [],
     agentRuntime: async () => runtime,
     setAgentRuntime: vi.fn(async (_id, input) => ({ ...runtime, runtimeKind: input.runtimeKind })),
+    addDeviceWorkspace: vi.fn(async (_device, input) => ({
+      workspace: { id: 'ws_site', name: input.name ?? 'site' },
+      workspaces: [{ id: 'ws_app', name: 'app' }, { id: 'ws_site', name: input.name ?? 'site' }],
+    })),
+    renameDeviceWorkspace: vi.fn(async (_device, id, name) => ({ workspace: { id, name }, workspaces: [{ id, name }] })),
+    removeDeviceWorkspace: vi.fn(async () => ({ workspace: null, workspaces: [] })),
     agentTools: async () => [],
     setAgentTools: vi.fn(async () => []),
     agentSkills: async () => [],
@@ -115,14 +121,51 @@ describe('agent settings', () => {
     expect(await screen.findByText('Offline · Runtime unavailable — Laptop is offline')).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText(/Claude Code/));
-    fireEvent.change(screen.getByLabelText('Device'), { target: { value: 'dev_1' } });
-    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: 'ws_app' } });
+    // The only computer with Claude Code is picked for you.
+    expect((screen.getByLabelText('Device') as HTMLSelectElement).value).toBe('dev_1');
+    fireEvent.click(screen.getByLabelText('app'));
     fireEvent.change(screen.getByLabelText('What it may do'), { target: { value: 'auto_edit' } });
     fireEvent.click(screen.getByText('Save runtime'));
 
     await waitFor(() => expect(api.setAgentRuntime).toHaveBeenCalledWith('a1', {
       runtimeKind: 'claude-code', deviceId: 'dev_1', workspaceId: 'ws_app', options: { permissionMode: 'auto_edit' },
     }));
+  });
+
+  it('runs a coding agent in a scratch folder when no workspace is chosen', async () => {
+    const api = platform();
+    render(<AgentSettings api={api} agent={agent} agents={[agent]} onBack={() => {}} />);
+    await screen.findByText(/Runtime unavailable/);
+    fireEvent.click(screen.getByLabelText(/Claude Code/));
+    expect((screen.getByLabelText(/Scratch folder/) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByText('Save runtime'));
+    await waitFor(() => expect(api.setAgentRuntime).toHaveBeenCalledWith('a1', {
+      runtimeKind: 'claude-code', deviceId: 'dev_1', options: { permissionMode: 'ask' },
+    }));
+  });
+
+  it('adds, renames and removes a device folder without a terminal', async () => {
+    const api = platform();
+    render(<AgentSettings api={api} agent={agent} agents={[agent]} onBack={() => {}} />);
+    await screen.findByText(/Runtime unavailable/);
+    fireEvent.click(screen.getByLabelText(/Claude Code/));
+
+    fireEvent.click(screen.getByText('+ Add a folder'));
+    fireEvent.change(screen.getByLabelText('Folder on Laptop'), { target: { value: '~/code/site' } });
+    fireEvent.click(screen.getByText('Add folder'));
+    await waitFor(() => expect(api.addDeviceWorkspace).toHaveBeenCalledWith('dev_1', { path: '~/code/site' }));
+    // The new folder is chosen for the agent.
+    await waitFor(() => expect((screen.getByLabelText('site') as HTMLInputElement).checked).toBe(true));
+
+    fireEvent.click(screen.getByLabelText('Rename app'));
+    fireEvent.change(screen.getByLabelText('New name for app'), { target: { value: 'Web app' } });
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(api.renameDeviceWorkspace).toHaveBeenCalledWith('dev_1', 'ws_app', 'Web app'));
+
+    fireEvent.click(await screen.findByLabelText('Remove Web app'));
+    fireEvent.click(screen.getByText('Remove'));
+    await waitFor(() => expect(api.removeDeviceWorkspace).toHaveBeenCalledWith('dev_1', 'ws_app'));
+    expect(await screen.findByText('+ Add a folder')).toBeTruthy();
   });
 
   it('explains how to make a coding runtime available when nothing is paired', async () => {

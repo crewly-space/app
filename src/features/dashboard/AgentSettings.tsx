@@ -21,12 +21,13 @@ import { statusLabel } from '../../lib/agent-status';
 import type { PlatformApi } from './platform-api';
 import { useWork } from './useWork';
 import { AgentToolAccess } from './AgentToolAccess';
+import { DeviceWorkspaces } from './DeviceWorkspaces';
 
 const RUNTIMES: Array<{ id: RuntimeKind; label: string; detail: string }> = [
   { id: 'native', label: 'Chat', detail: 'Answers through its model provider. Nothing to install.' },
-  { id: 'claude-code', label: 'Claude Code', detail: 'Works in a repository on one of your paired devices.' },
-  { id: 'codex', label: 'Codex', detail: 'Works in a repository on one of your paired devices.' },
-  { id: 'gemini-cli', label: 'Gemini CLI', detail: 'Works in a repository on one of your paired devices.' },
+  { id: 'claude-code', label: 'Claude Code', detail: 'Codes on one of your paired computers.' },
+  { id: 'codex', label: 'Codex', detail: 'Codes on one of your paired computers.' },
+  { id: 'gemini-cli', label: 'Gemini CLI', detail: 'Codes on one of your paired computers.' },
 ];
 
 const PERMISSIONS: Record<RuntimePermissionMode, string> = {
@@ -119,6 +120,19 @@ export function AgentSettings({
 
   const coding = runtimeDraft.kind !== 'native';
   const device = runtime?.devices.find((candidate) => candidate.id === runtimeDraft.deviceId);
+
+  // With one computer that can run the chosen runtime, there is nothing to choose.
+  const capable = runtime?.devices.filter((candidate) => candidate.runtimes.some((entry) => entry.id === runtimeDraft.kind)) ?? [];
+  const onlyCapable = coding && !runtimeDraft.deviceId && capable.length === 1 ? capable[0]!.id : '';
+  useEffect(() => {
+    if (onlyCapable) setRuntimeDraft((current) => ({ ...current, deviceId: onlyCapable, workspaceId: '' }));
+  }, [onlyCapable]);
+
+  const setDeviceWorkspaces = (deviceId: string, workspaces: Array<{ id: string; name: string }>) =>
+    setRuntime((current) => current && {
+      ...current,
+      devices: current.devices.map((candidate) => candidate.id === deviceId ? { ...candidate, workspaces } : candidate),
+    });
   const hasTool = (serverId: string, toolName: string) => tools.some((tool) => tool.serverId === serverId && tool.toolName === toolName);
 
   const saveTools = (next: Array<{ serverId: string; toolName: string }>) => run(async () => {
@@ -205,7 +219,6 @@ export function AgentSettings({
               <ol>
                 <li><code>crewly connect</code> — pair it</li>
                 <li><code>crewly runtime install</code> — install and sign in to Claude Code, Codex or Gemini CLI</li>
-                <li><code>crewly workspace add ~/code/your-repo</code> — choose what it may work on</li>
               </ol>
             </div>
           ) : (
@@ -224,15 +237,17 @@ export function AgentSettings({
                 })}
               </select>
               {device && (
-                device.workspaces.length === 0 ? (
-                  <p className="field-description">{device.name} has no workspaces. Run <code>crewly workspace add &lt;path&gt;</code> there.</p>
-                ) : (
-                  <select aria-label="Workspace" value={runtimeDraft.workspaceId}
-                    onChange={(event) => setRuntimeDraft((current) => ({ ...current, workspaceId: event.target.value }))}>
-                    <option value="">Choose a workspace…</option>
-                    {device.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
-                  </select>
-                )
+                <DeviceWorkspaces
+                  device={device}
+                  selectedId={runtimeDraft.workspaceId}
+                  onSelect={(workspaceId) => setRuntimeDraft((current) => ({ ...current, workspaceId }))}
+                  onChanged={(workspaces) => setDeviceWorkspaces(device.id, workspaces)}
+                  actions={{
+                    add: (path, name) => api.addDeviceWorkspace(device.id, { path, ...(name ? { name } : {}) }),
+                    rename: (workspaceId, name) => api.renameDeviceWorkspace(device.id, workspaceId, name),
+                    remove: (workspaceId) => api.removeDeviceWorkspace(device.id, workspaceId),
+                  }}
+                />
               )}
               <select aria-label="What it may do" value={runtimeDraft.permissionMode}
                 onChange={(event) => setRuntimeDraft((current) => ({ ...current, permissionMode: event.target.value as RuntimePermissionMode }))}>
@@ -241,11 +256,11 @@ export function AgentSettings({
             </div>
           )
         )}
-        <button type="button" className="primary-button" disabled={busy || (coding && (!runtimeDraft.deviceId || !runtimeDraft.workspaceId))}
+        <button type="button" className="primary-button" disabled={busy || (coding && !runtimeDraft.deviceId)}
           onClick={() => void run(async () => {
             setRuntime(await api.setAgentRuntime(agent.id, {
               runtimeKind: runtimeDraft.kind,
-              ...(coding ? { deviceId: runtimeDraft.deviceId, workspaceId: runtimeDraft.workspaceId } : {}),
+              ...(coding ? { deviceId: runtimeDraft.deviceId, ...(runtimeDraft.workspaceId ? { workspaceId: runtimeDraft.workspaceId } : {}) } : {}),
               options: { permissionMode: runtimeDraft.permissionMode },
             }));
             setStatus(await api.agentStatus(agent.id));

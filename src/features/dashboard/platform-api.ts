@@ -1,4 +1,5 @@
 import type {
+  DeviceWorkspaceChange,
   AgentRuntime,
   AgentRoutingConfig,
   AgentRun,
@@ -80,6 +81,9 @@ export interface PlatformApi {
   channels(): Promise<Channel[]>;
   agentRuntime(agentId: string): Promise<AgentRuntime>;
   setAgentRuntime(agentId: string, input: SetAgentRuntimeInput): Promise<AgentRuntime>;
+  addDeviceWorkspace(deviceId: string, input: { path: string; name?: string }): Promise<DeviceWorkspaceChange>;
+  renameDeviceWorkspace(deviceId: string, workspaceId: string, name: string): Promise<DeviceWorkspaceChange>;
+  removeDeviceWorkspace(deviceId: string, workspaceId: string): Promise<DeviceWorkspaceChange>;
   agentTools(agentId: string): Promise<AgentToolAssignment[]>;
   setAgentTools(agentId: string, tools: Array<{ serverId: string; toolName: string }>, acknowledge: McpCapability[]): Promise<AgentToolAssignment[]>;
   agentSkills(agentId: string): Promise<AgentSkill[]>;
@@ -151,6 +155,9 @@ export const platformApi: PlatformApi = {
   channels: async () => (await client.channels.list()).channels,
   agentRuntime: (agentId) => client.agents.runtime(agentId),
   setAgentRuntime: (agentId, input) => client.agents.setRuntime(agentId, input),
+  addDeviceWorkspace: (deviceId, input) => client.devices.addWorkspace(deviceId, input),
+  renameDeviceWorkspace: (deviceId, workspaceId, name) => client.devices.renameWorkspace(deviceId, workspaceId, name),
+  removeDeviceWorkspace: (deviceId, workspaceId) => client.devices.removeWorkspace(deviceId, workspaceId),
   agentTools: async (agentId) => (await client.mcp.agentTools(agentId)).tools,
   setAgentTools: async (agentId, tools, acknowledge) => (await client.mcp.setAgentTools(agentId, tools, acknowledge)).tools,
   agentSkills: async (agentId) => (await client.skills.forAgent(agentId)).skills,
