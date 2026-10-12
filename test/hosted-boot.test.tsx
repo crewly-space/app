@@ -31,6 +31,7 @@ let CloudAccount: typeof import('../src/lib/cloud/account').CloudAccount;
 
 beforeAll(async () => {
   vi.stubEnv('VITE_CREWLY_CLOUD_URL', CLOUD);
+  vi.stubEnv('VITE_CREWLY_DASHBOARD_URL', '/dashboard/');
   Object.defineProperty(window, 'matchMedia', { value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
   ({ default: App } = await import('../src/App'));
   ({ CloudGate } = await import('../src/features/servers/CloudGate'));
@@ -90,7 +91,7 @@ describe('the hosted app on a fresh visit', () => {
     localStorage.setItem('crewly:session:srv_2', 'other-token');
     boot();
     await screen.findByRole('heading', { name: "production isn't answering" });
-    expect(screen.getByRole('link', { name: 'Dashboard' }).getAttribute('href')).toBe(`${CLOUD}/dashboard/`);
+    expect(screen.getByRole('link', { name: 'Dashboard' }).getAttribute('href')).toBe('/dashboard/');
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(await screen.findByRole('heading', { name: 'Sign in to Crewly' })).toBeTruthy();
     expect(localStorage.getItem('crewly:session:srv_1')).toBeNull();
