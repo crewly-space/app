@@ -38,7 +38,8 @@ export function MessageItem({
     ? people.byId.get(message.userId)?.name ?? "Someone"
     : null;
   return (
-    <article data-message-id={message.id} className={`message ${message.streaming ? "streaming" : ""}`}>
+    // Focusable so a tap selects it: on a touch screen that is what shows its actions.
+    <article data-message-id={message.id} tabIndex={-1} className={`message ${message.streaming ? "streaming" : ""}`}>
       {message.author === "you" ? (
         <UserAvatar
           id={message.userId ?? people.me.id}

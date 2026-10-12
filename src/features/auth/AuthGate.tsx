@@ -3,6 +3,7 @@ import { client, clearToken, currentToken, storeToken } from '../../lib/api/clie
 import { consumeHandoffFromUrl } from '../../lib/api/handoff';
 import { navigateToServerUrl, safeNavigationUrl } from '../../lib/safe-navigation';
 import { PasswordField } from './PasswordField';
+import { BrandMark } from '../shell/BrandMark';
 import { JoinInvite, leaveInvitePage, readInviteCode } from './JoinInvite';
 
 /**
@@ -112,7 +113,7 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
       {phase === 'login' && <button className="text-button" type="button" onClick={() => setShowLocal(true)}>Sign in with a password on this server instead</button>}
     </div>);
   }
-  if (phase === 'loading') return frame(<div className="onboarding-card auth-card form"><div className="auth-brand">Crewly<span>Your people. Your agents.</span></div><h1>{error ? 'Unable to connect' : 'Opening your workspace'}</h1><p role={error ? 'alert' : 'status'}>{error || 'Checking your sign-in…'}</p>{error && <button className="primary-button" onClick={() => setAttempt(value => value + 1)}>Try again</button>}</div>);
+  if (phase === 'loading') return frame(<div className="onboarding-card auth-card form"><div className="auth-brand"><BrandMark />Crewly<span>Your people. Your agents.</span></div><h1>{error ? 'Unable to connect' : 'Opening your workspace'}</h1><p role={error ? 'alert' : 'status'}>{error || 'Checking your sign-in…'}</p>{error && <button className="primary-button" onClick={() => setAttempt(value => value + 1)}>Try again</button>}</div>);
   return frame(<form className="onboarding-card auth-card form" onSubmit={async (event) => {
     event.preventDefault(); if (saving) return; setSaving(true); setError('');
     try {
@@ -122,7 +123,7 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
       storeToken(result.token); setSignedInAs(result.user.email); setSigningInToAccept(false); setPhase('ready');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Authentication failed'); } finally { setSaving(false); }
   }}>
-    <div className="auth-brand">Crewly<span>Your people. Your agents.</span></div>
+    <div className="auth-brand"><BrandMark />Crewly<span>Your people. Your agents.</span></div>
     <h1>{phase === 'setup' ? 'Create your workspace' : server ? `Log in to ${server}` : 'Log in to Crewly'}</h1>
     {phase === 'setup' && <p>Start with your account. You’ll be the first admin of this server.</p>}
     {!server && phase === 'login' && <p>Welcome back. Sign in to continue with your crew.</p>}
@@ -136,7 +137,7 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
     <PasswordField id="auth-password" value={password} onChange={setPassword} creating={phase === 'setup'} disabled={saving} />
     {phase === 'setup' && claimRequired && <label>Server setup code<input disabled={saving} required placeholder="Paste your setup code" autoComplete="off" value={claimToken} onChange={(e) => setClaimToken(e.target.value)} /><small>Find this one-time token in the server data directory's claim-token file or in the first startup log.</small></label>}
     {error && <p role="alert">{error}</p>}
-    <button className={phase === 'login' && authMode === 'crewly' && safeNavigationUrl(crewlySignInUrl) ? 'secondary-button' : 'primary-button'} type="submit" disabled={saving}>{saving ? 'Signing you in…' : phase === 'setup' ? 'Create admin' : 'Log in'}</button>
+    <button className={phase === 'login' && authMode === 'crewly' && safeNavigationUrl(crewlySignInUrl) ? 'secondary-button' : 'primary-button'} type="submit" disabled={saving}>{saving ? 'Signing you in…' : phase === 'setup' ? 'Create workspace' : 'Log in'}</button>
     {hosted && <button type="button" className="text-button" onClick={() => { setShowLocal(false); onRetryCrewly?.(); }}>Back to signing in with Crewly</button>}
   </form>);
 }

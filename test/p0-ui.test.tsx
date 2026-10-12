@@ -91,7 +91,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('Email'), { target: { value: 'owner@example.test' } });
   fireEvent.change(page.getByLabelText('Password'), { target: { value: 'test-password-1' } });
   fireEvent.change(page.getByLabelText(/Server setup code/), { target: { value: 'test-claim-token' } });
-  fireEvent.click(page.getByRole('button', { name: 'Create admin' }));
+  fireEvent.click(page.getByRole('button', { name: 'Create workspace' }));
   // A new server walks its owner through setup -- provider, agents, channels,
   // people -- but it is not a gate: skipping lands on the empty server, and
   // everything is set up from Settings like any other time. Hashing the

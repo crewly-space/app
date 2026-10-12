@@ -1,4 +1,4 @@
-import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, DirectoryUser, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
+import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, DirectoryAgent, DirectoryUser, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
 import { client, clearToken } from './api/client';
 import type { Agent, Approval, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
@@ -10,6 +10,11 @@ function agentView(agent: ApiAgent, memory: string[] = []): Agent {
     role: role || 'Agent', instructions: instructions.join('\n'), color: '#7857d8', status: 'unknown',
     model: agent.modelPolicy.defaultModel, providerId: agent.modelPolicy.defaultProviderId,
     runtime: 'Chat', memoryEnabled: true, memory };
+}
+/** Someone else's agent: only its name and avatar are the reader's to see. */
+function directoryAgentView(agent: DirectoryAgent): Agent {
+  return { id: agent.id, name: agent.name, avatarMode: agent.avatarMode ?? 'bloop', initials: agent.name[0]?.toUpperCase() ?? '?',
+    role: 'Agent', instructions: '', color: '#7857d8', status: 'unknown', model: '', providerId: '', runtime: 'Chat', memoryEnabled: false, memory: [] };
 }
 function conversationView(conversation: ApiConversation, agents: Agent[], people: DirectoryUser[] = [], currentUserId?: string): Conversation {
   const agentIds = conversation.participants.filter((p) => p.participantType === 'agent').map((p) => p.participantId);
@@ -52,7 +57,7 @@ export function approvalView(approval: ApprovalRequest, now = Date.now()): Appro
     workspace: tool
       ? [connection.name, text(details.risk).replace('_', ' '), connection.trust].filter(Boolean).join(' · ')
       : 'This server',
-    requestedAt: new Date(approval.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    requestedAt: new Date(approval.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     expiresIn: Number.isNaN(left) ? '' : minutes >= 120 ? `${Math.round(minutes / 60)}h` : `${minutes}m`,
   };
 }
@@ -61,7 +66,7 @@ export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
     author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
-    body: message.body, createdAt: message.createdAt, time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    body: message.body, createdAt: message.createdAt, time: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     attachments: message.attachments ?? [],
     replyTo: message.replyToMessageId ?? undefined,
     threadRootId: message.threadRootId ?? undefined,
@@ -106,18 +111,19 @@ export const gateway = {
     const started = performance.now();
     // Capture changes during bootstrap without replaying all old messages.
     const realtimeSeq = await client.realtimeCursor().then((result) => result.seq).catch(() => undefined);
-    const [currentUser, apiAgents, apiConversations, devices, people, channelList, statuses] = await Promise.all([
+    const [currentUser, apiAgents, apiConversations, devices, directory, channelList, statuses] = await Promise.all([
       client.auth.me(),
       client.agents.list(),
       client.conversations.list(),
       client.devices.list(),
       // Everyone's name and avatar, for drawing who wrote what. A server from
       // before the directory gives nothing, and people fall back to defaults.
-      client.users.directory().then((result) => result.users).catch(() => []),
+      client.users.directory().catch(() => ({ users: [] as DirectoryUser[], agents: [] as DirectoryAgent[] })),
       client.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] })),
       client.agents.statuses().then((result) => result.statuses).catch(() => null),
     ]);
     const firstRound = performance.now();
+    const people = directory.users;
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
     const [apiProviders, users, apiConnectors, serverBranding, memories, histories, pendingApprovals, runtimes] = await Promise.all([
       canManage ? client.providers.list() : client.providers.listAvailable(),
@@ -169,7 +175,12 @@ export const gateway = {
         status: agent.providerId && reachable.has(agent.providerId) ? ('online' as const) : ('offline' as const),
       };
     });
-    return { realtimeSeq, agents: withStatuses, conversations, channelCategories: channelList.categories, messages, providers,
+    const own = new Set(agents.map((agent) => agent.id));
+    const otherAgents = (directory.agents ?? []).filter((agent) => !own.has(agent.id)).map((entry) => {
+      const canonical = statuses?.find((status) => status.agentId === entry.id);
+      return canonical ? withStatus(directoryAgentView(entry), canonical) : directoryAgentView(entry);
+    });
+    return { realtimeSeq, agents: withStatuses, otherAgents, conversations, channelCategories: channelList.categories, messages, providers,
       approvals: pendingApprovals.map((approval) => approvalView(approval)), currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {

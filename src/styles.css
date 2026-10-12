@@ -5396,8 +5396,11 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
 .empty-workspace { max-width: 560px; margin: 12vh auto; padding: 24px; text-align: center; }
 .empty-workspace p { color: var(--oc-muted); line-height: 1.6; }
 
+.message:focus { outline: none; }
+/* No hover on a touch screen: a tapped message shows its actions, not every message at once. */
 @media (hover: none) {
-  .message-actions { position: static; opacity: 1; pointer-events: auto; grid-column: 2; justify-self: end; margin-top: 8px; }
+  .message-actions { position: static; display: none; opacity: 1; pointer-events: auto; grid-column: 2; justify-self: end; margin-top: 8px; }
+  .message:focus-within .message-actions { display: flex; }
   .message-actions button { width: 44px; height: 44px; }
 }
 
@@ -5406,8 +5409,9 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
 /* Account forms share the same generous fields and quiet hierarchy. */
 .onboarding:has(.auth-card) { background: radial-gradient(ellipse at top, var(--oc-accent-wash), transparent 65%), var(--oc-bg); }
 .onboarding-card.auth-card { width: min(440px, 100%); padding: 36px; border-radius: 22px; gap: 20px; }
-.auth-brand { display: grid; gap: 6px; margin-bottom: 12px; color: var(--oc-text); font: 700 22px var(--font-display); letter-spacing: -.035em; }
-.auth-brand > span { color: var(--oc-muted); font: 400 12px var(--font-sans); letter-spacing: 0; }
+.auth-brand { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 12px; margin-bottom: 12px; color: var(--oc-text); font: 700 22px var(--font-display); letter-spacing: -.035em; }
+.auth-brand > span:not(.brand-mark) { grid-column: 2; color: var(--oc-muted); font: 400 12px var(--font-sans); letter-spacing: 0; }
+.auth-brand > .brand-mark { grid-column: 1; grid-row: span 2; width: 40px; height: 40px; }
 .auth-card h1 { font-size: 28px; line-height: 1.2; letter-spacing: -.035em; }
 .auth-card > p { line-height: 1.65; font-size: 14px; margin: 0; }
 .auth-card.form label { font-size: 13px; color: var(--oc-text); }
@@ -5488,6 +5492,7 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
 }
 .starter-chips .ask-chip:not(:has(.avatar)) { padding-left: 12px; }
 .ask-chip:hover { border-color: var(--oc-line-hover); background: var(--oc-panel-3); }
+.unaddressed-hint .text-button { margin-left: 4px; font-size: 13px; }
 @media (max-width: 720px) { .unaddressed-hint { margin-left: 0; } }
 
 /* Details: everyone here as one list of same-sized rows. */

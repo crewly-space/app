@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { InvitePreview } from "@crewly/sdk";
 import { PasswordField } from "./PasswordField";
+import { BrandMark } from "../shell/BrandMark";
 import { client } from "../../lib/api/client";
 
 /** The invite code an invite link carries (`/join#invite=<code>`), if this page was opened from one. */
@@ -80,7 +81,7 @@ export function JoinInvite({
 
   if (signedInAs) {
     return frame(<div className="onboarding-card auth-card form">
-      <div className="auth-brand">Crewly<span>Make yourself at home.</span></div>
+      <div className="auth-brand"><BrandMark />Crewly<span>Make yourself at home.</span></div>
     <h1>You’re invited</h1>
       <p>Join this Crewly server as {role} with the account you’re signed in with, <strong>{signedInAs}</strong>.</p>
       {preview.email && preview.email !== signedInAs.toLowerCase() && (
@@ -98,7 +99,7 @@ export function JoinInvite({
     if (saving) return;
     void accept({ email: email.trim(), displayName: displayName.trim(), password });
   }}>
-    <div className="auth-brand">Crewly<span>Make yourself at home.</span></div>
+    <div className="auth-brand"><BrandMark />Crewly<span>Make yourself at home.</span></div>
     <h1>You’re invited</h1>
     <p>Create your account to join this Crewly server as {role}. You choose your own password.</p>
     <label>Name<input placeholder="Your full name" disabled={saving} required autoComplete="name" maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>

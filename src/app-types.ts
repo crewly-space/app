@@ -18,6 +18,8 @@ export type Bootstrap = {
   users: UserAccount[];
   /** Everyone's name and avatar; empty from a server older than the directory. */
   people: DirectoryUser[];
+  /** Teammates' agents, drawn when they speak where the reader can see; not the reader's to manage. */
+  otherAgents?: Agent[];
   serverBranding: ServerBranding;
 };
 

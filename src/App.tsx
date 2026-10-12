@@ -584,6 +584,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       mode: data.currentUser.avatarMode ?? "bloop",
     },
   };
+  // Who may appear as a message's author: the reader's agents and, by name only, everyone else's.
+  const speakers = data.otherAgents?.length ? [...data.agents, ...data.otherAgents] : data.agents;
   const canManageChannels = data.currentUser.role === "owner" || data.currentUser.role === "admin";
   const channel = conversation.channel;
   const channelRows = (categoryId: string | null) => data.conversations
@@ -972,6 +974,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   }
 
   function openAgentProfile(id: string) {
+    // A teammate's agent is drawn in messages but has no profile the reader may open.
+    if (!data?.agents.some((agent) => agent.id === id)) return;
     setProfileAgentId(id);
     setMobileNav(false);
   }
@@ -1352,7 +1356,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   )}
                   <MessageItem
                     message={message}
-                    agents={data.agents}
+                    agents={speakers}
                     people={people}
                     allMessages={visibleMessages}
                     onReply={() => setReplying(message)}
@@ -1403,7 +1407,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     <span>
                       Replying to{" "}
                       <strong>
-                        {authorName(replying.author, data.agents)}
+                        {authorName(replying.author, speakers)}
                       </strong>
                     </span>
                     <button onClick={() => setReplying(null)}>
@@ -1609,7 +1613,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         </main>
 
         {threadRoot ? (
-          <ThreadPanel focusMessageId={threadFocusId} liveMessages={data.messages} root={threadRoot} agents={data.agents} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
+          <ThreadPanel focusMessageId={threadFocusId} liveMessages={data.messages} root={threadRoot} agents={speakers} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
             setThreadRoot(updated);
             setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
           }} />
