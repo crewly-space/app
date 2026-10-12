@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, LayoutDashboard, X } from 'lucide-react';
 import type { AvatarMode } from '@crewly/protocol';
 import { CloudAccount } from '../../lib/cloud/account';
 import type { CloudAccountProfile } from '../../lib/servers/types';
 import { AvatarModePicker, UserAvatar } from '../appearance/Avatar';
+import { dashboardUrl } from '../servers/dashboard';
 
 function authMethodLabel(method: string): string {
   if (method === 'password') return 'Password';
@@ -81,6 +82,12 @@ export function AccountProfileDialog({
               {(account.authMethods ?? []).map((method) => <span key={method}><Check size={13} /> {authMethodLabel(method)}</span>)}
             </div>
           </div>
+          {dashboardUrl && (
+            <div className="account-auth-methods account-dashboard">
+              <div><strong>Dashboard</strong><span>Workspaces, servers, billing and the people in them.</span></div>
+              <a className="secondary-button" href={dashboardUrl}><LayoutDashboard size={15} /> Open dashboard</a>
+            </div>
+          )}
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="form-actions">
             <button type="button" className="text-button" onClick={onClose} disabled={saving}>Cancel</button>

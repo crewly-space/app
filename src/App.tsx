@@ -7,6 +7,7 @@ import { client } from "./lib/api/client";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
+import { dashboardUrl } from "./features/servers/dashboard";
 import { AddServerDialog, pendingInvite } from "./features/servers/AddServerDialog";
 import type { RegistryServer } from "./lib/servers/types";
 import { ServerPending } from "./features/servers/ServerPending";
@@ -385,7 +386,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     if (!registry.multiServer || !registry.servers.length) return content;
     return <div className="app-shell server-pending">
       <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
-        onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+        onAddServer={() => setAddingServer(true)} dashboardUrl={dashboardUrl}
         unread={registry.unread} failures={registry.failures} />
       <main className="server-pending-main">{content}</main>
       {addingServer && <AddServerDialog initialInvite={joinInvite} onJoined={serverJoined} onClose={() => setAddingServer(false)}
@@ -428,7 +429,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     if (!registry.multiServer || !registry.servers.length) return <div className="setup-standalone">{wizard}{toastView}</div>;
     return <div className="app-shell server-pending">
       <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
-        onAddServer={() => setAddingServer(true)} dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+        onAddServer={() => setAddingServer(true)} dashboardUrl={dashboardUrl}
         unread={registry.unread} failures={registry.failures} />
       <main className="server-pending-main">{wizard}</main>
       {addingServer && <AddServerDialog initialInvite={joinInvite} onJoined={serverJoined} onClose={() => setAddingServer(false)}
@@ -925,7 +926,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             selectedId={registry.selected?.id ?? null}
             onSelect={(id) => { registry.select(id); setMobileNav(false); }}
             onAddServer={() => setAddingServer(true)}
-            dashboardUrl={import.meta.env.VITE_CREWLY_DASHBOARD_URL}
+            dashboardUrl={dashboardUrl}
             account={registry.account}
             onProfile={() => setProfileOpen(true)}
             selectedBranding={serverBranding}

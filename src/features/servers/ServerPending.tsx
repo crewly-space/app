@@ -3,9 +3,9 @@ import { AuthGate } from '../auth/AuthGate';
 import { AddServerDialog, pendingInvite } from './AddServerDialog';
 import { ServerRail } from './ServerRail';
 import { AccountProfileDialog } from '../account/AccountProfileDialog';
+import { dashboardUrl } from './dashboard';
 import type { ServerRegistry } from './useServerRegistry';
 
-const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_URL;
 
 /**
  * The hosted app while the selected server is not open yet.

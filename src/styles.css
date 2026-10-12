@@ -3413,6 +3413,19 @@ body {
 .server-tab.failed .server-tab-state { background: var(--oc-danger); }
 .server-tab.add { border-style: dashed; }
 .server-tab-account { margin-top: auto; }
+/* The way out to the account's dashboard sits with the account, apart from
+   the servers, and reads as a place rather than another server to add. */
+.server-tab.dashboard {
+  display: grid;
+  place-items: center;
+  margin-top: auto;
+  color: var(--accent);
+  text-decoration: none;
+}
+.server-tab.dashboard:hover { border-color: var(--accent); }
+.server-tab.dashboard + .server-tab-account { margin-top: 0; }
+.account-dashboard { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.account-dashboard .secondary-button { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .server-tab-account .avatar { width: 28px; height: 28px; }
 .server-brand-icon { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
 .brand > small { margin-left: auto; color: var(--oc-muted); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }

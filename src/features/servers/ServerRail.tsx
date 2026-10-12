@@ -101,9 +101,11 @@ export function ServerRail({
       <button type="button" className="server-tab add" aria-label="Add a server" onClick={onAddServer}>
         <span className="server-tab-mark" aria-hidden="true"><Plus size={16} /></span>
       </button>
+      {/* Down with the account, not among the servers: it leaves the chat for
+          the account's own pages, and dressed as "add" nobody found it. */}
       {dashboardUrl && (
-        <a className="server-tab add" href={dashboardUrl} aria-label="Dashboard" title="Dashboard: workspaces, servers and billing">
-          <span className="server-tab-mark" aria-hidden="true"><LayoutDashboard size={16} /></span>
+        <a className="server-tab dashboard" href={dashboardUrl} aria-label="Open the dashboard: workspaces, servers and billing" title="Dashboard — workspaces, servers and billing">
+          <span className="server-tab-mark" aria-hidden="true"><LayoutDashboard size={17} /></span>
         </a>
       )}
       {account && onProfile && (

@@ -5,11 +5,9 @@ import { BrandGlyph, isBrand } from '../brand/BrandGlyph';
 import crewMark from '../../ui/assets/mark.svg';
 import { Loading } from '../shell/BrandMark';
 import { takeInviteFromUrl } from './AddServerDialog';
+import { dashboardUrl } from './dashboard';
 
 const LAST_SERVER_KEY = 'crewly:last-server';
-
-/** Where people create servers and manage billing, when it is not this app. */
-const dashboardUrl: string | undefined = import.meta.env.VITE_CREWLY_DASHBOARD_URL;
 
 type Phase =
   | { name: 'loading' }
