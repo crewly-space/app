@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RegistryServer } from '../src/lib/servers/types';
 
@@ -46,6 +46,7 @@ beforeEach(() => {
     if (url === `${CLOUD}/api/v1/account`) return json({ account: { id: 'u1', email: 'a@example.com', displayName: 'A', isOperator: false } });
     if (url === `${CLOUD}/api/v1/account/servers`) return json({ servers });
     if (url === `${CLOUD}/api/v1/auth/oauth/providers`) return json({ providers: [] });
+    if (url === `${CLOUD}/api/v1/auth/logout`) return new Response(null, { status: 204 });
     if (url.startsWith(`${CLOUD}/api/v1/account/servers/`)) return json({ error: 'unavailable' }, 503);
     // Every customer server is offline.
     throw new TypeError('Failed to fetch');
@@ -81,5 +82,31 @@ describe('the hosted app on a fresh visit', () => {
     expect(await screen.findByRole('heading', { name: 'No servers yet' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add a self-hosted server' })).toBeTruthy();
     expect(screen.queryByText(/Start the server/)).toBeNull();
+  });
+
+  it('logs out of the account with an offline server and forgets all cached access', async () => {
+    servers = [production];
+    localStorage.setItem('crewly:session:srv_1', 'old-token');
+    localStorage.setItem('crewly:session:srv_2', 'other-token');
+    boot();
+    await screen.findByRole('heading', { name: "production isn't answering" });
+    expect(screen.getByRole('link', { name: 'Dashboard' }).getAttribute('href')).toBe(`${CLOUD}/dashboard/`);
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(await screen.findByRole('heading', { name: 'Sign in to Crewly' })).toBeTruthy();
+    expect(localStorage.getItem('crewly:session:srv_1')).toBeNull();
+    expect(localStorage.getItem('crewly:session:srv_2')).toBeNull();
+    expect(localStorage.getItem('crewly:server-registry')).toBeNull();
+    expect(fetch).toHaveBeenCalledWith(`${CLOUD}/api/v1/auth/logout`, expect.objectContaining({ method: 'POST', credentials: 'include' }));
+  });
+
+  it('keeps the account open and offers retry when logout fails', async () => {
+    servers = [];
+    boot();
+    await screen.findByRole('heading', { name: 'No servers yet' });
+    vi.mocked(fetch).mockResolvedValueOnce(json({ error: 'unavailable' }, 503));
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Could not log out. Try again.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Log out' }).hasAttribute('disabled')).toBe(false));
+    expect(screen.getByRole('heading', { name: 'No servers yet' })).toBeTruthy();
   });
 });

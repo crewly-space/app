@@ -1,4 +1,5 @@
-import { Cloud, HardDrive, Plus, LayoutDashboard } from 'lucide-react';
+import { Cloud, HardDrive, Plus } from 'lucide-react';
+import { AccountActions } from '../account/AccountActions';
 import type { ServerBranding } from '@crewly/sdk';
 import type { CloudAccountProfile, RegistryServer } from '../../lib/servers/types';
 import { UserAvatar } from '../appearance/Avatar';
@@ -103,11 +104,7 @@ export function ServerRail({
       </button>
       {/* Down with the account, not among the servers: it leaves the chat for
           the account's own pages, and dressed as "add" nobody found it. */}
-      {dashboardUrl && (
-        <a className="server-tab dashboard" href={dashboardUrl} aria-label="Open the dashboard: workspaces, servers and billing" title="Dashboard — workspaces, servers and billing">
-          <span className="server-tab-mark" aria-hidden="true"><LayoutDashboard size={17} /></span>
-        </a>
-      )}
+      <AccountActions dashboardUrl={dashboardUrl} compact />
       {account && onProfile && (
         <button
           type="button"

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, GatewayStatus, ModelInfo, ServerBranding } from "@crewly/sdk";
 import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
+import { logout } from "../../lib/logout";
 import { activeServerOrigin, client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
 import { ProviderCredentials } from "../providers/ProviderCredentials";
@@ -444,7 +445,7 @@ export function SettingsPanel({
             ))}
           </div>
         ))}
-        <button type="button" className="settings-logout" onClick={() => void gateway.logout()}>
+        <button type="button" className="settings-logout" onClick={() => void logout().catch(() => onNotify('Could not log out. Try again.'))}>
           <span className="settings-icon" aria-hidden="true"><LogOut size={15} strokeWidth={2} /></span>
           <span>Log out</span>
         </button>

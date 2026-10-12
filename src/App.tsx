@@ -35,6 +35,8 @@ import { BrandMark, Loading } from "./features/shell/BrandMark";
 import { ConversationRow } from "./features/shell/ConversationRow";
 import { ChannelDialog } from "./features/channels/ChannelDialog";
 import { AccountProfileDialog } from "./features/account/AccountProfileDialog";
+import { AccountActions } from "./features/account/AccountActions";
+import { logout } from "./lib/logout";
 import type { Attachment as ApiAttachment, ConversationReplyMode } from "@crewly/sdk";
 
 const THEME_KEY = "crewly:theme";
@@ -469,7 +471,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         if (data.providers.some((provider) => provider.status === "connected")) firstRun.skip("agent");
         if (conversationId) setSelected(conversationId);
       }}
-      onLogout={() => void gateway.logout()} />;
+      onLogout={() => void logout().catch(() => notify('Could not log out. Try again.', 'error'))} />;
     const toastView = toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>;
     if (!registry.multiServer || !registry.servers.length) return <div className="setup-standalone">{wizard}{toastView}</div>;
     return <div className="app-shell server-pending">
@@ -504,7 +506,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       <header>
         <BrandMark />
         <button className="text-button" onClick={() => openSettings()}>Settings</button>
-        <button className="text-button" onClick={() => void gateway.logout()}>Log out</button>
+        <AccountActions dashboardUrl={dashboardUrl} />
       </header>
       {step === "agent" ? (
         <AgentEditor firstRun providers={data.providers} onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
@@ -1178,6 +1180,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               <Settings size={17} />
               <span>Settings</span>
             </button>
+            <AccountActions dashboardUrl={dashboardUrl} />
           </div>
         </aside>
         {mobileNav && <Scrim onClose={() => setMobileNav(false)} />}

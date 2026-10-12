@@ -60,6 +60,12 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
   }, [account]);
 
   useEffect(() => {
+    const signedOut = () => { setPassword(''); setError(''); setPhase({ name: 'signed_out' }); };
+    window.addEventListener('crewly:account-logout', signedOut);
+    return () => window.removeEventListener('crewly:account-logout', signedOut);
+  }, []);
+
+  useEffect(() => {
     takeInviteFromUrl();
     takeRequestedServer();
     void enter();

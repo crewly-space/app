@@ -66,5 +66,6 @@ export function clientFor(server: RegistryServer): ServerConnection {
 
 /** Drops every cached connection. Used when the Crewly account signs out. */
 export function resetConnections(): void {
+  for (const connection of connections.values()) connection.client.setToken(undefined);
   connections.clear();
 }

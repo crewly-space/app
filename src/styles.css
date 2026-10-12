@@ -39,7 +39,7 @@ body {
   grid-template-columns: 62px 246px minmax(440px, 1fr) 330px;
 }
 .sidebar {
-  --surface: var(--oc-panel);
+  --surface: var(--oc-nav-surface);
   background: var(--surface);
   border-right: 1px solid var(--line-soft);
   padding: 18px 12px 12px;
@@ -191,7 +191,7 @@ body {
 }
 .conversation-row small {
   margin-left: auto;
-  background: var(--accent);
+  background: var(--oc-action);
   color: var(--oc-on-accent);
   min-width: 17px;
   height: 17px;
@@ -265,13 +265,13 @@ body {
   padding: 6px 9px;
   justify-content: center;
   border-radius: 7px;
-  background: var(--accent);
+  background: var(--oc-action);
   color: var(--oc-on-accent);
   font-size: 12px;
   font-weight: 600;
 }
 .sidebar-footer .provider-nudge button:hover {
-  background: var(--oc-accent-light);
+  background: var(--oc-action-hover);
 }
 .device-dot {
   width: 7px;
@@ -285,7 +285,7 @@ body {
   box-shadow: 0 0 0 3px var(--oc-success-soft);
 }
 .conversation {
-  --surface: var(--oc-bg);
+  --surface: var(--oc-content-surface);
   display: grid;
   grid-template-rows: 65px minmax(0, 1fr) auto;
   height: 100%;
@@ -785,8 +785,8 @@ body {
   cursor: pointer;
 }
 .approval-actions button.approve {
-  background: var(--oc-accent);
-  border-color: var(--oc-accent);
+  background: var(--oc-action);
+  border-color: var(--oc-action);
   color: var(--oc-on-accent);
 }
 .approval-result {
@@ -865,8 +865,8 @@ body {
   display: inline;
   border: 0;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--mention-color) 18%, transparent);
-  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text-strong));
+  background: color-mix(in srgb, var(--mention-color) var(--oc-mention-wash-weight), transparent);
+  color: color-mix(in srgb, var(--mention-color) var(--oc-mention-weight), var(--oc-text-strong));
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   padding: 1px 3px;
@@ -922,7 +922,7 @@ body {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: var(--accent);
+  background: var(--oc-action);
   color: var(--oc-on-accent);
 }
 .composer-tools button.send:disabled {
@@ -2478,8 +2478,8 @@ body {
 .message .mention {
   display: inline;
   border: 0;
-  background: color-mix(in srgb, var(--mention-color) 18%, transparent);
-  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text-strong));
+  background: color-mix(in srgb, var(--mention-color) var(--oc-mention-wash-weight), transparent);
+  color: color-mix(in srgb, var(--mention-color) var(--oc-mention-weight), var(--oc-text-strong));
   border-radius: 4px;
   padding: 1px 3px;
   font: inherit;
@@ -2546,7 +2546,7 @@ body {
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--mention-color) 18%, transparent);
+  background: color-mix(in srgb, var(--mention-color) var(--oc-mention-wash-weight), transparent);
   color: color-mix(in srgb, var(--mention-color) 78%, var(--oc-text-strong));
 }
 .mention-menu strong {
@@ -2842,7 +2842,7 @@ body {
 .theme-options label:has(input:focus-visible),
 .avatar-options label:has(input:focus-visible),
 .memory-toggle:has(input:focus-visible) {
-  outline: 2px solid var(--oc-accent-soft);
+  outline: 2px solid var(--oc-accent-ring);
   outline-offset: 2px;
 }
 .theme-options input {
@@ -2892,181 +2892,13 @@ body {
   font-size: 10px;
 }
 
-/*
- * Light theme keeps the same hierarchy while lifting every working surface.
- * The palette itself lives in the design tokens, so restating hexes here would
- * only let the two drift; these aliases already follow --oc-* into light.
- */
-:root[data-theme="light"] {
-  color: var(--text);
-  background: var(--bg);
-}
-:root[data-theme="light"] .sidebar {
-  --surface: var(--oc-bg);
-}
-:root[data-theme="light"] .conversation {
-  --surface: var(--oc-panel);
-}
-:root[data-theme="light"] .detail-panel,
-:root[data-theme="light"] .search-dialog,
-:root[data-theme="light"] .inbox-item,
-:root[data-theme="light"] .session-row,
-:root[data-theme="light"] .avatar-options > label {
-  --surface: var(--oc-panel);
-}
-:root[data-theme="light"] .search,
-:root[data-theme="light"] .composer,
-:root[data-theme="light"] .runtime-card,
-:root[data-theme="light"] .memory-editor textarea,
-:root[data-theme="light"] .provider-fields input,
-:root[data-theme="light"] .provider-fields select,
-:root[data-theme="light"] .memory-agent-picker select,
-:root[data-theme="light"] .form input,
-:root[data-theme="light"] .form textarea,
-:root[data-theme="light"] .form select,
-:root[data-theme="light"] .memory-toggle,
-:root[data-theme="light"] .advanced-options,
-:root[data-theme="light"] .permission-list,
-:root[data-theme="light"] .activity-list,
-:root[data-theme="light"] .profile-instructions,
-:root[data-theme="light"] .local-note,
-:root[data-theme="light"] .security-note,
-:root[data-theme="light"] .os-switch {
-  /* background-color, not the shorthand: the shorthand also cleared the
-     background-image a select draws its arrow with. */
-  background-color: var(--oc-bg);
-}
-:root[data-theme="light"] .modal,
-:root[data-theme="light"] .mention-menu {
-  background: var(--oc-panel);
-  border-color: var(--oc-line);
-}
-:root[data-theme="light"] .jump-to-latest {
-  border-color: var(--oc-line);
-  background: var(--oc-panel);
-  color: var(--oc-muted-strong);
-}
-:root[data-theme="light"] .jump-to-latest:hover {
-  background: var(--oc-panel-2);
-  color: var(--oc-text-strong);
-}
-:root[data-theme="light"] .modal > footer {
-  background: var(--oc-panel);
-}
-:root[data-theme="light"] .secondary-button {
-  border-color: var(--oc-line);
-  background: var(--oc-panel-2);
-  color: var(--oc-muted-strong);
-}
-:root[data-theme="light"] .primary-button:hover {
-  background: var(--oc-accent-light);
-}
-:root[data-theme="light"] .primary-nav button,
-:root[data-theme="light"] .sidebar-footer button,
-:root[data-theme="light"] .conversation-row,
-:root[data-theme="light"] .icon-button {
-  color: var(--oc-muted);
-}
-:root[data-theme="light"] .primary-nav button:hover,
-:root[data-theme="light"] .primary-nav button.active,
-:root[data-theme="light"] .sidebar-footer button:hover,
-:root[data-theme="light"] .conversation-row:hover,
-:root[data-theme="light"] .conversation-row.active,
-:root[data-theme="light"] .icon-button:hover,
-:root[data-theme="light"] .icon-button.selected,
-:root[data-theme="light"] .mention-menu > button:hover,
-:root[data-theme="light"] .mention-menu > button.active,
-:root[data-theme="light"] .agent-profile:hover,
-:root[data-theme="light"] .search-results > button:hover,
-:root[data-theme="light"] .search-results > button:focus-visible {
-  background: var(--oc-panel-3);
-  color: var(--oc-text);
-}
+/* Light surfaces use the same semantic colors as the shared components.
+   Keep only the surface hierarchy and identity-color adjustments here;
+   component states (disabled, selected, destructive) retain their own rules. */
 :root[data-theme="light"] .conversation-row.active {
   box-shadow: inset 3px 0 var(--accent);
 }
-:root[data-theme="light"] .message:hover {
-  --surface: var(--oc-bg);
-}
-:root[data-theme="light"] .message p,
-:root[data-theme="light"] .profile-instructions p,
-:root[data-theme="light"] .composer-editor,
-:root[data-theme="light"] .form input,
-:root[data-theme="light"] .form textarea,
-:root[data-theme="light"] .form select,
-:root[data-theme="light"] .provider-fields input,
-:root[data-theme="light"] .provider-fields select,
-:root[data-theme="light"] .memory-agent-picker select {
-  color: var(--oc-text);
-}
-:root[data-theme="light"] .composer-editor:empty::before {
-  color: var(--oc-muted-2);
-}
-:root[data-theme="light"] .mention-token,
-:root[data-theme="light"] .message .mention {
-  color: color-mix(in srgb, var(--mention-color) 76%, var(--oc-text));
-  background: color-mix(in srgb, var(--mention-color) 14%, transparent);
-}
-:root[data-theme="light"] .runtime-icon,
-:root[data-theme="light"] .hash-avatar,
-:root[data-theme="light"] .reply-banner,
-:root[data-theme="light"] .detail-tabs,
-:root[data-theme="light"] .settings-nav button.active,
-:root[data-theme="light"] .terminal-command,
-:root[data-theme="light"] .permission-list,
-:root[data-theme="light"] .agent-draft-card,
-:root[data-theme="light"] .template-picker button {
-  background: var(--oc-panel-2);
-}
-:root[data-theme="light"] .detail-tabs button.active,
-:root[data-theme="light"] .os-switch button.active {
-  background: var(--oc-panel);
-  color: var(--oc-text);
-}
-:root[data-theme="light"] .profile-grid,
-:root[data-theme="light"] .agent-facts,
-:root[data-theme="light"] .device-card,
-:root[data-theme="light"] .permission-summary,
-:root[data-theme="light"] .activity-summary > div,
-:root[data-theme="light"] .inbox-item,
-:root[data-theme="light"] .session-row,
-:root[data-theme="light"] .avatar-options > label {
-  background: var(--oc-panel);
-}
-:root[data-theme="light"] .avatar-options > label:hover,
-:root[data-theme="light"] .avatar-options > label.selected,
-:root[data-theme="light"] .theme-options label.selected {
-  --surface: var(--oc-accent-panel);
-  background: var(--oc-accent-panel);
-}
-:root[data-theme="light"] .avatar-option-preview .avatar {
-  border-color: var(--surface, var(--oc-panel));
-}
-:root[data-theme="light"] .agent-draft-card {
-  background: linear-gradient(135deg, var(--oc-accent-panel), var(--oc-bg));
-}
-:root[data-theme="light"] .template-picker button:hover {
-  color: var(--oc-accent-text);
-}
-:root[data-theme="light"] .approval-card {
-  background: var(--oc-accent-panel);
-}
-:root[data-theme="light"] .approval-command p {
-  color: var(--oc-muted-strong);
-}
-:root[data-theme="light"] .toast {
-  background: var(--oc-panel);
-  color: var(--oc-text);
-}
-/* The light .toast above outranks the tone classes; give the tones back. */
-:root[data-theme="light"] .toast-error {
-  background: var(--oc-danger-panel);
-  color: var(--oc-danger-text);
-}
-:root[data-theme="light"] .onboarding,
-:root[data-theme="light"] .first-run {
-  background: var(--bg);
-}
+:root[data-theme="light"] .message:hover { --surface: var(--oc-bg); }
 .mobile-only,
 .scrim {
   display: none;
@@ -3396,8 +3228,8 @@ body {
   min-width: 17px;
   padding: 0 4px;
   border-radius: 9px;
-  background: var(--accent);
-  color: var(--oc-text-strong);
+  background: var(--oc-action);
+  color: var(--oc-on-accent);
   font-size: 10px;
   line-height: 17px;
 }
@@ -3484,8 +3316,8 @@ body {
   flex: 0 0 54px;
   overflow: hidden;
   border-radius: 15px;
-  background: var(--accent);
-  color: var(--oc-text-strong);
+  background: var(--oc-action);
+  color: var(--oc-on-accent);
   font-size: 17px;
   font-weight: 700;
 }

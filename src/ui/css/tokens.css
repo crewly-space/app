@@ -19,6 +19,12 @@
   --oc-panel: #111113;
   --oc-panel-2: #151518;
   --oc-panel-3: #19191c;
+  /* Navigation recedes while the workspace stays closest in light mode. */
+  --oc-nav-surface: var(--oc-panel);
+  --oc-content-surface: var(--oc-bg);
+  /* Pale identity colors must still read on a mention wash. */
+  --oc-mention-weight: 76%;
+  --oc-mention-wash-weight: 18%;
 
   /*
    * The well an input sits in. Forms live on --oc-panel on every surface, so
@@ -306,6 +312,10 @@
   --oc-panel: var(--oc-l-panel);
   --oc-panel-2: var(--oc-l-panel-2);
   --oc-panel-3: var(--oc-l-panel-3);
+  --oc-nav-surface: var(--oc-bg);
+  --oc-content-surface: var(--oc-panel);
+  --oc-mention-weight: 35%;
+  --oc-mention-wash-weight: 14%;
   --oc-shadow-inset: var(--oc-l-shadow-inset);
   --oc-shadow-sm: var(--oc-l-shadow-sm);
   --oc-shadow: var(--oc-l-shadow);
@@ -366,6 +376,10 @@
     --oc-panel: var(--oc-l-panel);
     --oc-panel-2: var(--oc-l-panel-2);
     --oc-panel-3: var(--oc-l-panel-3);
+    --oc-nav-surface: var(--oc-bg);
+    --oc-content-surface: var(--oc-panel);
+    --oc-mention-weight: 35%;
+    --oc-mention-wash-weight: 14%;
     --oc-shadow-inset: var(--oc-l-shadow-inset);
     --oc-shadow-sm: var(--oc-l-shadow-sm);
     --oc-shadow: var(--oc-l-shadow);

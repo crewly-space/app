@@ -39,6 +39,15 @@ export class CloudAccount {
     return body?.servers ?? [];
   }
 
+  async logout(): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}/api/v1/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok && response.status !== 401) throw new Error(`Cloud returned HTTP ${response.status}`);
+  }
+
   async updateProfile(input: { displayName?: string; avatarMode?: AvatarMode }): Promise<CloudAccountProfile> {
     const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}/api/v1/account`, {
       method: 'PATCH',
