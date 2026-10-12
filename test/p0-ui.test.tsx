@@ -122,11 +122,9 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.click(page.getByRole('button', { name: 'Add provider' }));
   await page.findByRole('heading', { name: 'Connect a model provider' });
   fireEvent.click(page.getByRole('listitem', { name: 'Custom endpoint' }));
-  // The provider ID defaults to the provider kind and only appears once the
-  // second-account disclosure is opened.
-  fireEvent.click(page.getByRole('button', { name: /Connecting another/ }));
-  // The label wraps a hint, so its text is not exactly "Connection name".
-  fireEvent.change(await page.findByLabelText(/^Connection name/), { target: { value: 'mock' } });
+  // The first connection of a kind is named after it; the name is asked for
+  // only when that kind is already connected.
+  expect(page.queryByLabelText(/^Connection name/)).toBeNull();
   fireEvent.change(page.getByLabelText(/^API key/), { target: { value: 'test-key' } });
   fireEvent.change(page.getByLabelText(/Base URL/), { target: { value: `http://127.0.0.1:${providerAddress.port}/v1` } });
   fireEvent.click(page.getByRole('button', { name: 'Connect Custom endpoint' }));
@@ -173,7 +171,7 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   fireEvent.change(page.getByLabelText('New API key'), { target: { value: 'rotated-test-key' } });
   fireEvent.click(page.getByRole('button', { name: 'Rotate credential' }));
   await page.findByText('Provider credentials updated.');
-  const stored = db.prepare('SELECT api_key FROM provider_configs WHERE id = ?').get('mock') as { api_key: string };
+  const stored = db.prepare('SELECT api_key FROM provider_configs WHERE id = ?').get('openai-compatible') as { api_key: string };
   expect(stored.api_key).toMatch(/^enc:v1:/);
   expect(stored.api_key).not.toContain('rotated-test-key');
 

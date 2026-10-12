@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bell, ChevronRight } from 'lucide-react';
 import type { DigestSchedule, Notification, NotificationChannel, NotificationMode, NotificationPreference, NotificationType } from '@crewly/sdk';
 import { client } from '../../lib/api/client';
+import { relativeTime } from '../../lib/relative-time';
 
 /** The feed and the preferences behind it, behind one seam for tests. */
 export interface NotificationsApi {
@@ -32,9 +33,11 @@ const CHANNEL_LABELS: Record<NotificationChannel, string> = { in_app: 'In Crewly
  * What Crewly told you about, in the inbox, and what you want to be told
  * about. Security and account mail is listed but cannot be switched off.
  */
-export function NotificationsSection({ api = notificationsApi, onOpenConversation }: {
+export function NotificationsSection({ api = notificationsApi, onOpenConversation, onLoaded }: {
   api?: NotificationsApi;
   onOpenConversation: (id: string) => void;
+  /** How many notifications are listed, so the inbox knows whether it is empty. */
+  onLoaded?: (count: number) => void;
 }) {
   const [feed, setFeed] = useState<{ notifications: Notification[]; unread: number } | null>(null);
   const [preferences, setPreferences] = useState<NotificationPreference[] | null>(null);
@@ -44,6 +47,7 @@ export function NotificationsSection({ api = notificationsApi, onOpenConversatio
   const load = useCallback(() => {
     api.list().then(setFeed).catch(() => setFeed({ notifications: [], unread: 0 }));
   }, [api]);
+  useEffect(() => { if (feed) onLoaded?.(feed.notifications.length); }, [feed, onLoaded]);
   useEffect(load, [load]);
 
   const open = (notification: Notification) => {
@@ -61,10 +65,12 @@ export function NotificationsSection({ api = notificationsApi, onOpenConversatio
   if (!feed) return null;
   return (
     <>
-      <div className="utility-section-title">
-        <span>Notifications</span>
-        <small>{feed.unread}</small>
-      </div>
+      {feed.notifications.length > 0 && (
+        <div className="utility-section-title">
+          <span>Notifications</span>
+          {feed.unread > 0 && <small aria-label={`${feed.unread} unread`}>{feed.unread}</small>}
+        </div>
+      )}
       {feed.notifications.map((notification) => (
         <button className="inbox-item" key={notification.id} onClick={() => open(notification)}>
           <span className={`inbox-symbol${notification.readAt ? ' neutral' : ''}`}>
@@ -74,7 +80,7 @@ export function NotificationsSection({ api = notificationsApi, onOpenConversatio
             <strong>{notification.title}</strong>
             <small>{notification.body}</small>
           </span>
-          <em>{new Date(notification.createdAt).toLocaleString()}</em>
+          <em title={new Date(notification.createdAt).toLocaleString()}>{relativeTime(notification.createdAt)}</em>
           <ChevronRight size={16} />
         </button>
       ))}

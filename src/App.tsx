@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Settings, UserRound, X } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { withStatus } from "./lib/agent-status";
@@ -42,6 +42,51 @@ const THEME_KEY = "crewly:theme";
 const isApple = /mac|iphone|ipad/i.test(navigator.userAgent);
 
 const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
+
+/** What a new DM with an agent offers to send, so the first message is one click. */
+const DM_STARTERS = ["What can you help me with?", "Help me plan my week", "Draft a short update for the team"];
+
+/** "Today", "Yesterday", or the date, for the divider above a day's messages. */
+function dayLabel(iso: string | undefined): string {
+  const date = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(date.getTime())) return "Today";
+  const startOf = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const days = Math.round((startOf(new Date()) - startOf(date)) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return date.toLocaleDateString([], { weekday: days < 7 ? "long" : undefined, month: "short", day: "numeric",
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+}
+
+/**
+ * Under a message that asked nobody, in a room where agents answer only when
+ * asked: says so, and offers the agents to ask. Waits a moment first, so a
+ * message an agent picked up by its role does not flash the hint.
+ */
+function UnaddressedHint({ messageId, agents, onAsk, onChangeMode }: {
+  messageId: string; agents: Agent[]; onAsk: (agent: Agent) => void; onChangeMode: () => void;
+}) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    setShown(false);
+    const timer = window.setTimeout(() => setShown(true), 3500);
+    return () => window.clearTimeout(timer);
+  }, [messageId]);
+  if (!shown) return null;
+  return (
+    <div className="unaddressed-hint" role="status">
+      <p><strong>No agent was asked.</strong> In this channel agents reply when you @mention them.</p>
+      <div>
+        {agents.slice(0, 4).map((agent) => (
+          <button key={agent.id} type="button" className="ask-chip" onClick={() => onAsk(agent)}>
+            <Avatar agent={agent} size="tiny" /> Ask {agent.name}
+          </button>
+        ))}
+        <button type="button" className="text-button" onClick={onChangeMode}>Change who answers</button>
+      </div>
+    </div>
+  );
+}
 
 /** Swaps in a fresh read of the channels, keeping DMs, groups and every message already here. */
 function withChannels(current: Bootstrap, next: Awaited<ReturnType<typeof gateway.channels>>): Bootstrap {
@@ -105,9 +150,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [panel, setPanel] = useState<Panel>(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.has("pair") || query.has("connector") || query.has("mcp_oauth") || window.location.pathname === "/admin") return "settings";
-    // Below 1050px the details panel lays over the conversation rather than
-    // sitting beside it; opening it unasked there hides what was opened.
-    return window.matchMedia("(max-width: 1050px)").matches ? null : "details";
+    // The conversation is what was opened. Details open when asked for: shown
+    // unasked they took a quarter of the window, led by a routing setting.
+    return null;
   });
   const openSettings = (section?: SettingsSectionId) => { setSettingsSection(section); setPanel("settings"); };
   const closeSettings = () => {
@@ -548,13 +593,18 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     ));
   const uncategorisedChannels = channelRows(null);
   const directConversations = data.conversations.filter((item) => item.type === "dm");
+
   const groupConversations = data.conversations.filter((item) => item.type === "group");
   const pendingApprovals = data.approvals.filter(
     (approval) => !approvalResults[approval.id],
   );
   const mentionMatch = composer.match(/(?:^|\s)@([^@\s]*)$/);
   const mentionQuery = mentionMatch?.[1]?.toLowerCase() ?? "";
-  const roleMentions = Array.from(new Set(activeAgents.map((agent) => agent.role))).map(
+  // A role is worth offering only when it reaches more than one agent; with
+  // one, "@Everyday assistant" was a second name for "@Assistant".
+  const sharedRoles = Array.from(new Set(activeAgents.map((agent) => agent.role)))
+    .filter((role) => activeAgents.filter((agent) => agent.role === role).length > 1);
+  const roleMentions = sharedRoles.map(
     (role): MentionOption => ({
       id: `role-${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       label: `@${role}`,
@@ -563,21 +613,8 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       kind: "role",
     }),
   );
+  // Who is here first -- agents, then people -- and the broadcasts after them.
   const allMentionOptions: MentionOption[] = [
-    {
-      id: "everyone",
-      label: "@everyone",
-      description: "Notify everyone in this conversation",
-      color: "var(--oc-accent)",
-      kind: "everyone",
-    },
-    {
-      id: "here",
-      label: "@here",
-      description: "Notify agents currently online",
-      color: "var(--oc-success)",
-      kind: "here",
-    },
     ...activeAgents.map((agent): MentionOption => ({
       id: `agent-${agent.id}`,
       label: `@${agent.name}`,
@@ -591,6 +628,20 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       : conversation.personIds?.includes(person.id))).map((person): MentionOption => ({
         id: `user-${person.id}`, label: `@${person.displayName}`, description: 'Teammate', color: 'var(--oc-info)', kind: 'user', person,
       })),
+    {
+      id: "everyone",
+      label: "@everyone",
+      description: "Everyone in this conversation, people and agents",
+      color: "var(--oc-accent)",
+      kind: "everyone",
+    },
+    {
+      id: "here",
+      label: "@here",
+      description: "Agents online right now",
+      color: "var(--oc-success)",
+      kind: "here",
+    },
     ...roleMentions,
   ];
   const mentionOptions = allMentionOptions.filter((option) =>
@@ -599,6 +650,26 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const showMentions = Boolean(
     mentionMatch && mentionOptions.length && !mentionSuppressed,
   );
+  // The last message here, if it is mine and asked nobody in a room that
+  // answers only when asked: it will get no reply, and the room should say so.
+  const lastMessage = visibleMessages[visibleMessages.length - 1];
+  const unansweredMessage = conversation.type !== "dm" && activeAgents.length > 0
+    && replyMode?.id === conversation.id && replyMode.mode === "mentions"
+    && lastMessage?.author === "you" && lastMessage.userId === data.currentUser.id
+    && !lastMessage.body.includes("@")
+    && !activeAgents.some((agent) => agent.status === "thinking"
+      || lastMessage.body.toLowerCase().includes(agent.name.toLowerCase()))
+    ? lastMessage : null;
+  const askAgent = (agent: Agent) => insertMention({ id: `agent-${agent.id}`, label: `@${agent.name}`,
+    description: agent.role, color: agent.color, kind: "agent", agent });
+  const fillComposer = (text: string) => {
+    const editor = composerRef.current;
+    if (!editor) return;
+    editor.textContent = text;
+    editor.focus();
+    moveCaretAfter(editor.lastChild ?? editor);
+    setComposer(readComposer(editor));
+  };
   const inboxCount =
     pendingApprovals.length +
     data.conversations.filter((item) => item.unread).length;
@@ -1003,17 +1074,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               )}
             </button>
             <button
-              className={view === "messages" ? "active" : ""}
-              aria-current={view === "messages" ? "page" : undefined}
-              onClick={() => {
-                setView("messages");
-                setMobileNav(false);
-              }}
-            >
-              <MessageCircle size={17} />
-              <span>Messages</span>
-            </button>
-            <button
               className={view === "activity" ? "active" : ""}
               aria-current={view === "activity" ? "page" : undefined}
               onClick={() => {
@@ -1023,7 +1083,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               }}
             >
               <Activity size={17} />
-              <span>Activity</span>
+              <span>Agent activity</span>
             </button>
           </nav>
           <SidebarSection
@@ -1031,7 +1091,22 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             action={() => { setNewMessage(true); setMobileNav(false); }}
             actionLabel="New message"
           >
-            {directConversations.map((item) => (
+            {/* Every agent is listed, in crew order, not just those already
+                talked to: the crew is visible from the first minute, a click
+                from a DM, and opening one does not reorder the list. */}
+            {data.agents.map((agent) => {
+              const item = directConversations.find((dm) => !dm.peer && dm.agentIds[0] === agent.id);
+              return item ? (
+                <ConversationRow key={item.id} item={item} agents={data.agents}
+                  active={view === "messages" && selected === item.id} onClick={() => openConversation(item.id)} />
+              ) : (
+                <button key={agent.id} className="conversation-row" onClick={() => void openAgentConversation(agent.id)}>
+                  <Avatar agent={agent} size="tiny" />
+                  <span>{agent.name}</span>
+                </button>
+              );
+            })}
+            {directConversations.filter((item) => item.peer || !data.agents.some((agent) => agent.id === item.agentIds[0])).map((item) => (
                 <ConversationRow
                   key={item.id}
                   item={item}
@@ -1102,11 +1177,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             >
               <Settings size={17} />
               <span>Settings</span>
-              <i
-                className={
-                  data.devices.some((device) => device.connected) ? "device-dot online" : "device-dot"
-                }
-              />
             </button>
           </div>
         </aside>
@@ -1163,14 +1233,14 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   {view === "inbox"
                     ? "Inbox"
                     : view === "activity"
-                      ? "Runtime activity"
+                      ? "Agent activity"
                       : conversation.name}
                 </strong>
                 <span>
                   {view === "inbox"
                     ? "Mentions and requests that need you"
                     : view === "activity"
-                      ? "Live work across your crew"
+                      ? "What your agents worked on"
                       : channel
                         ? channel.topic ?? `${channel.members.filter((m) => m.participantType === "user").length} people · ${activeAgents.length} agents`
                         : conversation.type === "group"
@@ -1244,19 +1314,40 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   </h1>
                   <p>
                     {channel
-                      ? channel.topic ?? `The start of #${channel.name}. Mention an agent in the channel when you want their attention.`
+                      ? channel.topic ?? `The start of #${channel.name}.`
                       : conversation.type === "group"
-                      ? "A shared room for you and your crew. Talk to your agents like colleagues; details sets who answers when you name no one."
-                      : `This is the beginning of your conversation with ${conversation.name}.`}
+                      ? "A shared room for you and your crew. Talk to your agents like colleagues."
+                      : conversation.peer
+                        ? `This is the beginning of your conversation with ${conversation.name}.`
+                        : `${conversation.name} is an agent on your crew. Ask it anything, the way you would ask a colleague.`}
                   </p>
+                  {visibleMessages.length === 0 && (!channel || channel.canPost) && (
+                    conversation.type === "dm" && !conversation.peer && activeAgents[0] ? (
+                      <div className="starter-chips" aria-label="Suggested first messages">
+                        {DM_STARTERS.map((text) => (
+                          <button key={text} type="button" className="ask-chip" onClick={() => fillComposer(text)}>{text}</button>
+                        ))}
+                      </div>
+                    ) : conversation.type !== "dm" && activeAgents.length > 0 ? (
+                      <>
+                        <p className="starter-note">Agents here reply when you @mention them. Start with one:</p>
+                        <div className="starter-chips">
+                          {activeAgents.slice(0, 4).map((agent) => (
+                            <button key={agent.id} type="button" className="ask-chip" onClick={() => askAgent(agent)}>
+                              <Avatar agent={agent} size="tiny" /> Ask {agent.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : null
+                  )}
                 </div>
                 {visibleMessages.length >= 200 && !historyEnd.includes(conversation.id) && <button type="button" className="text-button" disabled={loadingHistory} onClick={() => void loadOlder()}>{loadingHistory ? 'Loading earlier messages…' : 'Load earlier messages'}</button>}
-                <div className="date-divider">
-                  <span>Today</span>
-                </div>
-                {visibleMessages.map((message) => (
+                {visibleMessages.map((message, index) => <Fragment key={message.id}>
+                  {(index === 0 || dayLabel(visibleMessages[index - 1].createdAt) !== dayLabel(message.createdAt)) && (
+                    <div className="date-divider"><span>{dayLabel(message.createdAt)}</span></div>
+                  )}
                   <MessageItem
-                    key={message.id}
                     message={message}
                     agents={data.agents}
                     people={people}
@@ -1269,7 +1360,11 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       void gateway.downloadAttachment(id, filename).catch((error) => notify(error instanceof Error ? error.message : "Attachment download failed.", "error"));
                     }}
                   />
-                ))}
+                </Fragment>)}
+                {unansweredMessage && (
+                  <UnaddressedHint messageId={unansweredMessage.id} agents={activeAgents} onAsk={askAgent}
+                    onChangeMode={() => { setThreadRoot(null); setPanel("details"); }} />
+                )}
                 {conversationApprovals.map((approval) => {
                   const agent = data.agents.find(
                     (item) => item.id === approval.agentId,
@@ -1437,26 +1532,21 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       <button
                         onClick={() => attachmentInputRef.current?.click()}
                         disabled={uploadingAttachment || sending || pendingAttachments.length >= 10}
-                        aria-label="Add attachment"
-                      >
-                        <Plus size={18} />
-                      </button>
-                      <button
-                        onClick={() => attachmentInputRef.current?.click()}
-                        disabled={uploadingAttachment || sending || pendingAttachments.length >= 10}
                         aria-label="Attach file"
+                        title="Attach file"
                       >
                         <Paperclip size={17} />
                       </button>
                       <button
                         onClick={startMention}
-                        aria-label="Mention people or roles"
+                        aria-label="Mention an agent or person"
+                        title="Mention an agent or person"
                       >
                         <AtSign size={17} />
                       </button>
                     </div>
                     {unaddressed
-                      ? <span className="composer-unaddressed" role="status">No @mention: an agent replies only if this matches its role</span>
+                      ? <span className="composer-unaddressed" role="status">No one is @mentioned, so an agent may not reply</span>
                       : <span>Shift + Enter for new line</span>}
                     <button
                       className="send"

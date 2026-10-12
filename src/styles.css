@@ -5618,3 +5618,77 @@ button.setup-option:hover:not(:disabled) { border-color: var(--oc-line-hover); t
 .signin-legal a { color: inherit; text-underline-offset: 3px; }
 @media (max-width: 850px) { .signin-layout { max-width: 420px; grid-template-columns: 1fr; margin: 48px auto; gap: 0; } .signin-story { display: none; } }
 @media (max-width: 520px) { .signin-page { padding: 20px 16px; } .signin-layout { margin: 32px auto; } .onboarding-card.auth-card.signin-form { padding: 26px 20px; } }
+
+/* --- Clarity pass: say what happens next, in the place it happens. --- */
+
+/* Under a message that asked nobody in an "only when asked" room. */
+.unaddressed-hint {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 12px 54px;
+  padding: 10px 12px;
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius);
+  background: var(--oc-panel-2);
+  font-size: 13px;
+  color: var(--oc-muted-strong);
+}
+.unaddressed-hint p { margin: 0; line-height: 1.45; }
+.unaddressed-hint strong { color: var(--oc-text); }
+.unaddressed-hint > div,
+.starter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.starter-chips { justify-content: flex-start; margin-top: 14px; }
+.starter-note { margin: 14px 0 0 !important; font-size: 13px; color: var(--oc-muted); }
+.ask-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 4px 12px 4px 8px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: 999px;
+  background: var(--oc-panel);
+  color: var(--oc-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.starter-chips .ask-chip:not(:has(.avatar)) { padding-left: 12px; }
+.ask-chip:hover { border-color: var(--oc-line-hover); background: var(--oc-panel-3); }
+@media (max-width: 720px) { .unaddressed-hint { margin-left: 0; } }
+
+/* Details: everyone here as one list of same-sized rows. */
+.member-list-title { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--oc-muted); }
+.member-list { display: grid; gap: 2px; margin-bottom: var(--oc-space-4, 16px); }
+.member-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--oc-radius-sm);
+  background: transparent;
+  color: var(--oc-text);
+  font: inherit;
+  text-align: left;
+}
+button.member-row { cursor: pointer; }
+button.member-row:hover { background: var(--oc-line-soft); }
+.member-row > span { display: grid; gap: 1px; min-width: 0; }
+.member-row strong { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-row small { font-size: 12px; color: var(--oc-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-row em { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-style: normal; color: var(--oc-muted); white-space: nowrap; }
+.member-row > svg { color: var(--oc-muted-2); }
+
+/* Who answers: the hint of the chosen mode is enough; the others are a label each. */
+.details-content .reply-mode { margin-top: var(--oc-space-2, 8px); padding-top: var(--oc-space-3, 12px); border-top: 1px solid var(--oc-line); border-bottom: 0; }
+.reply-mode label:not(.selected) small { display: none; }
+.reply-mode label { padding: 8px 10px; }
+
+/* A form's optional extras, folded behind one line. */
+.form-disclosure { border: 1px solid var(--oc-line); border-radius: var(--oc-radius); padding: 0 12px; }
+.form-disclosure > summary { padding: 10px 0; font-size: 13px; font-weight: 600; color: var(--oc-muted-strong); cursor: pointer; }
+.form-disclosure[open] { padding-bottom: 12px; }

@@ -1,8 +1,16 @@
+import { useEffect, useState } from "react";
 import { Activity, ChevronRight, Inbox, MessageCircle, ShieldCheck } from "lucide-react";
+import type { AgentRun } from "@crewly/sdk";
 import { NotificationsSection } from "../notifications/NotificationsSection";
 import type { Agent, Approval, Conversation } from "../../types";
 import type { View } from "../../app-types";
 import { Avatar } from "../appearance/Avatar";
+import { client } from "../../lib/api/client";
+import { relativeTime } from "../../lib/relative-time";
+
+const RUN_STATUS: Record<string, string> = {
+  queued: "Queued", running: "Working", completed: "Replied", failed: "Failed", cancelled: "Stopped",
+};
 
 export function UtilityView({
   view,
@@ -17,6 +25,18 @@ export function UtilityView({
   conversations: Conversation[];
   onOpenConversation: (id: string) => void;
 }) {
+  // Hooks first: the inbox and the activity page are one component.
+  const [notificationCount, setNotificationCount] = useState<number | null>(null);
+  const [runs, setRuns] = useState<AgentRun[] | null>(null);
+  useEffect(() => {
+    if (view !== "activity") return;
+    let active = true;
+    // Admins see every run; anyone else is refused the server-wide list and
+    // sees the device sessions below instead.
+    client.runs.list({ limit: 30 }).then(({ runs: recent }) => { if (active) setRuns(recent); })
+      .catch(() => { if (active) setRuns([]); });
+    return () => { active = false; };
+  }, [view]);
   if (view === "inbox") {
     const unread = conversations.filter((item) => item.unread);
     return (
@@ -28,7 +48,7 @@ export function UtilityView({
           <h1>Everything that needs you</h1>
           <p>Approvals and unread conversations, gathered in one place.</p>
         </div>
-        <NotificationsSection onOpenConversation={onOpenConversation} />
+        <NotificationsSection onOpenConversation={onOpenConversation} onLoaded={setNotificationCount} />
         {approvals.length > 0 && (
           <div className="utility-section-title">
             <span>Needs attention</span>
@@ -81,9 +101,9 @@ export function UtilityView({
               <ChevronRight size={16} />
             </button>
         ))}
-        {approvals.length === 0 && unread.length === 0 && (
+        {approvals.length === 0 && unread.length === 0 && notificationCount === 0 && (
           <p className="utility-empty">
-            You are all caught up. Nothing is waiting on you.
+            You are all caught up. Mentions, replies and requests for your approval land here.
           </p>
         )}
       </section>
@@ -92,73 +112,88 @@ export function UtilityView({
 
   const runtimeAgents = agents.filter((agent) => agent.runtime !== "Chat");
   const sessions = runtimeAgents.flatMap((agent) => (agent.runtimeSessions ?? []).map((session) => ({ agent, session })));
+  const running = sessions.filter(({ session }) => session.status === "running").length;
   return (
     <section className="utility-view">
       <div className="utility-intro">
         <span className="utility-icon">
           <Activity size={21} />
         </span>
-        <h1>Runtime activity</h1>
-        <p>Follow active sessions without leaving the conversation.</p>
+        <h1>Agent activity</h1>
+        <p>What your agents worked on, newest first. Open one to see the conversation.</p>
       </div>
-      <div className="activity-summary">
-        <div>
-          <strong>
-            {
-              sessions.filter(({ session }) => session.status === "running")
-                .length
-            }
-          </strong>
-          <span>Running</span>
-        </div>
-        <div>
-          <strong>{runtimeAgents.length}</strong>
-          <span>Configured</span>
-        </div>
-        <div>
-          <strong>{new Set(runtimeAgents.map((agent) => agent.workspace).filter(Boolean)).size}</strong>
-          <span>Workspaces</span>
-        </div>
-      </div>
-      {sessions.length > 0 && (
+      {runs && runs.length > 0 && (
         <div className="utility-section-title">
-          <span>Sessions</span>
-          <small>Live</small>
+          <span>Recent work</span>
         </div>
       )}
-      {sessions.map(({ agent, session }) => {
-        const conversation = conversations.find((item) =>
-          item.id === session.conversationId,
-        );
+      {runs?.map((run) => {
+        const agent = agents.find((item) => item.id === run.agentId);
+        const conversation = conversations.find((item) => item.id === run.conversationId);
+        const status = run.status ? RUN_STATUS[run.status] ?? run.status : "Started";
         return (
           <button
             className="session-row"
-            key={session.id}
+            key={run.runId}
             disabled={!conversation}
             onClick={() => conversation && onOpenConversation(conversation.id)}
           >
             <Avatar agent={agent} />
             <span>
-              <strong>{agent.name}</strong>
+              <strong>{agent?.name ?? "Agent"}</strong>
               <small>
-                {conversation?.name ?? 'Conversation unavailable'} · {agent.runtime} · {agent.workspace ?? "No workspace"}
+                {status} {conversation ? `in ${conversation.type === "dm" ? "your DM" : `#${conversation.name}`}` : ""}
+                {run.status === "failed" && run.errorMessage ? ` · ${run.errorMessage}` : ""}
               </small>
             </span>
-            <span className={`session-state ${agent.status}`}>
+            <span className={`session-state ${run.status === "failed" ? "offline" : run.status === "running" || run.status === "queued" ? "thinking" : "online"}`}>
               <i />
-              {session.status.replace(/_/g, ' ')}
+              {relativeTime(run.finishedAt ?? run.startedAt ?? run.createdAt)}
             </span>
             <ChevronRight size={16} />
           </button>
         );
       })}
-      {runtimeAgents.length === 0 && (
+      {runtimeAgents.length > 0 && (
+        <>
+          <div className="utility-section-title">
+            <span>On your devices</span>
+            <small>{running} running</small>
+          </div>
+          {sessions.map(({ agent, session }) => {
+            const conversation = conversations.find((item) =>
+              item.id === session.conversationId,
+            );
+            return (
+              <button
+                className="session-row"
+                key={session.id}
+                disabled={!conversation}
+                onClick={() => conversation && onOpenConversation(conversation.id)}
+              >
+                <Avatar agent={agent} />
+                <span>
+                  <strong>{agent.name}</strong>
+                  <small>
+                    {conversation?.name ?? 'Conversation unavailable'} · {agent.runtime} · {agent.workspace ?? "No workspace"}
+                  </small>
+                </span>
+                <span className={`session-state ${agent.status}`}>
+                  <i />
+                  {session.status.replace(/_/g, ' ')}
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            );
+          })}
+          {sessions.length === 0 && <p className="utility-empty">No device sessions yet. Message an agent that runs on a device to start one.</p>}
+        </>
+      )}
+      {runs && runs.length === 0 && runtimeAgents.length === 0 && (
         <p className="utility-empty">
-          No agent runs on a device yet. Pair one from Settings to see its
-          sessions here.
+          Nothing yet. Each time an agent replies or works on something, it shows up here.
         </p>
       )}
-      {runtimeAgents.length > 0 && sessions.length === 0 && <p className="utility-empty">No runtime sessions yet. Message an agent to start one.</p>}
     </section>
   );
 }

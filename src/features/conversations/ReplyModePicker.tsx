@@ -4,9 +4,9 @@ import { AtSign, Sparkles, Users } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 
 const MODES: { value: ConversationReplyMode; label: string; hint: string; icon: typeof AtSign }[] = [
-  { value: "mentions", label: "Mentions & keywords", hint: "@, names and follow-ups, or the agent whose role matches the topic. Free and instant.", icon: AtSign },
-  { value: "model", label: "Let a model decide", hint: "A short model call reads the conversation and picks who answers.", icon: Sparkles },
-  { value: "open", label: "Everyone hears it", hint: "Every free agent sees it and replies only if it has something to add. Busy agents keep working.", icon: Users },
+  { value: "mentions", label: "Only when asked", hint: "Agents reply to an @mention, their name, a follow-up, or a topic that is plainly their role. Free and instant.", icon: AtSign },
+  { value: "model", label: "A model picks who answers", hint: "A short model call reads the conversation and picks the agent to reply.", icon: Sparkles },
+  { value: "open", label: "Every agent may answer", hint: "Every free agent sees it and replies only if it has something to add.", icon: Users },
 ];
 
 /** Who answers a message nobody addressed, for one conversation. */
@@ -38,8 +38,8 @@ export function ReplyModePicker({ conversationId, onNotify }: { conversationId: 
 
   return (
     <fieldset className="reply-mode" disabled={saving}>
-      <legend>Who answers</legend>
-      <p>For messages that don't @ or name anyone.</p>
+      <legend>When no one is @mentioned</legend>
+      <p>Who answers a message that doesn't name an agent.</p>
       {MODES.map(({ value, label, hint, icon: Icon }) => (
         <label key={value} className={mode === value ? "selected" : ""}>
           <input type="radio" name={`reply-mode-${conversationId}`} value={value} checked={mode === value} onChange={() => void choose(value)} />

@@ -22,6 +22,11 @@ const apiKindInfo: Record<Exclude<Kind, DeviceProviderKind | 'crewly-gateway'>, 
   'openai-compatible': { title: 'Custom endpoint', about: 'Any server that speaks the OpenAI API: vLLM, LM Studio, LiteLLM.', needs: 'Its base URL and a key.' },
 };
 
+/** Said under the key field, where "an API key from…" would only repeat the card. */
+const keyHint: Partial<Record<Kind, string>> = {
+  'openai-compatible': 'The key your endpoint expects. A local server that checks none, such as LM Studio, accepts any text.',
+};
+
 // The wire values are lowercase ids; showing them raw in a menu reads as an
 // unfinished screen rather than a product.
 const kindLabels: Record<Kind, string> = {
@@ -231,20 +236,10 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
     </section>
   );
 
-  const form = <form ref={dialogRef} className={embedded ? 'form provider-connect-embedded' : 'onboarding-card form provider-connect-card'}
-    role={onClose ? 'dialog' : undefined} aria-modal={onClose ? true : undefined} aria-labelledby={embedded ? undefined : 'provider-connect-title'}
-    onSubmit={async (event) => {
-    event.preventDefault();
-    if (!kind) return;
-    setSaving(true); setError('');
-    try {
-      await client.providers.create({ id: id.trim() || kind, kind, apiKey: key, ...(baseUrl ? { baseUrl: baseUrl.replace(/\/+$/, '') } : {}) });
-      onConnected();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
-    finally { setSaving(false); }
-  }}>
-    {!embedded && <><h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use Crewly Gateway through your Crewly account, a provider's API key, or a subscription on your own device.</p></>}
-
+  // The Gateway leads only once it can be used; until this server is linked
+  // to Crewly it is a step for later, and leading with it read as the way in.
+  const gatewayUsable = connectedKinds.includes('crewly-gateway') || gateway?.state === 'ready';
+  const gatewaySection = (
     <section className="provider-class provider-class-gateway" aria-labelledby="provider-class-gateway">
       <h2 id="provider-class-gateway">Crewly Gateway {gateway?.state === 'ready' && !connectedKinds.includes('crewly-gateway') && <span className="provider-card-badge">Easiest</span>}</h2>
       <div className="provider-option">
@@ -268,8 +263,24 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
             <button type="button" className="text-button" onClick={() => { setGateway(null); void checkGateway(); }}>Check again</button>
           ) : null}
       </div>
-      {gateway && GATEWAY_NEXT[gateway.state] && !onOpenCrewly && <small className="field-description">Link it later in Settings → Crewly Cloud; until then, use a key or a device below.</small>}
+      {gateway && GATEWAY_NEXT[gateway.state] && !onOpenCrewly && <small className="field-description">Link this server in Settings → Crewly Cloud to use it; until then, use a key or a device above.</small>}
     </section>
+  );
+  const form = <form ref={dialogRef} className={embedded ? 'form provider-connect-embedded' : 'onboarding-card form provider-connect-card'}
+    role={onClose ? 'dialog' : undefined} aria-modal={onClose ? true : undefined} aria-labelledby={embedded ? undefined : 'provider-connect-title'}
+    onSubmit={async (event) => {
+    event.preventDefault();
+    if (!kind) return;
+    setSaving(true); setError('');
+    try {
+      await client.providers.create({ id: id.trim() || kind, kind, apiKey: key, ...(baseUrl ? { baseUrl: baseUrl.replace(/\/+$/, '') } : {}) });
+      onConnected();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Provider setup failed'); }
+    finally { setSaving(false); }
+  }}>
+    {!embedded && <><h1 id="provider-connect-title">Connect a model provider</h1><p>Agents need a model to think with. Use Crewly Gateway through your Crewly account, a provider's API key, or a subscription on your own device.</p></>}
+
+    {gatewayUsable && gatewaySection}
     {deviceFirst && deviceSection}
     <section className="provider-class" aria-labelledby="provider-class-key">
     <h2 id="provider-class-key">With an API key</h2>
@@ -305,19 +316,22 @@ export function ProviderConnect({ onConnected, onClose, closeLabel = 'Cancel', e
           <strong>{apiKindInfo[kind].title}</strong>
           <button type="button" className="text-button" onClick={() => { setKind(null); setError(''); }}>Choose another</button>
         </div>
-        <label>API key<input required autoFocus type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />
-          <small>{apiKindInfo[kind].needs}</small></label>
-        {kind === 'openai-compatible' && <label>Base URL<input required type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+        {/* The address comes first for an endpoint: it is what the person has
+            in hand, and the key's meaning depends on it. */}
+        {kind === 'openai-compatible' && <label>Base URL<input required autoFocus type="url" autoComplete="off" spellCheck={false} placeholder="https://api.example.com/v1" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
           <small>The root the provider documents for its OpenAI-compatible endpoints, without /chat/completions.</small></label>}
-        {showId
-          ? <label>Connection name<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
+        <label>API key<input required autoFocus={kind !== 'openai-compatible'} type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />
+          <small>{keyHint[kind] ?? apiKindInfo[kind].needs}</small></label>
+        {/* Asked only for a second connection of a kind already connected:
+            the first one is simply named after its kind. */}
+        {showId && <label>Connection name<input required autoComplete="off" spellCheck={false} value={id} onChange={(e) => setId(e.target.value)} />
               <small>How agents refer to this connection. Use a new one to add a second {apiKindInfo[kind].title} account.</small>
-            </label>
-          : <button type="button" className="link-button" onClick={() => setShowId(true)}>Connecting another {apiKindInfo[kind].title} account?</button>}
+            </label>}
         <button className="primary-button" disabled={saving}>{saving ? 'Checking the key…' : `Connect ${apiKindInfo[kind].title}`}</button>
       </div>
     )}
     </section>
+    {!gatewayUsable && gatewaySection}
     {!deviceFirst && deviceSection}
 
     {error && <p role="alert">{error}</p>}

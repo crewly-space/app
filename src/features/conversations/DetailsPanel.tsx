@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bot, ChevronRight, Cpu, Database, Folder, X } from "lucide-react";
+import { ChevronRight, Database, X } from "lucide-react";
 import { statusLabel } from "../../lib/agent-status";
 import type { Agent, Conversation } from "../../types";
 import type { View } from "../../app-types";
@@ -68,51 +68,41 @@ export function DetailsPanel({
       </div>
       {tab === "people" ? (
         <div className="details-content">
-          {conversation.type !== "dm" && agents.length > 0 && (
-            <ReplyModePicker conversationId={conversation.id} onNotify={onNotify} />
+          {/* One list, every member the same size: agents first, since they
+              are who a message here can ask, then the people. The model and
+              runtime live on the agent's profile, a click away. */}
+          {(agents.length > 0 || people.length > 0) && (
+            <p className="member-list-title">{agents.length} {agents.length === 1 ? "agent" : "agents"} · {people.length} {people.length === 1 ? "person" : "people"}</p>
           )}
-          {people.map((person) => <div className="detail-person" key={person.id}><UserAvatar id={person.id} name={person.displayName} mode={person.avatarMode} size="small" /><span>{person.displayName}</span></div>)}
-          {!agents.length && !people.length && (
+          <div className="member-list">
+            {agents.map((agent) => (
+              <button
+                className="member-row"
+                key={agent.id}
+                onClick={() => onAgentClick(agent.id)}
+                aria-label={`Open ${agent.name}'s profile`}
+              >
+                <Avatar agent={agent} size="small" />
+                <span><strong>{agent.name}</strong><small>{agent.role}</small></span>
+                <em><i className={`status ${agent.status}`} /> {statusLabel(agent)}</em>
+                <ChevronRight size={14} />
+              </button>
+            ))}
+            {people.map((person) => (
+              <div className="member-row" key={person.id}>
+                <UserAvatar id={person.id} name={person.displayName} mode={person.avatarMode} size="small" />
+                <span><strong>{person.displayName}</strong><small>Person</small></span>
+              </div>
+            ))}
+          </div>
+          {!agents.length && (
             <p className="detail-empty">
               No agents here yet.{conversation.type === "channel" ? " An admin can add one from the channel's settings." : ""}
             </p>
           )}
-          {agents.map((agent) => (
-            <button
-              className="agent-profile"
-              key={agent.id}
-              onClick={() => onAgentClick(agent.id)}
-              aria-label={`Open ${agent.name}'s profile`}
-            >
-              <Avatar agent={agent} size="large" />
-              <h3>{agent.name}</h3>
-              <p>{agent.role}</p>
-              <span className="online-label">
-                <i className={`status ${agent.status}`} /> {statusLabel(agent)}
-              </span>
-              <div className="profile-grid">
-                <span>
-                  <Bot size={15} /> Model
-                </span>
-                <strong>{agent.model}</strong>
-                <span>
-                  <Cpu size={15} /> Runtime
-                </span>
-                <strong>{agent.runtime}</strong>
-                {agent.workspace && (
-                  <>
-                    <span>
-                      <Folder size={15} /> Workspace
-                    </span>
-                    <strong>{agent.workspace}</strong>
-                  </>
-                )}
-              </div>
-              <span className="profile-open">
-                View profile <ChevronRight size={14} />
-              </span>
-            </button>
-          ))}
+          {conversation.type !== "dm" && agents.length > 0 && (
+            <ReplyModePicker conversationId={conversation.id} onNotify={onNotify} />
+          )}
         </div>
       ) : (
         <div className="memory-editor">

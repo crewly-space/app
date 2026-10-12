@@ -219,13 +219,17 @@ export function AgentEditor({
             />
             <small className="field-description">A short title people will recognize in conversations.</small>
           </label>
-          <AvatarModePicker
-            name="agent-avatar"
-            legend="Avatar"
-            value={avatarMode}
-            onChange={setAvatarMode}
-            preview={(mode) => <Avatar agent={previewAgent} mode={mode} />}
-          />
+          {/* A look, not a decision: folded away so name, role and model lead. */}
+          <details className="form-disclosure">
+            <summary>Avatar style</summary>
+            <AvatarModePicker
+              name="agent-avatar"
+              legend="Avatar"
+              value={avatarMode}
+              onChange={setAvatarMode}
+              preview={(mode) => <Avatar agent={previewAgent} mode={mode} />}
+            />
+          </details>
           <div className="form-section-label">How this agent works</div>
           <div className="simple-options">
             <label>Provider<select value={providerId} onChange={(event) => setProviderId(event.target.value)}>

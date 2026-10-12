@@ -225,7 +225,8 @@ export function SetupWizard({
       break;
     case "people":
       body = <PeopleStep data={data} onInvited={countInvite} />;
-      primary = <button type="button" className="primary-button" onClick={next}>{done.people ? "Continue" : "Done inviting"} <ArrowRight size={16} /></button>;
+      // One way on: "Done inviting" beside "Skip this step" asked the same thing twice.
+      primary = <button type="button" className="primary-button" onClick={next}>{done.people ? "Continue" : "Continue without inviting"} <ArrowRight size={16} /></button>;
       break;
     case "ready":
       body = <ReadyStep data={data} serverName={serverName} done={done} onOpen={finish} />;
@@ -282,7 +283,7 @@ export function SetupWizard({
       {guided && <footer className="setup-actions">
         <button type="button" className="secondary-button" onClick={back}><ArrowLeft size={16} /> Back</button>
         <span className="setup-actions-gap" />
-        {!done[step] && <button type="button" className="text-button" onClick={next}>Skip this step</button>}
+        {!done[step] && step !== "people" && <button type="button" className="text-button" onClick={next}>Skip this step</button>}
         <span ref={setSlot} className="setup-actions-slot" />
         {primary}
       </footer>}
