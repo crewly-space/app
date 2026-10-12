@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, GatewayStatus, ModelInfo, ServerBranding } from "@crewly/sdk";
-import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, Monitor, Moon, Plus, Sun, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { activeServerOrigin, client } from "../../lib/api/client";
 import { ProviderConnect } from "../providers/ProviderConnect";
@@ -131,6 +131,8 @@ export function SettingsPanel({
   const dialogRef = useDialog(onClose);
   const groups = visibleGroups(role);
   const current = findSection(section)!;
+  const currentGroup = groups.find((group) => group.sections.some((item) => item.id === section))?.id ?? "account";
+  const CurrentIcon = current.icon;
 
   const open = (id: SettingsSectionId) => { setSection(id); setPane("content"); };
 
@@ -200,6 +202,7 @@ export function SettingsPanel({
         </button>
       </div>}
       {!providers.length && <div className="empty-state">
+        <span className="empty-state-icon"><CurrentIcon size={20} /></span>
         <strong>No AI provider yet</strong>
         <p>{canManageServer
           ? "Agents can't reply until one is connected. Use Crewly Gateway for models through your Crewly account, a provider's API key, or a subscription on your own computer."
@@ -215,13 +218,13 @@ export function SettingsPanel({
             </div>
             {!canManageServer ? <span className="connected-label"><Check size={13} /> Ready</span> : (
               <div className="setting-row-actions">
-                {provider.status !== "available" && <button type="button" className="text-button"
+                {provider.status !== "available" && <button type="button" className="secondary-button compact"
                   aria-expanded={models?.providerId === provider.id}
                   aria-label={`Models from ${providerConnectionLabel(provider)}`}
                   onClick={() => void browseModels(provider.id)}>Models</button>}
                 {provider.status === "available"
-                  ? <button type="button" className="use-button" onClick={() => onNotify(`${providerConnectionLabel(provider)} is ready to use.`)}>Use</button>
-                  : <button type="button" className="use-button" onClick={() => setManagingProvider(provider)}>Manage</button>}
+                  ? <button type="button" className="secondary-button compact" onClick={() => onNotify(`${providerConnectionLabel(provider)} is ready to use.`)}>Use</button>
+                  : <button type="button" className="secondary-button compact" onClick={() => setManagingProvider(provider)}>Manage</button>}
               </div>
             )}
           </div>
@@ -267,17 +270,18 @@ export function SettingsPanel({
         <div>
           <input id="device-pairing-code" value={pairingCode} placeholder="A1B2C3D4" autoComplete="off" autoCapitalize="characters" spellCheck={false}
             onChange={(event) => { setPairingCode(event.target.value.toUpperCase()); setPairing(null); setPairingError(""); }} />
-          <button disabled={pairingBusy || !pairingCode.trim()} onClick={async () => {
+          <button type="button" className="primary-button compact" disabled={pairingBusy || !pairingCode.trim()} onClick={async () => {
             setPairingBusy(true); setPairingError("");
             try { setPairing(await gateway.findDevicePairing(pairingCode)); }
             catch { setPairingError("That pairing code is invalid or expired."); }
             finally { setPairingBusy(false); }
           }}>{pairingBusy ? "Checking…" : "Continue"}</button>
         </div>
+        {devices.length > 0 && <small className="pairing-hint">Run <code>crewly connect {activeServerOrigin()}</code> on the computer to get a code.</small>}
         {pairingError && <p role="alert">{pairingError}</p>}
         {pairing && <div className="pairing-review">
           <div><strong>{pairing.deviceName}</strong><span>{pairing.platform ?? "Unknown platform"}</span></div>
-          <button disabled={pairingBusy} onClick={async () => {
+          <button type="button" className="primary-button compact" disabled={pairingBusy} onClick={async () => {
             setPairingBusy(true); setPairingError("");
             try {
               await gateway.approveDevicePairing(pairingCode);
@@ -303,7 +307,7 @@ export function SettingsPanel({
         </div>
       )) : (
         <div className="empty-state">
-          <Laptop size={24} />
+          <span className="empty-state-icon"><Laptop size={20} /></span>
           <strong>No trusted devices yet</strong>
           <p>Run <code>crewly connect {activeServerOrigin()}</code> on a computer, then enter its code above.</p>
         </div>
@@ -353,10 +357,10 @@ export function SettingsPanel({
       <fieldset className="theme-options">
         <legend>Color theme</legend>
         {([
-          ["system", Monitor, "System"],
-          ["light", Sun, "Light"],
-          ["dark", Moon, "Dark"],
-        ] as const).map(([value, Icon, label]) => (
+          ["system", Monitor, "System", "Follows your device"],
+          ["light", Sun, "Light", "Bright surfaces"],
+          ["dark", Moon, "Dark", "Easy on the eyes"],
+        ] as const).map(([value, Icon, label, hint]) => (
           <label className={theme === value ? "selected" : ""} key={value}>
             <input
               type="radio"
@@ -365,13 +369,12 @@ export function SettingsPanel({
               checked={theme === value}
               onChange={() => onThemeChange(value)}
             />
-            <Icon size={17} />
-            <span>{label}</span>
+            <span className="theme-option-icon"><Icon size={18} /></span>
+            <span>{label}<small>{hint}</small></span>
             <i>{theme === value && <Check size={13} />}</i>
           </label>
         ))}
       </fieldset>
-      <div className="preference-divider" />
       <div className="preference-heading">
         <strong>Your avatar</strong>
         <span>How you appear to everyone on this server. Each agent's avatar is chosen in its settings.</span>
@@ -413,11 +416,19 @@ export function SettingsPanel({
       </header>
       <div className="settings-body">
       <nav className="settings-nav" aria-label="Settings sections">
+        <div className="settings-account">
+          <UserAvatar id={currentUser.id} name={currentUser.displayName ?? currentUser.email} mode={currentUser.avatarMode ?? "bloop"} />
+          <div>
+            <strong>{currentUser.displayName ?? currentUser.email}</strong>
+            <span>{currentUser.email}</span>
+          </div>
+        </div>
         {groups.map((group) => (
-          <div className="settings-nav-group" key={group.id}>
-            <span className="settings-nav-label">{group.label}</span>
-            {group.id === "account" && <span className="settings-nav-hint">{currentUser.email}</span>}
-            {group.id === "server" && serverName && <span className="settings-nav-hint">{serverName}</span>}
+          <div className="settings-nav-group" key={group.id} data-group={group.id}>
+            <span className="settings-nav-label">
+              {group.label}
+              {group.id === "server" && serverName && <span className="settings-nav-hint">{serverName}</span>}
+            </span>
             {group.sections.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -426,15 +437,21 @@ export function SettingsPanel({
                 aria-current={section === id ? "page" : undefined}
                 onClick={() => open(id)}
               >
-                <Icon size={16} /> <span>{label}</span> <ChevronRight size={15} className="settings-nav-chevron" aria-hidden="true" />
+                <span className="settings-icon" aria-hidden="true"><Icon size={15} strokeWidth={2} /></span>
+                <span>{label}</span>
+                <ChevronRight size={16} className="settings-nav-chevron" aria-hidden="true" />
               </button>
             ))}
           </div>
         ))}
-        <button type="button" className="text-button settings-logout" onClick={() => void gateway.logout()}>Log out</button>
+        <button type="button" className="settings-logout" onClick={() => void gateway.logout()}>
+          <span className="settings-icon" aria-hidden="true"><LogOut size={15} strokeWidth={2} /></span>
+          <span>Log out</span>
+        </button>
       </nav>
-      <div className="settings-content">
-        <div className="section-heading">
+      <div className="settings-content" data-group={currentGroup}>
+        <div className="section-heading settings-heading">
+          <span className="settings-icon large" aria-hidden="true"><CurrentIcon size={20} strokeWidth={1.9} /></span>
           <div>
             <h3>{current.label}</h3>
             <p>{current.summary}</p>

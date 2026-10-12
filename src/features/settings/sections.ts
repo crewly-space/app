@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity, BarChart3, Bot, Building2, Cloud, Cpu, KeyRound, Laptop, Mail, Network, Palette,
-  Plug, ScrollText, ShieldCheck, Sparkles, UserRound, UserRoundPen, Wrench, Zap,
+  Blocks, Bot, BrainCircuit, Cable, ChartColumn, CircleUserRound, Cloud, KeyRound, ListChecks, Mail,
+  MonitorSmartphone, ScrollText, ServerCog, ShieldCheck, SunMoon, UsersRound, WandSparkles, Waypoints, Workflow,
 } from "lucide-react";
 
 /**
@@ -39,33 +39,33 @@ export type SettingsGroup = {
 
 export const SETTINGS_GROUPS: SettingsGroup[] = [
   { id: "account", label: "Your account", sections: [
-    { id: "profile", label: "Profile", summary: "Your name, the email you sign in with, and your password.", icon: UserRoundPen, access: "everyone" },
-    { id: "appearance", label: "Appearance", summary: "Theme and how you appear to others.", icon: Palette, access: "everyone" },
-    { id: "devices", label: "Devices", summary: "Computers that can run local agents for you.", icon: Laptop, access: "everyone" },
+    { id: "profile", label: "Profile", summary: "Your name, the email you sign in with, and your password.", icon: CircleUserRound, access: "everyone" },
+    { id: "appearance", label: "Appearance", summary: "Theme and how you appear to others.", icon: SunMoon, access: "everyone" },
+    { id: "devices", label: "Devices", summary: "Computers that can run local agents for you.", icon: MonitorSmartphone, access: "everyone" },
   ] },
   { id: "server", label: "Server", sections: [
-    { id: "general", label: "General", summary: "Name, icon and health of this server.", icon: Building2, access: "admin" },
-    { id: "people", label: "People", summary: "Who can sign in, what they may do, and invitations.", icon: UserRound, access: "admin" },
+    { id: "general", label: "General", summary: "Name, icon and health of this server.", icon: ServerCog, access: "admin" },
+    { id: "people", label: "People", summary: "Who can sign in, what they may do, and invitations.", icon: UsersRound, access: "admin" },
     { id: "roles", label: "Roles", summary: "Custom permission sets beyond owner, admin and member.", icon: ShieldCheck, access: "admin" },
   ] },
   { id: "ai", label: "AI", sections: [
-    { id: "providers", label: "AI providers", summary: "Where agents get their models: Crewly Gateway, an API key or a subscription.", icon: Cpu, access: "everyone" },
+    { id: "providers", label: "AI providers", summary: "Where agents get their models: Crewly Gateway, an API key or a subscription.", icon: BrainCircuit, access: "everyone" },
     { id: "agents", label: "Agents", summary: "Runtime, tools and skills for each agent.", icon: Bot, access: "admin" },
   ] },
   { id: "integrations", label: "Integrations", sections: [
-    { id: "connectors", label: "Connectors", summary: "Apps like GitHub, Linear and Slack, connected with OAuth.", icon: Plug, access: "admin" },
-    { id: "tools", label: "MCP tools", summary: "MCP servers, from the catalog or your own: their tools, health, trust and sign-in.", icon: Wrench, access: "admin" },
-    { id: "skills", label: "Skills", summary: "Workflows agents can be given, with the access each needs.", icon: Sparkles, access: "admin" },
+    { id: "connectors", label: "Connectors", summary: "Apps like GitHub, Linear and Slack, connected with OAuth.", icon: Cable, access: "admin" },
+    { id: "tools", label: "MCP tools", summary: "MCP servers, from the catalog or your own: their tools, health, trust and sign-in.", icon: Blocks, access: "admin" },
+    { id: "skills", label: "Skills", summary: "Workflows agents can be given, with the access each needs.", icon: WandSparkles, access: "admin" },
     { id: "secrets", label: "Secrets", summary: "Encrypted values tools and agents can use without seeing them.", icon: KeyRound, access: "admin" },
     { id: "mail", label: "Email", summary: "Sending domains and outbound email.", icon: Mail, access: "admin" },
     { id: "cloud", label: "Crewly Cloud", summary: "Link this server to your Crewly account for mail, Gateway and sign-in.", icon: Cloud, access: "admin" },
-    { id: "federation", label: "Federation", summary: "Mutual, scoped connections with other Crewly servers.", icon: Network, access: "admin" },
+    { id: "federation", label: "Federation", summary: "Mutual, scoped connections with other Crewly servers.", icon: Waypoints, access: "admin" },
   ] },
   { id: "operations", label: "Operations", sections: [
-    { id: "usage", label: "Usage", summary: "Tokens and spend by agent and provider.", icon: BarChart3, access: "admin" },
-    { id: "runs", label: "Runs", summary: "What agents did, step by step.", icon: Activity, access: "admin" },
+    { id: "usage", label: "Usage", summary: "Tokens and spend by agent and provider.", icon: ChartColumn, access: "admin" },
+    { id: "runs", label: "Runs", summary: "What agents did, step by step.", icon: ListChecks, access: "admin" },
     { id: "activity", label: "Tool activity", summary: "Every tool call agents made or asked for, and every approval.", icon: ScrollText, access: "admin" },
-    { id: "automations", label: "Automations", summary: "Schedules and webhooks that start agent work.", icon: Zap, access: "admin" },
+    { id: "automations", label: "Automations", summary: "Schedules and webhooks that start agent work.", icon: Workflow, access: "admin" },
   ] },
 ];
 
