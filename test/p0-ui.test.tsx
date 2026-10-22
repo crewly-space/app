@@ -223,5 +223,6 @@ it.skipIf(!hasServer)('renders the authenticated provider-backed DM and restores
   // memory and configuration are not readable by that member.
   expect((await page.findAllByRole('button', { name: 'New message' }, { timeout: 5000 })).length).toBeGreaterThan(0);
   expect(page.queryByRole('button', { name: 'Try again' })).toBeNull();
+  await waitFor(() => expect(page.queryByText('Reconnecting live updates…')).toBeNull());
   await act(async () => { joinView.unmount(); await new Promise<void>((resolve) => setImmediate(resolve)); });
 }, 60_000);

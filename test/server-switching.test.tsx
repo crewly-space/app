@@ -19,7 +19,7 @@ vi.mock('../src/lib/realtime/events', () => ({ startRealtime: () => () => {}, re
 const bootstrap = vi.fn();
 vi.mock('../src/lib/gateway', async (original) => {
   const actual = await original<typeof import('../src/lib/gateway')>();
-  return { ...actual, gateway: { ...actual.gateway, bootstrap: (...args: unknown[]) => bootstrap(...args) } };
+  return { ...actual, gateway: { ...actual.gateway, history: async () => [], bootstrap: (...args: unknown[]) => bootstrap(...args) } };
 });
 
 function workspace(name: string) {
@@ -101,4 +101,29 @@ describe('loading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalled();
   });
+});
+
+
+it('keeps a cached workspace readable and offers recovery when refreshing fails', async () => {
+  writeWorkspace('srv_b', workspace('Beta'), 'Beta-room');
+  bootstrap.mockRejectedValueOnce(new Error('Server is restarting'));
+  registry = { ...registry, connection: { state: 'connected' } };
+  render(<App />);
+  expect((await screen.findByRole('alert')).textContent).toContain('Server is restarting');
+  expect(screen.getAllByText('Beta room').length).toBeGreaterThan(0);
+  bootstrap.mockResolvedValueOnce(workspace('Recovered'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reload workspace' }));
+  expect(await screen.findAllByText('Recovered room')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+
+it('keeps the workspace usable when browser storage is blocked', () => {
+  writeWorkspace('srv_b', workspace('Beta'), 'Beta-room');
+  const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+  const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+  try {
+    render(<App />);
+    expect(screen.getAllByText('Beta room').length).toBeGreaterThan(0);
+  } finally { get.mockRestore(); set.mockRestore(); }
 });

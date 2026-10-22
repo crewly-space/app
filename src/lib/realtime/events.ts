@@ -1,4 +1,4 @@
-import { client, currentToken } from '../api/client';
+import { client, clearToken, currentToken, activeServerId } from '../api/client';
 import { messageView } from '../gateway';
 import type { AgentStatus } from '@crewly/sdk';
 import type { Message } from '../../types';
@@ -26,12 +26,18 @@ export function startRealtime(
   onRunFinished: () => void = () => {},
   onConversationsChanged: () => void = () => {},
   bootstrapSeq?: number,
+  onState: (state: string) => void = () => {},
 ): () => void {
+  const sourceId = activeServerId();
   const token = currentToken();
   if (!token) return () => {};
   const seqKey = `crewly:realtime-seq:${token.slice(0,12)}`;
   const connection = client.ws(WebSocket);
   ws = connection;
+  connection.onState((state) => {
+    onState(state);
+    if (state === 'unauthorized' && activeServerId() === sourceId) { onFailure('Your session has expired. Sign in again.'); clearToken(); }
+  });
   connection.onEvent((event) => {
     try { localStorage.setItem(seqKey, String(event.seq)); } catch { /* storage may be unavailable */ }
     if (event.type === 'message.created' || event.type === 'thread.updated') {
@@ -72,6 +78,14 @@ export function startRealtime(
   try { sequence = Number(localStorage.getItem(seqKey) ?? '0'); } catch { /* replay from the beginning */ }
   if (bootstrapSeq !== undefined) sequence = bootstrapSeq;
   connection.connect({ token, sinceSeq: Number.isSafeInteger(sequence) && sequence >= 0 ? sequence : 0 });
-  return () => { connection.close(); if (ws === connection) ws = undefined; };
+  const resume = () => { if (document.visibilityState !== 'hidden') connection.reconnect(); };
+  window.addEventListener('online', resume);
+  document.addEventListener('visibilitychange', resume);
+  return () => {
+    window.removeEventListener('online', resume);
+    document.removeEventListener('visibilitychange', resume);
+    connection.close();
+    if (ws === connection) ws = undefined;
+  };
 }
 export function resubscribeConversations(): void { ws?.reconnect(); }

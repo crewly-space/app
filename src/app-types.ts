@@ -5,6 +5,7 @@ import type { Connector } from "@crewly/sdk";
 
 export type Bootstrap = {
   realtimeSeq?: number;
+  historyErrors?: string[];
   agents: Agent[];
   conversations: Conversation[];
   /** Sidebar sections that channels sit in; empty from a server before channels. */

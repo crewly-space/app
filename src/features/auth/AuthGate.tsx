@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { client, clearToken, currentToken, storeToken } from '../../lib/api/client';
+import { client, clearToken, currentToken, storeToken, snapshotClient, activeServerId } from '../../lib/api/client';
+import { CrewlyApiError } from '../../sdk/errors';
 import { consumeHandoffFromUrl } from '../../lib/api/handoff';
 import { navigateToServerUrl, safeNavigationUrl } from '../../lib/safe-navigation';
 import { PasswordField } from './PasswordField';
@@ -57,7 +58,11 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
           const me = await client.auth.me();
           if (active) { setSignedInAs(me.email); setPhase('ready'); return; }
         }
-      } catch { clearToken(); }
+      } catch (reason) {
+        if (!active) return;
+        if (reason instanceof CrewlyApiError && reason.status === 401) clearToken();
+        else { setError(reason instanceof Error ? reason.message : 'Cannot reach the Crewly server. Try again.'); return; }
+      }
       try {
         const status = await client.auth.status();
         if (active) {
@@ -116,10 +121,13 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
   if (phase === 'loading') return frame(<div className="onboarding-card auth-card form"><div className="auth-brand"><BrandMark />Crewly<span>Your people. Your agents.</span></div><h1>{error ? 'Unable to connect' : 'Opening your workspace'}</h1><p role={error ? 'alert' : 'status'}>{error || 'Checking your sign-in…'}</p>{error && <button className="primary-button" onClick={() => setAttempt(value => value + 1)}>Try again</button>}</div>);
   return frame(<form className="onboarding-card auth-card form" onSubmit={async (event) => {
     event.preventDefault(); if (saving) return; setSaving(true); setError('');
+    const originClient = snapshotClient();
+    const originId = activeServerId();
     try {
       const result = phase === 'setup'
-        ? await client.auth.setup({ email: email.trim(), displayName: displayName.trim(), password, ...(claimRequired ? { claimToken } : {}) })
-        : await client.auth.login({ email: email.trim(), password });
+        ? await originClient.auth.setup({ email: email.trim(), displayName: displayName.trim(), password, ...(claimRequired ? { claimToken } : {}) })
+        : await originClient.auth.login({ email: email.trim(), password });
+      if (activeServerId() !== originId || snapshotClient() !== originClient) return;
       storeToken(result.token); setSignedInAs(result.user.email); setSigningInToAccept(false); setPhase('ready');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Authentication failed'); } finally { setSaving(false); }
   }}>

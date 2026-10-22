@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ status: vi.fn(), login: vi.fn(), setup: vi.fn(), store: vi.fn() }));
-vi.mock('../src/lib/api/client', () => ({ client: { auth: { status: mocks.status, login: mocks.login, setup: mocks.setup } }, currentToken: () => null, clearToken: vi.fn(), storeToken: mocks.store }));
+const mocks = vi.hoisted(() => ({ status: vi.fn(), login: vi.fn(), setup: vi.fn(), store: vi.fn(), me: vi.fn(), token: null as string | null, activeId: null as string | null, clear: vi.fn() }));
+vi.mock('../src/lib/api/client', () => {
+  const client = { auth: { status: mocks.status, login: mocks.login, setup: mocks.setup, me: mocks.me } };
+  return { client, snapshotClient: () => client, activeServerId: () => mocks.activeId,
+    currentToken: () => mocks.token, clearToken: mocks.clear, storeToken: mocks.store };
+});
 vi.mock('../src/lib/api/handoff', () => ({ consumeHandoffFromUrl: async () => false }));
 import { AuthGate } from '../src/features/auth/AuthGate';
 afterEach(cleanup);
-beforeEach(() => { vi.clearAllMocks(); mocks.status.mockResolvedValue({ initialized: true, authMode: 'local' }); });
+beforeEach(() => { vi.clearAllMocks(); mocks.token = null; mocks.activeId = null; mocks.status.mockResolvedValue({ initialized: true, authMode: 'local' }); });
 it('shows a connection error with a retry instead of an unusable login form', async () => {
   mocks.status.mockRejectedValueOnce(new Error('offline'));
   render(<AuthGate><p>Workspace</p></AuthGate>);
@@ -45,4 +49,29 @@ it('shows password guidance and toggles visibility without changing the password
   fireEvent.click(screen.getByRole('button', { name: 'Hide password' }));
   expect(password.type).toBe('password');
   expect(screen.getByLabelText(/Server setup code/)).toBeTruthy();
+});
+
+
+it('keeps the session after a transient server failure and offers retry', async () => {
+  mocks.token = 'valid-session';
+  mocks.me.mockRejectedValueOnce(new Error('Server is restarting'));
+  render(<AuthGate><p>Workspace</p></AuthGate>);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Server is restarting');
+  expect(mocks.clear).not.toHaveBeenCalled();
+  mocks.me.mockResolvedValue({ email: 'sam@example.com' });
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByText('Workspace')).toBeTruthy();
+});
+
+it('does not put a late login response into a different server session', async () => {
+  let resolve!: (value: unknown) => void;
+  mocks.activeId = 'server-a';
+  mocks.login.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  render(<AuthGate><p>Workspace</p></AuthGate>);
+  fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'sam@example.com' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'my-secret-password' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Log in', exact: true }));
+  mocks.activeId = 'server-b';
+  await act(async () => resolve({ token: 'token-a', user: { email: 'sam@example.com' } }));
+  expect(mocks.store).not.toHaveBeenCalled();
 });

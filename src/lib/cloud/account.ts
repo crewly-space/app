@@ -20,6 +20,7 @@ export class CloudAccount {
     const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}${path}`, {
       method: 'GET',
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
       headers: { accept: 'application/json' },
     });
     // Signed out is an answer, not a failure: the app offers a sign-in.
@@ -43,6 +44,7 @@ export class CloudAccount {
     const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}/api/v1/auth/logout`, {
       method: 'POST',
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
       headers: { accept: 'application/json' },
     });
     if (!response.ok && response.status !== 401) throw new Error(`Cloud returned HTTP ${response.status}`);
@@ -52,6 +54,7 @@ export class CloudAccount {
     const response = await this.fetchImpl(`${this.baseUrl.replace(/\/+$/, '')}/api/v1/account`, {
       method: 'PATCH',
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify(input),
     });
@@ -74,6 +77,7 @@ export class CloudAccount {
       {
         method: 'POST',
         credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
         headers: { accept: 'application/json' },
       },
     );

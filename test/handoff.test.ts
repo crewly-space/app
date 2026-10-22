@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { consumeHandoffFromUrl } from '../src/lib/api/handoff';
-import { client, currentToken } from '../src/lib/api/client';
+import { activateServer, client, currentToken } from '../src/lib/api/client';
 
 describe('arriving from Cloud', () => {
   beforeEach(() => {
@@ -34,4 +34,17 @@ describe('arriving from Cloud', () => {
     expect(await consumeHandoffFromUrl({ hash: '#handoff=stale' }, vi.fn())).toBe(false);
     expect(currentToken()).toBeNull();
   });
+});
+
+
+it('does not apply a late handoff to the server selected afterwards', async () => {
+  let finish!: (result: any) => void;
+  vi.spyOn(client.auth, 'cloudHandoff').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const handoff = consumeHandoffFromUrl({ hash: '#handoff=old-server' }, vi.fn());
+  activateServer({ id: 'other', kind: 'self_hosted', name: 'Other', endpoint: 'https://other.test', status: 'ready', role: null, organizationId: null, reachable: true });
+  try {
+    finish({ token: 'old-session', user: { id: 'u', email: 'u@example.com', role: 'owner' } });
+    expect(await handoff).toBe(false);
+    expect(currentToken()).toBeNull();
+  } finally { activateServer(null); }
 });

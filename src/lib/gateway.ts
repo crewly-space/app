@@ -1,5 +1,5 @@
 import type { Agent as ApiAgent, ApprovalRequest, Attachment as ApiAttachment, Channel, ChannelCategory, Conversation as ApiConversation, ConversationReplyMode, CreateChannelInput, DevicePairingInfo, DirectoryAgent, DirectoryUser, Message as ApiMessage, UpdateChannelInput } from '@crewly/sdk';
-import { client, clearToken } from './api/client';
+import { client, clearToken, snapshotClient } from './api/client';
 import type { Agent, Approval, Conversation, Message, Provider } from '../types';
 import { withStatus } from './agent-status';
 import { deviceProviderAvailability, explain, type DeviceProviderKind } from '../features/providers/availability';
@@ -108,36 +108,42 @@ export const gateway = {
    * How long each round took is recorded, so a slow start can be measured.
   */
   async bootstrap() {
+    const source = snapshotClient();
     const started = performance.now();
     // Capture changes during bootstrap without replaying all old messages.
-    const realtimeSeq = await client.realtimeCursor().then((result) => result.seq).catch(() => undefined);
+    const realtimeSeq = await source.realtimeCursor().then((result) => result.seq).catch(() => undefined);
     const [currentUser, apiAgents, apiConversations, devices, directory, channelList, statuses] = await Promise.all([
-      client.auth.me(),
-      client.agents.list(),
-      client.conversations.list(),
-      client.devices.list(),
+      source.auth.me(),
+      source.agents.list(),
+      source.conversations.list(),
+      source.devices.list(),
       // Everyone's name and avatar, for drawing who wrote what. A server from
       // before the directory gives nothing, and people fall back to defaults.
-      client.users.directory().catch(() => ({ users: [] as DirectoryUser[], agents: [] as DirectoryAgent[] })),
-      client.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] })),
-      client.agents.statuses().then((result) => result.statuses).catch(() => null),
+      source.users.directory().catch(() => ({ users: [] as DirectoryUser[], agents: [] as DirectoryAgent[] })),
+      source.channels.list().catch(() => ({ channels: [] as Channel[], categories: [] as ChannelCategory[] })),
+      source.agents.statuses().then((result) => result.statuses).catch(() => null),
     ]);
     const firstRound = performance.now();
     const people = directory.users;
     const canManage = currentUser.role === 'owner' || currentUser.role === 'admin';
+    const historyErrors: string[] = [];
+    const history = async (id: string) => {
+      try { return await source.messages.list(id, 200); }
+      catch { historyErrors.push(id); return []; }
+    };
     const [apiProviders, users, apiConnectors, serverBranding, memories, histories, pendingApprovals, runtimes] = await Promise.all([
-      canManage ? client.providers.list() : client.providers.listAvailable(),
-      canManage ? client.users.list() : Promise.resolve([]),
-      canManage ? client.connectors.list().then((result) => result.connectors).catch(() => []) : Promise.resolve([]),
-      client.server.branding().catch(() => ({ displayName: 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null })),
+      canManage ? source.providers.list() : source.providers.listAvailable(),
+      canManage ? source.users.list() : Promise.resolve([]),
+      canManage ? source.connectors.list().then((result) => result.connectors).catch(() => []) : Promise.resolve([]),
+      source.server.branding().catch(() => ({ displayName: 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null })),
       Promise.all(apiAgents.map((agent) => canManage || agent.ownerUserId === currentUser.id
-        ? client.memory.listFacts(agent.id).catch(() => []) : Promise.resolve([]))),
+        ? source.memory.listFacts(agent.id).catch(() => []) : Promise.resolve([]))),
       Promise.all([
-        ...apiConversations.map((c) => client.messages.list(c.id, 200)),
-        ...channelList.channels.filter(readable).map((c) => client.messages.list(c.id, 200)),
+        ...apiConversations.map((c) => history(c.id)),
+        ...channelList.channels.filter(readable).map((c) => history(c.id)),
       ]),
-      client.approvals.list().catch(() => [] as ApprovalRequest[]),
-      Promise.all(apiAgents.map((agent) => (canManage || agent.ownerUserId === currentUser.id) ? client.agents.runtime(agent.id).catch(() => null) : Promise.resolve(null))),
+      source.approvals.list().catch(() => [] as ApprovalRequest[]),
+      Promise.all(apiAgents.map((agent) => (canManage || agent.ownerUserId === currentUser.id) ? source.agents.runtime(agent.id).catch(() => null) : Promise.resolve(null))),
     ]);
     recordBootTiming({ firstRoundMs: firstRound - started, secondRoundMs: performance.now() - firstRound });
     const agents = apiAgents.map((a, index) => {
@@ -180,7 +186,7 @@ export const gateway = {
       const canonical = statuses?.find((status) => status.agentId === entry.id);
       return canonical ? withStatus(directoryAgentView(entry), canonical) : directoryAgentView(entry);
     });
-    return { realtimeSeq, agents: withStatuses, otherAgents, conversations, channelCategories: channelList.categories, messages, providers,
+    return { historyErrors, realtimeSeq, agents: withStatuses, otherAgents, conversations, channelCategories: channelList.categories, messages, providers,
       approvals: pendingApprovals.map((approval) => approvalView(approval)), currentUser, users, devices, people, connectors: apiConnectors, serverBranding };
   },
   async createAgent(input: { name: string; role: string; model: string; providerId: string; instructions?: string; avatarMode?: Agent['avatarMode'] }): Promise<Agent> {
@@ -190,19 +196,20 @@ export const gateway = {
     return agentView(api);
   },
   async updateAgent(id: string, input: Partial<Agent>): Promise<Agent> {
-    const list = await client.agents.list();
+    const source = snapshotClient();
+    const list = await source.agents.list();
     const existing = list.find((a) => a.id === id);
     if (!existing) throw new Error('Agent not found');
     const current = agentView(existing);
-    const updated = await client.agents.update(id, { name: input.name ?? current.name, avatarMode: input.avatarMode,
+    const updated = await source.agents.update(id, { name: input.name ?? current.name, avatarMode: input.avatarMode,
       personality: [input.role ?? current.role, input.instructions ?? current.instructions ?? ''].join('\n'),
       modelPolicy: { defaultProviderId: input.providerId ?? current.providerId!, defaultModel: input.model ?? current.model } });
     if (input.memory) {
-      const existingFacts = await client.memory.listFacts(id);
+      const existingFacts = await source.memory.listFacts(id);
       const desired = new Set(input.memory.map((item) => item.trim()).filter(Boolean));
-      for (const fact of existingFacts) if (!desired.has(fact.content)) await client.memory.deleteFact(id, fact.id);
+      for (const fact of existingFacts) if (!desired.has(fact.content)) await source.memory.deleteFact(id, fact.id);
       const existing = new Set(existingFacts.map((fact) => fact.content));
-      for (const item of desired) if (!existing.has(item)) await client.memory.createFact(id, { content: item, source: 'manual' });
+      for (const item of desired) if (!existing.has(item)) await source.memory.createFact(id, { content: item, source: 'manual' });
     }
     return agentView(updated, input.memory ?? current.memory);
   },
@@ -226,8 +233,9 @@ export const gateway = {
   },
   /** Channels and their categories, with each readable channel's history. */
   async channels() {
-    const list = await client.channels.list();
-    const histories = await Promise.all(list.channels.filter(readable).map((c) => client.messages.list(c.id, 200)));
+    const source = snapshotClient();
+    const list = await source.channels.list();
+    const histories = await Promise.all(list.channels.filter(readable).map((c) => source.messages.list(c.id, 200)));
     return { channels: list.channels.map(channelView), categories: list.categories, messages: histories.flat().map(messageView) };
   },
   createChannel: (input: CreateChannelInput) => client.channels.create(input).then(channelView),
@@ -259,6 +267,7 @@ export const gateway = {
     client.conversations.setReplyMode(conversationId, { replyMode }).then((result) => result.replyMode),
   setThreadStatus: (rootMessageId: string, status: 'open' | 'resolved' | 'archived') => client.messages.setThreadStatus(rootMessageId, status),
   async uploadAttachment(conversationId: string, file: File): Promise<ApiAttachment> {
+    const source = snapshotClient();
     const dataBase64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(reader.error ?? new Error('Could not read attachment'));
@@ -269,7 +278,7 @@ export const gateway = {
       };
       reader.readAsDataURL(file);
     });
-    return client.attachments.upload({ conversationId, filename: file.name, mimeType: file.type || 'application/octet-stream', dataBase64 });
+    return source.attachments.upload({ conversationId, filename: file.name, mimeType: file.type || 'application/octet-stream', dataBase64 });
   },
   removeAttachment: (id: string) => client.attachments.remove(id),
   async downloadAttachment(id: string, filename: string): Promise<void> {

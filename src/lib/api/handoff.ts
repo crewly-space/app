@@ -1,4 +1,4 @@
-import { client, storeToken } from './client';
+import { snapshotClient, storeToken } from './client';
 
 /**
  * Picks up a Crewly Cloud handoff token left in the URL fragment.
@@ -16,10 +16,12 @@ export async function consumeHandoffFromUrl(
 ): Promise<boolean> {
   const match = /(?:^|[#&])handoff=([^&]+)/.exec(location.hash);
   if (!match) return false;
-  const token = decodeURIComponent(match[1]);
+  const origin = snapshotClient();
   clear();
   try {
-    const result = await client.auth.cloudHandoff({ token });
+    const token = decodeURIComponent(match[1]);
+    const result = await origin.auth.cloudHandoff({ token });
+    if (snapshotClient() !== origin) return false;
     storeToken(result.token);
     return true;
   } catch {

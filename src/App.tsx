@@ -3,7 +3,8 @@ import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, 
 import { gateway } from "./lib/gateway";
 import { withStatus } from "./lib/agent-status";
 import { RunInspector } from "./features/runs/RunInspector";
-import { client } from "./lib/api/client";
+import { client, clearToken } from "./lib/api/client";
+import { CrewlyApiError } from "@crewly/sdk";
 import { startRealtime, resubscribeConversations } from "./lib/realtime/events";
 import { ServerRail } from "./features/servers/ServerRail";
 import { useServerRegistry, type ServerRegistry } from "./features/servers/useServerRegistry";
@@ -26,6 +27,7 @@ import { Avatar, UserAvatar } from "./features/appearance/Avatar";
 import { DetailsPanel } from "./features/conversations/DetailsPanel";
 import { UtilityView } from "./features/inbox/UtilityView";
 import { MessageItem, ApprovalMessage, authorName } from "./features/messages/MessageItem";
+import { useConversationDraft } from "./features/messages/useConversationDraft";
 import { ThreadPanel } from "./features/messages/ThreadPanel";
 import { NewConversationDialog } from "./features/conversations/NewConversationDialog";
 import { SearchDialog } from "./features/search/SearchDialog";
@@ -146,6 +148,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const [data, setData] = useState<Bootstrap | null>(cached?.data ?? null);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const [realtimeState, setRealtimeState] = useState('connecting');
   // Each server reopens on the conversation that was open there.
   const [selected, setSelected] = useState(cached?.selected ?? "launch");
   const [view, setView] = useState<View>("messages");
@@ -161,13 +164,12 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     setPanel(null); setSettingsSection(undefined);
     if (window.location.pathname === "/admin") history.pushState(null, "", "/");
   };
-  const [composer, setComposer] = useState("");
+  const { composer, setComposer, replying, setReplying, composerRef, bindComposer, captureDraft, restoreDraft } = useConversationDraft(serverKey, selected);
   const [pendingAttachments, setPendingAttachments] = useState<ApiAttachment[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionSuppressed, setMentionSuppressed] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
-  const [replying, setReplying] = useState<Message | null>(null);
   const [threadRoot, setThreadRoot] = useState<Message | null>(null);
   const [threadFocusId, setThreadFocusId] = useState<string | null>(null);
   const closeThread = useCallback(() => { setThreadRoot(null); setThreadFocusId(null); }, []);
@@ -193,8 +195,10 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     Record<string, string>
   >({});
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem(THEME_KEY);
-    return saved === "light" || saved === "dark" ? saved : "system";
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      return saved === "light" || saved === "dark" ? saved : "system";
+    } catch { return "system"; }
   });
   // A provider sign-in navigates away and comes back with a code; only a
   // mounted ProviderConnect redeems it, so reopen one for the return trip.
@@ -211,7 +215,6 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const setup = useSetupState();
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
-  const composerRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
   const searchFocusRef = useRef<{ id: string; conversationId: string } | null>(null);
@@ -221,6 +224,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     // session for it, and the last known state is what is on screen.
     if (!connected) return;
     let cancelled = false;
+    setLoadError('');
     const workspaceWindow = window;
     const bootstrapStartedAt = workspaceWindow.performance.now();
     const recordBootstrapTiming = (status: 'success' | 'error') => {
@@ -246,6 +250,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       recordBootstrapTiming('success');
       if (cancelled) return;
       setData(initial);
+      if (initial.historyErrors?.length) notify("Some conversations could not be loaded. Open a conversation to try again.", "error");
       // Replay events after history loads so a reply arriving during bootstrap
       // cannot be discarded while data is still null.
       stopRealtime = startRealtime((message) => setData((current) => current && ({ ...current,
@@ -280,8 +285,13 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             const conversations = await gateway.conversations(initial.agents, people, initial.currentUser.id);
             if (!cancelled) setData((current) => current && ({ ...current, people, conversations: [...conversations, ...current.conversations.filter((item) => item.type === 'channel')] }));
           }).catch(() => {});
-        }, initial.realtimeSeq);
-    }).catch((error) => { recordBootstrapTiming('error'); if (!cancelled) setLoadError(String(error)); });
+        }, initial.realtimeSeq, (state) => { if (!cancelled) setRealtimeState(state); });
+    }).catch((error) => {
+      recordBootstrapTiming('error');
+      if (cancelled) return;
+      if (error instanceof CrewlyApiError && error.status === 401) { clearToken(); return; }
+      setLoadError(error instanceof Error ? error.message : String(error));
+    });
     return () => { cancelled = true; stopRealtime(); window.clearTimeout(channelRefresh); };
     // Switching servers reloads everything: agents, conversations and the
     // socket all belong to one server, and showing the previous server's
@@ -703,7 +713,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   async function addAttachments(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!files.length || uploadingAttachment) return;
+    if (!files.length || uploadingAttachment || !connected) return;
     const remaining = 10 - pendingAttachments.length;
     if (remaining < files.length) notify("A message can contain at most 10 attachments.", "error");
     const selectedFiles = files.slice(0, Math.max(0, remaining));
@@ -723,7 +733,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
 
   async function send() {
     const value = composer.trim();
-    if ((!value && !pendingAttachments.length) || sending) return;
+    if ((!value && !pendingAttachments.length) || sending || !connected) return;
+    const destination = conversation.id;
+    const draft = captureDraft();
     const replyToMessageId = replying?.id;
     const attachmentIds = pendingAttachments.map((attachment) => attachment.id);
     const mentions = mentionedAgents(composerRef.current);
@@ -734,7 +746,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
     setReplying(null);
     setSending(true);
     try {
-      const sent = await gateway.sendMessage(conversation.id, value, replyToMessageId, mentions, attachmentIds);
+      const sent = await gateway.sendMessage(destination, value, replyToMessageId, mentions, attachmentIds);
       setData((current) => current && { ...current,
         messages: current.messages.some((m) => m.id === sent.id) ? current.messages : [...current.messages, sent] });
       setPendingAttachments([]);
@@ -743,13 +755,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         "Message could not be delivered. Your draft was restored.",
         "error",
       );
-      setComposer(value);
-      setReplying(replyToMessageId ? replying : null);
-      requestAnimationFrame(() => {
-        if (composerRef.current && !composerRef.current.innerText.trim()) {
-          composerRef.current.textContent = value;
-        }
-      });
+      restoreDraft(destination, draft);
     } finally {
       setSending(false);
     }
@@ -943,7 +949,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   }
 
   function updateTheme(nextTheme: Theme) {
-    localStorage.setItem(THEME_KEY, nextTheme);
+    try { localStorage.setItem(THEME_KEY, nextTheme); } catch { /* keep the theme for this page */ }
     setTheme(nextTheme);
   }
 
@@ -1202,9 +1208,19 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         )}
 
         <main className="conversation">
+          {loadError && <div className="server-switching" role="alert">
+            Could not refresh this workspace: {loadError}
+            <button type="button" className="text-button" onClick={() => setBootAttempt((attempt) => attempt + 1)}>Reload workspace</button>
+          </div>}
           {!connected && (
             <div className="server-switching" role="status">
               Showing {registry.selected?.name ?? "this server"} as you left it. Connecting…
+            </div>
+          )}
+          {connected && realtimeState !== 'connected' && (
+            <div className="server-switching" role="status">
+              {realtimeState === 'forbidden' ? 'Live updates are blocked by this server. Check its allowed app origins.' : 'Reconnecting live updates…'}
+              <button type="button" className="text-button" onClick={resubscribeConversations}>Reconnect live updates</button>
             </div>
           )}
           <header className="conversation-header">
@@ -1440,7 +1456,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 ) : (
                 <div className="composer">
                   <div
-                    ref={composerRef}
+                    ref={bindComposer}
                     className="composer-editor"
                     contentEditable={!sending && connected}
                     // The mode can change in the details panel meanwhile.
@@ -1538,7 +1554,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                     <div>
                       <button
                         onClick={() => attachmentInputRef.current?.click()}
-                        disabled={uploadingAttachment || sending || pendingAttachments.length >= 10}
+                        disabled={!connected || uploadingAttachment || sending || pendingAttachments.length >= 10}
                         aria-label="Attach file"
                         title="Attach file"
                       >
@@ -1557,7 +1573,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       : <span>Shift + Enter for new line</span>}
                     <button
                       className="send"
-                      disabled={(!composer.trim() && !pendingAttachments.length) || sending || uploadingAttachment}
+                      disabled={!connected || (!composer.trim() && !pendingAttachments.length) || sending || uploadingAttachment}
                       onClick={() => void send()}
                       aria-label="Send message"
                     >
