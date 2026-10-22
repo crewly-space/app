@@ -223,6 +223,19 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
   const searchFocusRef = useRef<{ id: string; conversationId: string } | null>(null);
+  const messageResizeObserver = useRef<ResizeObserver | null>(null);
+  const bindMessageList = useCallback((node: HTMLElement | null) => {
+    messageResizeObserver.current?.disconnect();
+    messageListRef.current = node;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    messageResizeObserver.current = new ResizeObserver(() => {
+      // Rotation, the mobile keyboard and growing status/composer rows can
+      // shrink the viewport without a new message triggering the scroll effect.
+      if (stickToBottomRef.current) node.scrollTop = node.scrollHeight;
+    });
+    messageResizeObserver.current.observe(node);
+  }, []);
+
 
   useEffect(() => {
     // Not asked until the server is connected: before then there is no
@@ -1270,7 +1283,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             <>
               <section
                 className={`message-list${visibleMessages.length === 0 && conversationApprovals.length === 0 ? " is-empty" : ""}`}
-                ref={messageListRef}
+                ref={bindMessageList}
                 onScroll={(event) => {
                   const list = event.currentTarget;
                   const nearBottom =

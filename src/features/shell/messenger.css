@@ -34,7 +34,7 @@
 .messenger-shell .composer-wrap { flex: 0 0 auto; padding: 10px max(28px, calc((100% - 800px) / 2)) 24px; }
 .messenger-shell .composer { padding: 14px 16px 10px; border-radius: 16px; }
 .messenger-shell .composer-editor { font-size: 14px; min-height: 34px; max-height: 160px; }
-.messenger-shell .composer-tools .send { width: 34px; height: 34px; border-radius: 10px; }
+.messenger-shell .composer-tools .send { margin-left: auto; width: 34px; height: 34px; border-radius: 10px; }
 .scheduled-header-button { display: flex; align-items: center; gap: 7px; border: 1px solid var(--oc-line); border-radius: 8px; padding: 8px 10px; background: transparent; color: var(--oc-muted-strong); font-size: 12px; cursor: pointer; }
 .scheduled-header-button:hover { color: var(--oc-text); background: var(--oc-panel-2); }
 .chat-agent-state { display: flex; align-items: center; gap: 9px; color: var(--oc-muted-strong); font-size: 12px; padding: 0 4px 12px; line-height: 1.6; }
