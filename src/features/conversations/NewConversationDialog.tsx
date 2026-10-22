@@ -22,10 +22,10 @@ export function NewConversationDialog({ agents, people, currentUserId, onClose, 
     ...agents.map((agent) => ({ key: `agent:${agent.id}`, id: agent.id, kind: 'agent' as const, name: agent.name, avatar: <Avatar agent={agent} size="small" /> })),
   ];
   const create = async () => {
-    if (busy || !selected.length || (selected.length > 1 && !name.trim())) return;
+    if (busy || !selected.length) return;
     setBusy(true); setError('');
     try {
-      await onCreate(candidates.filter((candidate) => selected.includes(candidate.key)).map((candidate) => ({ participantId: candidate.id, participantType: candidate.kind })), name.trim());
+      await onCreate(candidates.filter((candidate) => selected.includes(candidate.key)).map((candidate) => ({ participantId: candidate.id, participantType: candidate.kind })), name.trim() || (selected.length === 1 ? '' : candidates.filter((candidate) => selected.includes(candidate.key)).map((candidate) => candidate.name).join(', ').slice(0, 80)));
       onClose();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not start this conversation'); }
     finally { setBusy(false); }
@@ -42,9 +42,9 @@ export function NewConversationDialog({ agents, people, currentUserId, onClose, 
         </label>)}
         {!candidates.some((candidate) => candidate.name.toLowerCase().includes(query.trim().toLowerCase())) && <p>No teammates or agents found.</p>}
       </div>
-      {selected.length > 1 && <label>Group name<input required value={name} maxLength={80} onChange={(event) => setName(event.target.value)} /></label>}
+      {selected.length > 1 && <label>Group name (optional)<input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} /></label>}
       {error && <p role="alert" className="dashboard-error">{error}</p>}
-      <div className="dashboard-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !selected.length || (selected.length > 1 && !name.trim())}>{busy ? 'Opening…' : 'Start conversation'}</button></div>
+      <div className="dashboard-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary-button" disabled={busy || !selected.length}>{busy ? 'Opening…' : 'Start conversation'}</button></div>
     </form>
   </div>;
 }

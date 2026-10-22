@@ -13,16 +13,15 @@ it('starts a teammate DM and excludes the current user', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   await waitFor(() => expect(onCreate).toHaveBeenCalledWith([{ participantId: 'bob', participantType: 'user' }], ''));
 });
-it('requires a name for a group and keeps selections after a server error', async () => {
+it('names a group from its participants and keeps selections after a server error', async () => {
   const onCreate = vi.fn().mockRejectedValueOnce(new Error('Try again')).mockResolvedValue(undefined);
   render(<NewConversationDialog agents={[]} people={people} currentUserId="me" onClose={vi.fn()} onCreate={onCreate} />);
   fireEvent.click(screen.getByRole('checkbox', { name: /Bob/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Cara/ }));
-  expect((screen.getByRole('button', { name: 'Start conversation' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.change(screen.getByLabelText('Group name'), { target: { value: 'Launch' } });
+  expect((screen.getByRole('button', { name: 'Start conversation' }) as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Try again');
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(2));
-  expect(onCreate).toHaveBeenLastCalledWith([{ participantId: 'bob', participantType: 'user' }, { participantId: 'cara', participantType: 'user' }], 'Launch');
+  expect(onCreate).toHaveBeenLastCalledWith([{ participantId: 'bob', participantType: 'user' }, { participantId: 'cara', participantType: 'user' }], 'Bob, Cara');
 });

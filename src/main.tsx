@@ -7,6 +7,7 @@ import { cloudUrl } from "./features/servers/useServerRegistry";
 import { CloudAccount } from "./lib/cloud/account";
 // Brand faces ship with @crewly/ui and are pulled in by styles.css.
 import "./styles.css";
+import "./features/shell/messenger.css";
 import "./features/account/account-actions.css";
 
 // Built with a Cloud URL, the app is the hosted client: the person signs in to

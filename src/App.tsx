@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { Activity, AtSign, AlertTriangle, Check, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Settings, UserRound, X } from "lucide-react";
+import { Activity, AtSign, AlertTriangle, Check, Clock3, ArrowUpRight, ChevronDown, PanelRight, Hash, Inbox, Lock, Menu, MessageCircle, MoreHorizontal, Paperclip, Plus, Reply, Search, Send, Settings, UserRound, X } from "lucide-react";
 import { gateway } from "./lib/gateway";
 import { withStatus } from "./lib/agent-status";
 import { RunInspector } from "./features/runs/RunInspector";
@@ -14,8 +14,9 @@ import type { RegistryServer } from "./lib/servers/types";
 import { ServerPending } from "./features/servers/ServerPending";
 import { hasWorkspace, readWorkspace, writeWorkspace } from "./lib/boot-cache";
 import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/ProviderConnect";
-import { FirstRunHome, firstRunStep, useFirstRunSkips } from "./features/onboarding/FirstRun";
-import { SetupWizard, needsSetup, useSetupState } from "./features/onboarding/Setup";
+import { useFirstRunSkips } from "./features/onboarding/FirstRun";
+import { QuickStart } from "./features/onboarding/QuickStart";
+import { ScheduledTasks } from "./features/conversations/ScheduledTasks";
 import { PairingApproval } from "./features/devices/PairingApproval";
 import { SidebarSection } from "./features/shell/SidebarSection";
 import { Scrim, layers } from "./lib/layers";
@@ -48,7 +49,11 @@ const isApple = /mac|iphone|ipad/i.test(navigator.userAgent);
 const SEARCH_HINT = isApple ? "⌘ K" : "Ctrl K";
 
 /** What a new DM with an agent offers to send, so the first message is one click. */
-const DM_STARTERS = ["What can you help me with?", "Help me plan my week", "Draft a short update for the team"];
+const DM_STARTERS = [
+  { title: "Make sense of something", detail: "Work through an idea or a decision", prompt: "Help me think through a decision. Ask me what I am deciding and what matters most." },
+  { title: "Make the words work", detail: "Draft, rewrite, or tighten a message", prompt: "Help me write a clear message. Ask who it is for and what I need to say." },
+  { title: "Remember it for later", detail: "Try a reminder in this conversation", prompt: "Remind me in 10 minutes to take a break." },
+];
 
 /** "Today", "Yesterday", or the date, for the divider above a day's messages. */
 function dayLabel(iso: string | undefined): string {
@@ -212,7 +217,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   }, [notify]);
   const [firstDmFailed, setFirstDmFailed] = useState(false);
   const firstRun = useFirstRunSkips();
-  const setup = useSetupState();
+  const [scheduledOpen, setScheduledOpen] = useState(false);
   const openingFirstDm = useRef(false);
   const messageListRef = useRef<HTMLElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -281,8 +286,11 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         // A run that asked for approval has just stopped to wait for it.
         () => void gateway.approvals().then((approvals) => setData((current) => current && ({ ...current, approvals }))).catch(() => {}),
         () => {
-          void client.users.directory().then(async ({ users: people }) => {
-            const conversations = await gateway.conversations(initial.agents, people, initial.currentUser.id);
+          void client.users.directory().then(async ({ users: people, agents: directoryAgents = [] }) => {
+            if (cancelled) return;
+            // The subscription can outlive first-agent creation. Fresh directory
+            // names prevent its initial empty agent list renaming a DM to Direct message.
+            const conversations = await gateway.conversations([...directoryAgents, ...initial.agents], people, initial.currentUser.id);
             if (!cancelled) setData((current) => current && ({ ...current, people, conversations: [...conversations, ...current.conversations.filter((item) => item.type === 'channel')] }));
           }).catch(() => {});
         }, initial.realtimeSeq, (state) => { if (!cancelled) setRealtimeState(state); });
@@ -466,77 +474,29 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const serverBranding = data.serverBranding ?? {
     displayName: registry.selected?.name ?? 'Crewly', tagline: '', iconDataUrl: null, updatedAt: null,
   };
-  // An owner or admin opening a new server is walked through setting it up:
-  // provider, a crew from templates, channels, and the people who join them.
-  if (needsSetup(data, setup) && panel !== "settings") {
-    const wizard = <SetupWizard
-      data={data}
-      serverName={serverBranding.displayName || registry.selected?.name || "your server"}
-      setup={setup}
+  const ownConversations = data.conversations.filter((item) => item.type !== "channel");
+  const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);
+  if (!data.agents.length && !ownConversations.length && data.currentUser.role !== "member"
+    && !firstRun.skipped.agent && panel !== "settings") {
+    const quickStart = <QuickStart providers={data.providers} serverName={serverBranding.displayName} serverIcon={serverBranding.iconDataUrl}
       onRefresh={async () => { setData(await gateway.bootstrap()); }}
-      onFinish={(conversationId) => {
-        // Skipped here stays skipped. Only the agent prompt comes back, once a
-        // provider is connected later -- then it is the obvious next step.
-        firstRun.skip("provider");
-        if (data.providers.some((provider) => provider.status === "connected")) firstRun.skip("agent");
-        if (conversationId) setSelected(conversationId);
-      }}
-      onLogout={() => void logout().catch(() => notify('Could not log out. Try again.', 'error'))} />;
-    const toastView = toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>;
-    if (!registry.multiServer || !registry.servers.length) return <div className="setup-standalone">{wizard}{toastView}</div>;
-    return <div className="app-shell server-pending">
-      <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null} onSelect={registry.select}
-        onAddServer={() => setAddingServer(true)} dashboardUrl={dashboardUrl}
-        unread={registry.unread} failures={registry.failures} />
-      <main className="server-pending-main">{wizard}</main>
+      onReady={(agent, dm) => {
+        firstRun.skip("agent");
+        setData((current) => current && ({ ...current,
+          agents: current.agents.some((item) => item.id === agent.id) ? current.agents : [...current.agents, agent],
+          conversations: current.conversations.some((item) => item.id === dm.id) ? current.conversations : [...current.conversations, dm] }));
+        resubscribeConversations(); setSelected(dm.id);
+      }} onSkip={() => firstRun.skip("agent")} onSettings={() => openSettings()} />;
+    return <div className={registry.multiServer && registry.servers.length ? "app-shell server-pending" : "quick-standalone"}>
+      {registry.multiServer && registry.servers.length > 0 && <ServerRail servers={registry.servers} selectedId={registry.selected?.id ?? null}
+        onSelect={registry.select} onAddServer={() => setAddingServer(true)} dashboardUrl={dashboardUrl} unread={registry.unread} failures={registry.failures} />}
+      {quickStart}
       {addingServer && <AddServerDialog initialInvite={joinInvite} onJoined={serverJoined} onClose={() => setAddingServer(false)}
         onAdded={() => { setAddingServer(false); void registry.refresh(); }} />}
-      {toastView}
-    </div>;
-  }
-  const ownConversations = data.conversations.filter((item) => item.type !== "channel");
-  const hasChannels = data.conversations.length > ownConversations.length;
-  const hasLiveChannels = data.conversations.some((item) => item.channel && !item.channel.archivedAt);
-  if (!ownConversations.length && panel !== "settings" && data.currentUser.role !== "member") {
-    // A DM is on its way from the effect above; showing "create your first
-    // agent" to someone who already has one would be a lie that flashes past.
-    if (data.agents.length && !firstDmFailed) return <Loading />;
-    // First run is one flow -- provider, then agent, either skippable -- and
-    // the step comes from the server's state, so a refresh resumes it and a
-    // returning owner with a provider never sees the provider step again.
-    const hasConnectedProvider = data.providers.some((provider) => provider.status === "connected");
-    const canManageProviders = data.currentUser.role === "owner" || data.currentUser.role === "admin";
-    const step = firstRunStep({ hasConnectedProvider, canManageProviders, hasAgents: data.agents.length > 0, skipped: firstRun.skipped });
-    if (step === "provider") return <ProviderConnect closeLabel="Skip for now"
-      onConnected={() => { void gateway.bootstrap().then(setData); notify("Provider saved."); }}
-      onClose={() => firstRun.skip("provider")} />;
-    // Nothing left to set up for this person: with channels to talk in, the
-    // app itself is the useful place, not a page about setting up agents.
-    if (!(step === "home" && hasChannels)) return <div className="first-run">
-      <header>
-        <BrandMark />
-        <button className="text-button" onClick={() => openSettings()}>Settings</button>
-        <AccountActions dashboardUrl={dashboardUrl} />
-      </header>
-      {step === "agent" ? (
-        <AgentEditor firstRun providers={data.providers} onProvidersChanged={(data.currentUser.role === "owner" || data.currentUser.role === "admin") ? () => gateway.bootstrap().then(setData) : undefined} onClose={() => firstRun.skip("agent")} onSubmit={async (input) => {
-          const agent = await gateway.createAgent(input);
-          const dm = await gateway.createDm(agent.id, [...data.agents, agent]); resubscribeConversations();
-          setData((current) => current && ({ ...current, agents: [...current.agents, agent], conversations: [...current.conversations, dm] }));
-          setSelected(dm.id);
-        }} />
-      ) : (
-        <FirstRunHome
-          hasConnectedProvider={hasConnectedProvider}
-          canManageProviders={canManageProviders}
-          onConnectProvider={() => firstRun.resume("provider")}
-          onCreateAgent={() => firstRun.resume("agent")}
-          onOpenSettings={() => openSettings()}
-        />
-      )}
       {toast && <div className={`toast toast-${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</div>}
     </div>;
   }
+  if (!ownConversations.length && data.agents.length && !firstDmFailed && panel !== "settings") return <Loading phase="Opening your conversation…" />;
 
   if (!data.conversations.length) return <div className="first-run">
     <header><BrandMark /><button className="text-button" onClick={() => openSettings()}>Settings</button><button className="text-button" onClick={() => void gateway.logout()}>Log out</button></header>
@@ -1002,7 +962,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
 
   return (
     <>
-      <div className={`app-shell ${panel || threadRoot ? "panel-open" : ""} ${threadRoot ? "thread-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
+      <div className={`app-shell messenger-shell ${panel || threadRoot ? "panel-open" : ""} ${threadRoot ? "thread-open" : ""} ${registry.multiServer && registry.servers.length > 0 ? "has-rail" : ""} ${mobileNav ? "nav-open" : ""}`}>
         {registry.multiServer && registry.servers.length > 0 && (
           <ServerRail
             servers={registry.servers}
@@ -1067,6 +1027,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             <span>Search</span>
             <kbd>{SEARCH_HINT}</kbd>
           </button>
+          <button className="new-chat-button" onClick={() => { setNewMessage(true); setMobileNav(false); }}><Plus size={17} />New conversation</button>
           <nav className="primary-nav">
             <button
               className={view === "inbox" ? "active" : ""}
@@ -1099,7 +1060,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             </button>
           </nav>
           <SidebarSection
-            title="Direct messages"
+            title="Conversations"
             action={() => { setNewMessage(true); setMobileNav(false); }}
             actionLabel="New message"
           >
@@ -1139,7 +1100,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 />
               ))}
           </SidebarSection>}
-          <SidebarSection
+          {hasLiveChannels && <SidebarSection
             title="Channels"
             action={() => { setChannelDialog({}); setMobileNav(false); }}
             actionLabel="Create channel"
@@ -1154,7 +1115,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             ) : (
               <p className="sidebar-empty">No channels yet. An admin can create one.</p>
             ))}
-          </SidebarSection>
+          </SidebarSection>}
           {data.channelCategories.map((category) => {
             const rows = channelRows(category.id);
             return rows.length > 0 ? <SidebarSection key={category.id} title={category.name}>{rows}</SidebarSection> : null;
@@ -1176,10 +1137,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                 </button>
               </div>
             )}
-            <button onClick={() => { setNewMessage(true); setMobileNav(false); }}><MessageCircle size={17} /><span>New message</span></button>
             <button onClick={() => setCreating(true)}>
               <Plus size={17} />
-              <span>New agent</span>
+              <span>{data.agents.length ? "New agent" : "Create an assistant"}</span>
             </button>
             <button
               onClick={() => {
@@ -1207,6 +1167,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
           </div>
         )}
 
+        {scheduledOpen && <ScheduledTasks key={conversation.id} conversationId={conversation.id} onClose={() => setScheduledOpen(false)} onExample={fillComposer} />}
         <main className="conversation">
           {loadError && <div className="server-switching" role="alert">
             Could not refresh this workspace: {loadError}
@@ -1282,6 +1243,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               </button>
               {view === "messages" && (
                 <>
+                  {activeAgents.length > 0 && <button className="scheduled-header-button" onClick={() => setScheduledOpen(true)} aria-label="Scheduled tasks"><Clock3 size={17} /><span>Scheduled</span></button>}
                   <button
                     className={`icon-button compact ${panel === "details" && !threadRoot ? "selected" : ""}`}
                     onClick={() => {
@@ -1317,7 +1279,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                   setShowJumpToLatest(!nearBottom);
                 }}
               >
-                <div className="conversation-intro">
+                {visibleMessages.length === 0 && <div className="conversation-intro">
                   <div className="stacked-avatars">
                     {activeAgents.map((agent) => (
                       <button
@@ -1342,13 +1304,13 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       ? "A shared room for you and your crew. Talk to your agents like colleagues."
                       : conversation.peer
                         ? `This is the beginning of your conversation with ${conversation.name}.`
-                        : `${conversation.name} is an agent on your crew. Ask it anything, the way you would ask a colleague.`}
+                        : `A conversation with ${conversation.name}. Bring an idea, a task, or something you need a hand with.`}
                   </p>
                   {visibleMessages.length === 0 && (!channel || channel.canPost) && (
                     conversation.type === "dm" && !conversation.peer && activeAgents[0] ? (
                       <div className="starter-chips" aria-label="Suggested first messages">
-                        {DM_STARTERS.map((text) => (
-                          <button key={text} type="button" className="ask-chip" onClick={() => fillComposer(text)}>{text}</button>
+                        {DM_STARTERS.map((starter) => (
+                          <button key={starter.title} type="button" className="starter-card" onClick={() => fillComposer(starter.prompt)}><strong>{starter.title}<ArrowUpRight size={16} /></strong><span>{starter.detail}</span></button>
                         ))}
                       </div>
                     ) : conversation.type !== "dm" && activeAgents.length > 0 ? (
@@ -1364,7 +1326,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       </>
                     ) : null
                   )}
-                </div>
+                </div>}
                 {visibleMessages.length >= 200 && !historyEnd.includes(conversation.id) && <button type="button" className="text-button" disabled={loadingHistory} onClick={() => void loadOlder()}>{loadingHistory ? 'Loading earlier messages…' : 'Load earlier messages'}</button>}
                 {visibleMessages.map((message, index) => <Fragment key={message.id}>
                   {(index === 0 || dayLabel(visibleMessages[index - 1].createdAt) !== dayLabel(message.createdAt)) && (
@@ -1407,6 +1369,9 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               </section>
 
               <footer className="composer-wrap">
+                {activeAgents.filter((agent) => agent.status === "thinking" || agent.execution === "error" || agent.execution === "provider_unavailable" || agent.execution === "runtime_unavailable").map((agent) => <div className={`chat-agent-state ${agent.status === "thinking" ? "" : "has-error"}`} role="status" key={agent.id}>
+                  {agent.status === "thinking" ? <span className="spinner" /> : <AlertTriangle size={15} />}<span>{agent.name} · {agent.execution === "waiting_approval" ? "waiting for your approval" : agent.execution === "queued" ? "queued" : agent.status === "thinking" ? "working…" : agent.statusReason || "could not respond. Check the provider or try again."}</span>
+                </div>)}
                 {showJumpToLatest && (
                   <button
                     type="button"
@@ -1468,6 +1433,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
                       setMentionSuppressed(false);
                     }}
                     onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing) return;
                       if (deleteMentionBeforeCaret(event)) return;
                       if (showMentions && event.key === "ArrowDown") {
                         event.preventDefault();

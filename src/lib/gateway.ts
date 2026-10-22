@@ -16,7 +16,7 @@ function directoryAgentView(agent: DirectoryAgent): Agent {
   return { id: agent.id, name: agent.name, avatarMode: agent.avatarMode ?? 'bloop', initials: agent.name[0]?.toUpperCase() ?? '?',
     role: 'Agent', instructions: '', color: '#7857d8', status: 'unknown', model: '', providerId: '', runtime: 'Chat', memoryEnabled: false, memory: [] };
 }
-function conversationView(conversation: ApiConversation, agents: Agent[], people: DirectoryUser[] = [], currentUserId?: string): Conversation {
+function conversationView(conversation: ApiConversation, agents: Pick<Agent, 'id' | 'name'>[], people: DirectoryUser[] = [], currentUserId?: string): Conversation {
   const agentIds = conversation.participants.filter((p) => p.participantType === 'agent').map((p) => p.participantId);
   const personIds = conversation.participants.filter((p) => p.participantType === 'user' && p.participantId !== currentUserId).map((p) => p.participantId);
   const peer = !agentIds.length && conversation.kind === 'dm' ? people.find((person) => person.id === personIds[0]) : undefined;
@@ -64,7 +64,7 @@ export function approvalView(approval: ApprovalRequest, now = Date.now()): Appro
 
 export function messageView(message: ApiMessage): Message {
   return { id: message.id, conversationId: message.conversationId,
-    author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? 'Webhook' : message.authorId,
+    author: message.authorType === 'user' ? 'you' : message.authorType === 'integration' ? message.authorId.startsWith('automation:') ? 'Scheduled' : 'Webhook' : message.authorId,
     ...(message.authorType === 'user' ? { userId: message.authorId } : {}),
     body: message.body, createdAt: message.createdAt, time: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     attachments: message.attachments ?? [],
@@ -217,7 +217,7 @@ export const gateway = {
   async setMyAvatarMode(avatarMode: NonNullable<Agent['avatarMode']>): Promise<void> {
     await client.users.updateMe({ avatarMode });
   },
-  async conversations(agents: Agent[], people: DirectoryUser[], currentUserId: string): Promise<Conversation[]> {
+  async conversations(agents: Pick<Agent, 'id' | 'name'>[], people: DirectoryUser[], currentUserId: string): Promise<Conversation[]> {
     return (await client.conversations.list()).filter((conversation) => conversation.kind !== 'channel')
       .map((conversation) => conversationView(conversation, agents, people, currentUserId));
   },
