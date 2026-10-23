@@ -22,6 +22,8 @@ function scheduleLabel(task: ScheduledTask): string {
 export function ScheduledTasks({ conversationId, onClose, onExample, agents = [] }: {
   agents?: { id: string; name: string }[]; conversationId: string; onClose: () => void; onExample: (text: string) => void;
 }) {
+  const detectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = !detectedTimeZone || detectedTimeZone === 'Etc/Unknown' ? 'UTC' : detectedTimeZone;
   const ref = useLayer<HTMLDivElement>(onClose, true);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
     if (!Number.isFinite(date.getTime())) { setError('Choose a valid time.'); return; }
     const details: Omit<CreateScheduledTaskInput, 'requestId'> = { kind, name: name.trim(), body: body.trim(), agentId,
       runAt: date.toISOString(), ...(repeat ? { intervalMinutes: Number(repeat) } : {}),
-      ...(kind === 'followup' ? { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}) };
+      ...(kind === 'followup' ? { timeZone } : {}) };
     const signature = JSON.stringify(details);
     // A retry can arrive after delivery when the original response was lost.
     // Reuse its request ID and let the server return the already-saved task.
@@ -102,7 +104,8 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
     <div ref={ref} className="scheduled-dialog" role="dialog" aria-modal="true" aria-labelledby="scheduled-title">
       <header><div><span className="eyebrow">THIS CONVERSATION</span><h2 id="scheduled-title">Your scheduled tasks</h2></div><button className="icon-button" onClick={onClose} aria-label="Close scheduled tasks"><X size={19} /></button></header>
       <p>Ask in the chat to set a reminder or give this agent work for later. Tasks run while the Crewly server is online, even if you close this app.</p>
-      <div className="scheduled-toolbar"><span>{active.length} active · times in {Intl.DateTimeFormat().resolvedOptions().timeZone}</span><button className="text-button" disabled={loading} onClick={refresh}><RefreshCw size={14} />Refresh</button></div>
+      <div className="scheduled-toolbar"><span>{active.length} active · times in {timeZone}</span><button className="text-button" disabled={loading} onClick={refresh}><RefreshCw size={14} />Refresh</button></div>
+      {timeZone !== detectedTimeZone && <p>The browser could not detect your time zone. Follow-up quiet hours use UTC.</p>}
       {error && <p role="alert" className="dashboard-error">{error}</p>}
       {agents.length > 0 && !editing && <div className="scheduled-presets" aria-label="Create scheduled work">
         <button className="primary-button" onClick={() => template('reminder')}><Plus size={15} />New reminder</button>
@@ -118,8 +121,8 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
         <label>Assistant<select required value={agentId} disabled={saving} onChange={event => setAgentId(event.target.value)}>{agents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select></label>
         <div className="scheduled-fields"><label>First delivery<input type="datetime-local" required value={when} disabled={saving} onChange={event => setWhen(event.target.value)} /></label>
           <label>Repeat<select value={repeat} disabled={saving} onChange={event => setRepeat(event.target.value)}>{kind !== 'followup' && <><option value="">Once</option><option value="60">Every hour</option></>}<option value="1440">Every 24 hours</option><option value="10080">Every 7 days</option></select></label></div>
-        <small>Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}. Repeats use fixed intervals. {kind !== 'reminder' ? 'Assistant work uses your model provider credits.' : 'Reminders do not call a model.'} The server must be online; delivery can be up to a minute late.</small>
-        {kind === 'followup' && <p>Checks at most once per 24 hours, between 08:00 and 20:00 in your time zone, after 30 minutes of quiet. Only reviews new conversation activity from the last 7 days; stays silent when there is no useful next step. DND stops checks. These reviews draft and suggest; they do not run tools or change external services. Pause any time.</p>}
+        <small>Times use {timeZone}. Repeats use fixed intervals. {kind !== 'reminder' ? 'Assistant work uses your model provider credits.' : 'Reminders do not call a model.'} The server must be online; delivery can be up to a minute late.</small>
+        {kind === 'followup' && <p>Checks at most once per 24 hours, between 08:00 and 20:00 in your time zone, after 30 minutes of quiet. Only reviews new conversation activity from the last 7 days; stays silent when there is no useful next step. DND stops checks. May consult up to two of your permitted, available agents and bring back one combined result. Choose teammates in Assistant settings → Can consult or hand work to. Consultations also use provider credits; teammates receive a focused task and cannot run tools or ask further agents. Reviews do not change external services. Pause any time.</p>}
         <div className="scheduled-presets"><button className="primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button><button type="button" className="text-button" disabled={saving} onClick={() => setEditing(false)}>Back to tasks</button></div>
       </form>}
       {loading ? <p role="status">Loading your tasks…</p> : <>

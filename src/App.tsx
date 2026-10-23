@@ -17,6 +17,7 @@ import { ProviderConnect, hasPendingProviderOAuth } from "./features/providers/P
 import { useFirstRunSkips } from "./features/onboarding/FirstRun";
 import { QuickStart } from "./features/onboarding/QuickStart";
 import { ScheduledTasks } from "./features/conversations/ScheduledTasks";
+import { CollaborationStatus } from "./features/conversations/CollaborationStatus";
 import { PairingApproval } from "./features/devices/PairingApproval";
 import { SidebarSection } from "./features/shell/SidebarSection";
 import { Scrim, layers } from "./lib/layers";
@@ -1382,6 +1383,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
               </section>
 
               <footer className="composer-wrap">
+                <CollaborationStatus key={conversation.id} conversationId={conversation.id} agents={data.agents} />
                 {activeAgents.filter((agent) => agent.status === "thinking" || agent.execution === "error" || agent.execution === "provider_unavailable" || agent.execution === "runtime_unavailable").map((agent) => <div className={`chat-agent-state ${agent.status === "thinking" ? "" : "has-error"}`} role="status" key={agent.id}>
                   {agent.status === "thinking" ? <span className="spinner" /> : <AlertTriangle size={15} />}<span>{agent.name} · {agent.execution === "waiting_approval" ? "waiting for your approval" : agent.execution === "queued" ? "queued" : agent.status === "thinking" ? "working…" : agent.statusReason || "could not respond. Check the provider or try again."}</span>
                 </div>)}

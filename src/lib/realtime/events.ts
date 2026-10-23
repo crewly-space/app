@@ -4,6 +4,16 @@ import type { AgentStatus } from '@crewly/sdk';
 import type { Message } from '../../types';
 
 let ws: ReturnType<typeof client.ws> | undefined;
+export type AgentWorkEvent =
+  | { type: 'consultation'; conversationId: string; parentRunId: string; fromAgentId: string; toAgentId: string; status: string }
+  | { type: 'finished'; runId: string }
+  | { type: 'reset' };
+const workListeners = new Set<(event: AgentWorkEvent) => void>();
+export function onAgentWorkChanged(listener: (event: AgentWorkEvent) => void): () => void {
+  workListeners.add(listener);
+  return () => { workListeners.delete(listener); };
+}
+const publishWork = (event: AgentWorkEvent) => { for (const listener of workListeners) listener(event); };
 const threadListeners = new Set<(rootId: string) => void>();
 export function onThreadChanged(listener: (rootId: string) => void): () => void {
   threadListeners.add(listener);
@@ -35,6 +45,7 @@ export function startRealtime(
   const connection = client.ws(WebSocket);
   ws = connection;
   connection.onState((state) => {
+    if (state !== 'connected') publishWork({ type: 'reset' });
     onState(state);
     if (state === 'unauthorized' && activeServerId() === sourceId) { onFailure('Your session has expired. Sign in again.'); clearToken(); }
   });
@@ -59,7 +70,18 @@ export function startRealtime(
     // Names only which channel changed; what this reader may see of it comes from a refetch.
     if (event.type === 'conversations.changed') onConversationsChanged();
     if (event.type === 'channels.changed') onChannelsChanged();
-    if (event.type === 'agent.run.finished') onRunFinished();
+    if (event.type === 'agent.run.finished') {
+      onRunFinished();
+      if (typeof event.payload.runId === 'string') publishWork({ type: 'finished', runId: event.payload.runId });
+    }
+    if (event.type === 'agent.delegation') {
+      const { parentRunId, fromAgentId, toAgentId, status } = event.payload;
+      const conversationId = typeof event.payload.conversationId === 'string' ? event.payload.conversationId
+        : event.topic.startsWith('conversation:') ? event.topic.slice('conversation:'.length) : undefined;
+      if (conversationId && typeof parentRunId === 'string' && typeof fromAgentId === 'string' && typeof toAgentId === 'string' && typeof status === 'string') {
+        publishWork({ type: 'consultation', conversationId, parentRunId, fromAgentId, toAgentId, status });
+      }
+    }
     // Without these the devices panel only tells the truth on a page load: it
     // shows a freshly paired device as offline, and a stopped one as connected.
     if (event.type === 'device.connected' || event.type === 'device.disconnected') {
@@ -85,6 +107,7 @@ export function startRealtime(
     window.removeEventListener('online', resume);
     document.removeEventListener('visibilitychange', resume);
     connection.close();
+    publishWork({ type: 'reset' });
     if (ws === connection) ws = undefined;
   };
 }

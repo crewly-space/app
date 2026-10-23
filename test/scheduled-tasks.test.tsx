@@ -57,3 +57,21 @@ it('saves proactive follow-ups with a time zone and daily limit, and lets the us
   await waitFor(() => expect(cancel).toHaveBeenCalledWith('room', 'followup'));
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull());
 });
+
+it('uses a disclosed UTC fallback when the browser cannot detect its time zone', async () => {
+  const format = Intl.DateTimeFormat;
+  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation((locales, options) => {
+    const instance = new format(locales, options);
+    const resolved = instance.resolvedOptions();
+    instance.resolvedOptions = () => ({ ...resolved, timeZone: 'Etc/Unknown' });
+    return instance;
+  });
+  vi.spyOn(client.conversations, 'scheduledTasks').mockResolvedValue({ tasks: [] });
+  const save = vi.spyOn(client.conversations, 'createScheduledTask').mockResolvedValue({ task: { id: 'saved' } as ScheduledTask });
+  render(<ScheduledTasks conversationId="room" agents={[{ id: 'helper', name: 'Helper' }]} onClose={vi.fn()} onExample={vi.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Proactive follow-ups' }));
+  expect(screen.getByText(/Follow-up quiet hours use UTC/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+  await waitFor(() => expect(save).toHaveBeenCalled());
+  expect(save.mock.calls[0]![1].timeZone).toBe('UTC');
+});

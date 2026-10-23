@@ -15,7 +15,7 @@ vi.mock('../src/features/servers/useServerRegistry', () => ({
   useServerRegistry: () => registry,
   cloudUrl: undefined,
 }));
-vi.mock('../src/lib/realtime/events', () => ({ startRealtime: () => () => {}, resubscribeConversations: () => {} }));
+vi.mock('../src/lib/realtime/events', () => ({ startRealtime: () => () => {}, resubscribeConversations: () => {}, onAgentWorkChanged: () => () => {} }));
 const bootstrap = vi.fn();
 vi.mock('../src/lib/gateway', async (original) => {
   const actual = await original<typeof import('../src/lib/gateway')>();

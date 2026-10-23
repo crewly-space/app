@@ -13,9 +13,12 @@ const { openDatabase } = await import('../../server/dist/db/connection.js');
 const { runMigrations } = await import('../../server/dist/db/migrate.js');
 const { runDueSchedules } = await import('../../server/dist/automations/service.js');
 const { createProviderRespond } = await import('../../server/dist/providers/respond.js');
+const { createAgent } = await import('../../server/dist/agents/repository.js');
+const { delegationToolset } = await import('../../server/dist/runtime/delegation.js');
 process.env.CREWLY_ALLOW_PRIVATE_NETWORK = 'true';
 const directory = mkdtempSync(join(tmpdir(), 'crewly-release-'));
 let browser, app, db;
+let releaseConsultation;
 const errors = [];
 const proactiveRequests = [];
 const provider = createServer(async (request, response) => {
@@ -25,7 +28,14 @@ const provider = createServer(async (request, response) => {
   const { messages, tools } = JSON.parse(Buffer.concat(chunks).toString());
   if (messages.some(message => message.role === 'system' && message.content.includes('This is a background review'))) {
     proactiveRequests.push({ tools });
-    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: 'Next step for your release: verify the deployment backup.' }, finish_reason: 'stop' }] }));
+    const message = messages.at(-1).role === 'tool' ? { content: 'Next step for your release: verify the deployment backup.' }
+      : { content: null, tool_calls: [{ id: 'consult-release', type: 'function', function: { name: 'delegate_to_agent', arguments: JSON.stringify({ agent: 'Release reviewer', task: 'Suggest one concrete deployment check before the release.' }) } }] };
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }] }));
+    return;
+  }
+  if (messages.some(message => message.role === 'system' && message.content.includes('Another agent requested your expertise during a proactive review'))) {
+    proactiveRequests.push({ tools, consultation: true });
+    releaseConsultation = () => response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: 'Verify the deployment backup by restoring it into a fresh test instance.' }, finish_reason: 'stop' }] }));
     return;
   }
   const latest = messages.at(-1);
@@ -72,6 +82,10 @@ try {
   await expect(page.getByText('I read release-file-content from your file.', { exact: true })).toBeVisible();
   await send('Remind me in 10 minutes to check the release.');
   await expect(page.getByText('Reminder saved.', { exact: true })).toBeVisible();
+  const lead = db.prepare('SELECT owner_user_id, model_policy FROM agents LIMIT 1').get();
+  createAgent(db, { ownerUserId: lead.owner_user_id, name: 'Release reviewer', personality: 'Review release plans and suggest a concrete check.',
+    modelPolicy: JSON.parse(lead.model_policy), permissions: { tools: [], canMessageAgents: true, canApproveOwnActions: false } });
+  await page.reload();
   await page.getByRole('button', { name: 'Scheduled tasks', exact: true }).click();
   await expect(page.getByRole('dialog').getByText('Release check reminder', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'New reminder' }).click();
@@ -82,23 +96,37 @@ try {
   await page.getByRole('button', { name: 'Proactive follow-ups', exact: true }).click();
   await expect(page.getByLabel('Repeat')).toHaveValue('1440');
   await expect(page.getByText(/Checks at most once per 24 hours/)).toBeVisible();
+  const savedFollowup = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/scheduled-tasks'));
   await page.getByRole('button', { name: 'Save schedule' }).click();
+  const followupResponse = await savedFollowup;
+  if (followupResponse.status() !== 201) throw new Error(`Follow-up save failed: ${followupResponse.status()} ${await followupResponse.text()}`);
   await expect(page.getByRole('dialog').getByText('Proactive follow-ups · enabled', { exact: true })).toBeVisible();
   const followup = db.prepare("SELECT trigger_config FROM automations WHERE name = 'Proactive follow-ups'").get();
   const followupConfig = JSON.parse(followup.trigger_config);
   if (!followupConfig.proactive || !followupConfig.timeZone || followupConfig.intervalMinutes !== 1440) throw new Error('Proactive controls did not persist');
+  await page.getByRole('button', { name: 'Close scheduled tasks' }).click();
   // Let the real responder review a settled conversation, regardless of the
   // runner's clock/time zone. No real provider credentials or paid calls.
   const reviewTime = new Date(); reviewTime.setUTCHours(12, 0, 0, 0);
   const originalNow = Date.now;
+  const delegation = delegationToolset({ db, hub: app.hub, status: app.agentStatus, queue: app.runQueue, respond: () => reviewRespond });
+  const reviewRespond = createProviderRespond(db, fetch, undefined, { proactiveToolsets: [delegation] });
+  let review;
   try {
     Date.now = () => reviewTime.getTime();
     db.prepare('UPDATE messages SET created_at = ?').run(new Date(reviewTime.getTime() - 40 * 60000).toISOString());
     db.prepare("UPDATE automations SET trigger_config = ? WHERE name = 'Proactive follow-ups'")
       .run(JSON.stringify({ ...followupConfig, timeZone: 'UTC', runAt: new Date(reviewTime.getTime() - 60000).toISOString() }));
-    await runDueSchedules({ db, hub: app.hub, respond: createProviderRespond(db) }, reviewTime);
+    review = runDueSchedules({ db, hub: app.hub, respond: reviewRespond }, reviewTime);
   } finally { Date.now = originalNow; }
-  if (proactiveRequests.length !== 1 || proactiveRequests[0].tools) throw new Error('Proactive review must make one text-only model request');
+  await expect(page.getByText('Release assistant is consulting Release reviewer…', { exact: true })).toBeVisible();
+  await expect.poll(() => typeof releaseConsultation).toBe('function');
+  releaseConsultation(); releaseConsultation = undefined;
+  await review;
+  await expect(page.getByText('Release assistant is consulting Release reviewer…', { exact: true })).toHaveCount(0);
+  if (proactiveRequests.length !== 3 || proactiveRequests.some(request => request.consultation && request.tools)
+    || proactiveRequests.some(request => request.tools?.some(tool => tool.function.name !== 'delegate_to_agent'))) throw new Error('Proactive collaboration must offer only delegation to the lead and no tools to the teammate');
+  await page.getByRole('button', { name: 'Scheduled tasks', exact: true }).click();
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close scheduled tasks' }).click();
@@ -140,8 +168,9 @@ try {
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page.getByText('Release reply: Hello release', { exact: true })).toBeVisible();
   if (errors.length) throw new Error(`Browser errors: ${errors.join('; ')}`);
-  console.log('PASS: production bundle → setup → provider → assistant → reply → reload → attached file tool → scheduled delivery → mobile 390/320px → logout/login; no page errors');
+  console.log('PASS: production bundle → setup → provider → assistant → reply → reload → attached file tool → proactive consultation, live status and combined result → scheduled delivery → mobile 390/320px → logout/login; no page errors');
 } finally {
+  releaseConsultation?.();
   await browser?.close(); await app?.close(); db?.close();
   await new Promise(resolve => provider.close(resolve));
   rmSync(directory, { recursive: true, force: true });

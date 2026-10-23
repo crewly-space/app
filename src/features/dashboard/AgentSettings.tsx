@@ -360,8 +360,8 @@ export function AgentSettings({
       </section>
 
       <section className="dashboard-card">
-        <h3>Can hand work to</h3>
-        <p className="field-description">Agents it may delegate a subtask to. They see only the task, never this conversation.</p>
+        <h3>Can consult or hand work to</h3>
+        <p className="field-description">Agents it may ask for help when useful, even without an explicit request to consult them. They receive only the task, without this conversation or its summary. Proactive reviews may consult up to two available agents you own; ordinary delegated work uses each agent’s permitted tools.</p>
         {agents.filter((candidate) => candidate.id !== agent.id).map((candidate) => (
           <label key={candidate.id}>
             <input type="checkbox" checked={delegates.includes(candidate.id)} disabled={busy} onChange={(event) => void run(async () => {
