@@ -73,6 +73,13 @@ try {
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(composer).toBeVisible();
+    // A responsive drawer animates off-screen after changing the viewport.
+    // Wait for the settled layout, then prove the composer is actionable.
+    await expect.poll(() => page.locator('.sidebar').evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(1);
+    await composer.click();
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+    await page.getByRole('complementary').getByRole('button', { name: 'Close navigation' }).click();
+    await expect.poll(() => page.locator('.sidebar').evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(1);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
     if (overflow) throw new Error(`Horizontal overflow at ${width}px`);
     await page.screenshot({ path: join(directory, `mobile-${width}.png`) });
