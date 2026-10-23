@@ -125,7 +125,7 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
     const originId = activeServerId();
     try {
       const result = phase === 'setup'
-        ? await originClient.auth.setup({ email: email.trim(), displayName: displayName.trim(), password, ...(claimRequired ? { claimToken } : {}) })
+        ? await originClient.auth.setup({ email: email.trim(), displayName: displayName.trim(), password, ...(claimRequired ? { claimToken: claimToken.trim() } : {}) })
         : await originClient.auth.login({ email: email.trim(), password });
       if (activeServerId() !== originId || snapshotClient() !== originClient) return;
       storeToken(result.token); setSignedInAs(result.user.email); setSigningInToAccept(false); setPhase('ready');
@@ -143,7 +143,7 @@ export function AuthGate({ children, server, onReady, hosted, onRetryCrewly }: {
     {phase === 'setup' && <label>Name<input placeholder="Your full name" disabled={saving} required autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>}
     <label>Email<input placeholder="you@example.com" disabled={saving} type="email" required autoComplete={phase === 'setup' ? 'email' : 'username'} spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
     <PasswordField id="auth-password" value={password} onChange={setPassword} creating={phase === 'setup'} disabled={saving} />
-    {phase === 'setup' && claimRequired && <label>Server setup code<input disabled={saving} required placeholder="Paste your setup code" autoComplete="off" value={claimToken} onChange={(e) => setClaimToken(e.target.value)} /><small>Find this one-time token in the server data directory's claim-token file or in the first startup log.</small></label>}
+    {phase === 'setup' && claimRequired && <label>Server setup code<input disabled={saving} required placeholder="Paste your setup code" autoComplete="off" value={claimToken} onChange={(e) => setClaimToken(e.target.value)} /><small>On a hosted server, copy CREWLY_SETUP_TOKEN from your hosting dashboard. For a local install, use the claim-token file in the server data directory.</small></label>}
     {error && <p role="alert">{error}</p>}
     <button className={phase === 'login' && authMode === 'crewly' && safeNavigationUrl(crewlySignInUrl) ? 'secondary-button' : 'primary-button'} type="submit" disabled={saving}>{saving ? 'Signing you in…' : phase === 'setup' ? 'Create workspace' : 'Log in'}</button>
     {hosted && <button type="button" className="text-button" onClick={() => { setShowLocal(false); onRetryCrewly?.(); }}>Back to signing in with Crewly</button>}

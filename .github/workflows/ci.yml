@@ -34,3 +34,7 @@ jobs:
       - run: npm run vendor:check
       - run: npm run build
       - run: npm test
+      - name: Verify the production app in Chromium
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:release

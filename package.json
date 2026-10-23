@@ -1,18 +1,19 @@
 {
   "name": "crewly-app",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "license": "MIT",
   "private": true,
   "type": "module",
   "description": "The Crewly web app. Talks to any Crewly server over the vendored SDK.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/release-metadata.mjs",
     "test": "vitest run --exclude test/p0-ui.test.tsx && vitest run test/p0-ui.test.tsx --maxWorkers=1",
     "preview": "vite preview",
     "vendor:check": "node scripts/vendor.mjs --check",
     "vendor:sync": "node scripts/vendor.mjs",
-    "smoke:hosted": "node scripts/smoke-hosted.mjs"
+    "smoke:hosted": "node scripts/smoke-hosted.mjs",
+    "test:release": "node scripts/release-smoke.mjs"
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",
@@ -31,6 +32,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^26.1.0",
+    "playwright": "^1.56.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1",
     "ws": "^8.21.3"

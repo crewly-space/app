@@ -41,12 +41,15 @@ jobs:
       # Vendored protocol and SDK must match their owner before anything ships.
       - name: Check vendored code, build and test
         run: |
-          git clone --depth 1 https://github.com/crewly-space/server.git ../server
+          git clone --no-checkout https://github.com/crewly-space/server.git ../server
+          git -C ../server checkout "$(node -p 'require("./release.json").serverRef')"
           npm --prefix ../server ci
           npm --prefix ../server run build
           npm run vendor:check
           npm run build
           npm test
+          npx playwright install --with-deps chromium
+          npm run test:release
 
       - name: Package
         run: |
