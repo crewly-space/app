@@ -206,3 +206,15 @@ describe('Mail panel', () => {
     expect(await screen.findByText('Not posted: sent from a different address than the one it was addressed to')).toBeTruthy();
   });
 });
+
+it('keeps a new server connection when an old server finishes loading late', async () => {
+  let finish!: (value: CrewlyConnection) => void;
+  const first = services({ crewly: () => new Promise(resolve => { finish = resolve; }) });
+  const second = services({ crewly: async () => connected });
+  const view = render(<CrewlyPanel api={first} serverName="Old server" />);
+  view.rerender(<CrewlyPanel api={second} serverName="New server" />);
+  await screen.findByText('Connected to Crewly.');
+  await act(async () => { finish(disconnected); });
+  expect(screen.getByText('Connected to Crewly.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Connect Crewly' })).toBeNull();
+});

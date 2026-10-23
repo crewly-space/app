@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Cloud, Copy, ExternalLink, LoaderCircle } from 'lucide-react';
 import { CrewlyApiError, type AuthMode, type AuthSettings, type CrewlyConnection } from '@crewly/sdk';
 import type { ServicesApi } from './services-api';
@@ -93,12 +93,17 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const [loadFailure, setLoadFailure] = useState('');
   const [requested, setRequested] = useState<string[]>([...GATEWAY_SCOPES, 'mail:send', 'connectors']);
   const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
+  const generation = useRef(0);
 
   const load = useCallback(async () => {
+    const request = generation.current;
     setLoadFailure('');
     try {
-      setConnection(await getConnection(api));
+      const next = await getConnection(api);
+      if (request !== generation.current) return;
+      setConnection(next);
     } catch (reason) {
+      if (request !== generation.current) return;
       setConnection(null);
       setLoadFailure(explain(reason, 'The Crewly connection could not be loaded.'));
     }
@@ -107,20 +112,27 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   // Always this server's connection: a record read for another server, or
   // one that has since changed, is never shown or acted on.
   useEffect(() => {
+    generation.current++;
     setConnection(null);
     void load();
+    return () => { generation.current++; };
   }, [load, serverName]);
 
   useEffect(() => {
     if (connection?.status !== 'connected' || !connection.scopes.includes('identity') || typeof api.authSettings !== 'function') { setAuthSettings(null); return; }
-    api.authSettings().then(setAuthSettings).catch(() => setAuthSettings(null));
+    let active = true;
+    api.authSettings().then(next => { if (active) setAuthSettings(next); }).catch(() => { if (active) setAuthSettings(null); });
+    return () => { active = false; };
   }, [api, connection]);
 
   const act = (work: () => Promise<CrewlyConnection | void>) => run(async () => {
+    const request = generation.current;
     try {
-      const next = await work();
-      setConnection(next ?? await getConnection(api));
+      const next = await work() ?? await getConnection(api);
+      if (request !== generation.current) return;
+      setConnection(next);
     } catch (reason) {
+      if (request !== generation.current) return;
       if (statusOf(reason) === 404 || statusOf(reason) === 409) {
         await load();
         setError(statusOf(reason) === 409 && reason instanceof Error ? explain(reason, reason.message) : 'That link had already changed. This is its current state.');
@@ -134,10 +146,11 @@ export function CrewlyPanel({ api, serverName }: { api: ServicesApi; serverName:
   const pending = connection?.status === 'pending' ? connection.link : null;
   useEffect(() => {
     if (!pending) return;
+    let active = true;
     const timer = setInterval(() => {
-      api.pollCrewly().then(setConnection).catch(() => void load());
+      api.pollCrewly().then(next => { if (active) setConnection(next); }).catch(() => { if (active) void load(); });
     }, pending.interval * 1000);
-    return () => clearInterval(timer);
+    return () => { active = false; clearInterval(timer); };
   }, [api, pending, load]);
 
   if (!connection) {
