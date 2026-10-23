@@ -1180,7 +1180,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
           </div>
         )}
 
-        {scheduledOpen && <ScheduledTasks key={conversation.id} conversationId={conversation.id} onClose={() => setScheduledOpen(false)} onExample={fillComposer} />}
+        {scheduledOpen && <ScheduledTasks agents={activeAgents} key={conversation.id} conversationId={conversation.id} onClose={() => setScheduledOpen(false)} onExample={fillComposer} />}
         <main className="conversation">
           {loadError && <div className="server-switching" role="alert">
             Could not refresh this workspace: {loadError}

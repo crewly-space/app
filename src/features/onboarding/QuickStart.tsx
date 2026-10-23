@@ -6,6 +6,12 @@ import { ProviderConnect } from '../providers/ProviderConnect';
 import { ModelPicker } from '../agents/ModelPicker';
 import { BrandMark } from '../shell/BrandMark';
 
+const JOBS = {
+  everyday: { label: 'Everyday work', role: 'Personal assistant', description: 'Turn conversations into decisions and next actions.', instructions: 'Focus on a concrete outcome. Ask only the questions necessary to start. Give practical next actions, distinguish known facts from assumptions, and use the conversation and attached files as context. Offer scheduled follow-ups only when useful; save them only when asked.' },
+  writing: { label: 'Writing and publishing', role: 'Writing partner', description: 'Go from a rough idea to a draft you can use.', instructions: 'Help produce usable drafts in the user’s language and tone. Establish the audience and desired result, preserve factual claims, flag anything that needs checking, and deliver a complete draft. Do not invent quotes, sources or personal experience. Explain edits only when useful.' },
+  study: { label: 'Learning and problem solving', role: 'Learning partner', description: 'Understand a topic, practise and check your thinking.', instructions: 'Help the user understand and apply ideas. Match their level, use concrete examples, explain reasoning clearly and offer a small practice step. Give hints before a full solution when requested. If a source or file is supplied, distinguish its content from your own explanation.' },
+} as const;
+
 /** The first useful result is a conversation, not a configured workspace. */
 export function QuickStart({ providers, onRefresh, onReady, onSkip, onSettings, serverName = 'Crewly', serverIcon }: {
   providers: Provider[];
@@ -20,6 +26,7 @@ export function QuickStart({ providers, onRefresh, onReady, onSkip, onSettings, 
   const [providerId, setProviderId] = useState(connected[0]?.id ?? '');
   const [model, setModel] = useState('');
   const [name, setName] = useState('Assistant');
+  const [job, setJob] = useState<keyof typeof JOBS>('everyday');
   const [connecting, setConnecting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +38,7 @@ export function QuickStart({ providers, onRefresh, onReady, onSkip, onSettings, 
     if (busy || (!created && (!selectedProvider || !model.trim()))) return;
     setBusy(true); setError('');
     try {
-      const agent = created ?? await gateway.createAgent({ name: name.trim() || 'Assistant', role: 'Personal assistant',
+      const agent = created ?? await gateway.createAgent({ name: name.trim() || 'Assistant', role: JOBS[job].role, instructions: JOBS[job].instructions,
         providerId: selectedProvider, model: model.trim(), avatarMode: 'bloop' });
       setCreated(agent);
       const conversation = await gateway.createDm(agent.id, [agent]);
@@ -56,6 +63,7 @@ export function QuickStart({ providers, onRefresh, onReady, onSkip, onSettings, 
         <span className="eyebrow">LET’S GET YOU TALKING</span><h2>Meet your assistant</h2>
         <p>Choose the model it uses. You can change its name and instructions later.</p>
         {!connected.length ? <div className="quick-connect"><p>Connect a model provider to get your first reply.</p><button className="primary-button" type="button" onClick={() => setConnecting(true)}>Connect a model provider <ArrowRight size={16} /></button></div> : <>
+          <fieldset className="quick-jobs"><legend>What should it help you with?</legend>{Object.entries(JOBS).map(([id, preset]) => <label key={id}><input type="radio" name="assistant-job" value={id} checked={job === id} disabled={busy || Boolean(created)} onChange={() => setJob(id as typeof job)} /><span><strong>{preset.label}</strong><small>{preset.description}</small></span></label>)}</fieldset>
           <label>Assistant name<input value={name} maxLength={80} disabled={busy || Boolean(created)} onChange={(event) => setName(event.target.value)} /></label>
           <label>Model provider<select value={selectedProvider} disabled={busy || Boolean(created)} onChange={(event) => { setProviderId(event.target.value); setModel(''); }}>{connected.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
           {!created && <ModelPicker providerId={selectedProvider} value={model} onChange={setModel} />}

@@ -105,3 +105,21 @@
 }
 
 .scheduled-message-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--oc-accent-text); background: var(--oc-accent-soft); }
+
+.scheduled-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.scheduled-presets button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.scheduled-editor { display: grid; gap: 14px; padding: 20px; margin: 18px 0; background: var(--oc-panel-2); border: 1px solid var(--oc-line); border-radius: 12px; }
+.scheduled-editor h3 { margin: 0; font-size: 17px; }
+.scheduled-editor label { display: grid; gap: 6px; font-size: 12px; color: var(--oc-muted-strong); min-width: 0; }
+.scheduled-editor textarea { resize: vertical; }
+.scheduled-editor small { color: var(--oc-muted); line-height: 1.7; }
+.scheduled-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; }
+.scheduled-editor input, .scheduled-editor select, .scheduled-editor textarea { width: 100%; box-sizing: border-box; min-width: 0; }
+@media (max-width: 480px) { .scheduled-fields { grid-template-columns: 1fr; } .scheduled-editor { padding: 14px; } }
+.quick-jobs { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.quick-jobs legend { font-size: 12px; color: var(--oc-muted-strong); margin-bottom: 10px; }
+.quick-card .quick-jobs label { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; border: 1px solid var(--oc-line); border-radius: 10px; padding: 12px; cursor: pointer; }
+.quick-card .quick-jobs label:has(input:checked) { border-color: var(--oc-accent-text); background: var(--oc-accent-soft); }
+.quick-card .quick-jobs input { width: 15px; height: 15px; flex: 0 0 auto; margin: 2px 0 0; }
+.quick-jobs strong, .quick-jobs small { display: block; line-height: 1.6; }
+.quick-jobs small { color: var(--oc-muted); font-size: 11px; margin-top: 3px; }

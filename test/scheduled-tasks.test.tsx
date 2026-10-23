@@ -20,3 +20,18 @@ it('keeps a task cancellable after a failed request and shows the server-confirm
   expect(screen.getByText('Cancelled', { exact: true })).toBeTruthy();
   expect(cancel).toHaveBeenLastCalledWith('room', 'task1');
 });
+
+it('retries a lost save with the same request ID and keeps the schedule inputs', async () => {
+  vi.spyOn(client.conversations, 'scheduledTasks').mockResolvedValue({ tasks: [] });
+  const save = vi.spyOn(client.conversations, 'createScheduledTask').mockRejectedValueOnce(new Error('Connection interrupted')).mockResolvedValue({ task: { id: 'saved' } as ScheduledTask });
+  render(<ScheduledTasks conversationId="room" agents={[{ id: 'helper', name: 'Helper' }]} onClose={vi.fn()} onExample={vi.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Daily priorities' }));
+  expect((screen.getByLabelText('Repeat') as HTMLSelectElement).value).toBe('1440');
+  fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Connection interrupted');
+  const first = save.mock.calls[0]![1];
+  expect(first).toMatchObject({ kind: 'task', agentId: 'helper', intervalMinutes: 1440, name: 'Daily priorities' });
+  fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[1]![1].requestId).toBe(first.requestId);
+});

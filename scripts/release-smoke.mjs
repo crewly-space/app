@@ -67,9 +67,15 @@ try {
   await expect(page.getByText('Reminder saved.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Scheduled tasks', exact: true }).click();
   await expect(page.getByRole('dialog').getByText('Release check reminder', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'New reminder' }).click();
+  await page.getByLabel('Task name', { exact: true }).fill('Reminder from the form');
+  await page.getByLabel('Reminder message').fill('Saved without asking a model.');
+  await page.getByRole('button', { name: 'Save schedule' }).click();
+  await expect(page.getByRole('dialog').getByText('Reminder from the form', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close scheduled tasks' }).click();
   await runDueSchedules({ db, hub: app.hub, respond: async () => ({ body: 'unused' }) }, new Date(Date.now() + 660000));
   await expect(page.getByText('Your reminder arrived.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saved without asking a model.', { exact: true })).toBeVisible();
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(composer).toBeVisible();
