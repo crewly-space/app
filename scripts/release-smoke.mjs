@@ -86,6 +86,17 @@ try {
     await page.getByRole('button', { name: 'Open navigation' }).click();
     await page.getByRole('complementary').getByRole('button', { name: 'Close navigation' }).click();
     await expect.poll(() => page.locator('.sidebar').evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(1);
+    if (width === 390) {
+      await page.getByRole('button', { name: 'Scheduled tasks', exact: true }).click();
+      await page.getByRole('button', { name: 'Daily priorities' }).click();
+      await page.getByLabel('Task name', { exact: true }).fill('Phone recurring task');
+      await page.getByRole('button', { name: 'Save schedule' }).click();
+      const item = page.getByRole('listitem').filter({ hasText: 'Phone recurring task' });
+      await expect(item).toBeVisible();
+      await item.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(item.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Close scheduled tasks' }).click();
+    }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
     if (overflow) throw new Error(`Horizontal overflow at ${width}px`);
     await page.screenshot({ path: join(directory, `mobile-${width}.png`) });

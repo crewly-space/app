@@ -17,10 +17,12 @@ it('retries opening a failed DM without creating a second assistant', async () =
   render(<QuickStart providers={[{ id: 'p', name: 'Local', status: 'connected', detail: '' }]}
     onReady={ready} onSkip={vi.fn()} onSettings={vi.fn()} onRefresh={vi.fn()} />);
   await waitFor(() => expect((screen.getByRole('button', { name: 'Start chatting' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByLabelText(/Writing and publishing/));
   fireEvent.click(screen.getByRole('button', { name: 'Start chatting' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Connection lost');
   fireEvent.click(screen.getByRole('button', { name: 'Retry opening chat' }));
   await waitFor(() => expect(ready).toHaveBeenCalledWith(agent, dm));
   expect(create).toHaveBeenCalledOnce();
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ role: 'Writing partner', instructions: expect.stringContaining('usable drafts') }));
   expect(open).toHaveBeenCalledTimes(2);
 });
