@@ -36,10 +36,13 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
   async function save(event: React.FormEvent) {
     event.preventDefault(); if (saving) return;
     const date = new Date(when);
-    if (!Number.isFinite(date.getTime()) || date.getTime() <= Date.now()) { setError('Choose a time in the future.'); return; }
+    if (!Number.isFinite(date.getTime())) { setError('Choose a valid time.'); return; }
     const details: Omit<CreateScheduledTaskInput, 'requestId'> = { kind, name: name.trim(), body: body.trim(), agentId,
       runAt: date.toISOString(), ...(repeat ? { intervalMinutes: Number(repeat) } : {}) };
     const signature = JSON.stringify(details);
+    // A retry can arrive after delivery when the original response was lost.
+    // Reuse its request ID and let the server return the already-saved task.
+    if (date.getTime() <= Date.now() && pending.current?.signature !== signature) { setError('Choose a time in the future.'); return; }
     if (pending.current?.signature !== signature) pending.current = { signature, id: crypto.randomUUID() };
     setSaving(true); setError('');
     const source = snapshotClient();

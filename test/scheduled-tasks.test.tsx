@@ -31,6 +31,7 @@ it('retries a lost save with the same request ID and keeps the schedule inputs',
   expect((await screen.findByRole('alert')).textContent).toBe('Connection interrupted');
   const first = save.mock.calls[0]![1];
   expect(first).toMatchObject({ kind: 'task', agentId: 'helper', intervalMinutes: 1440, name: 'Daily priorities' });
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse(first.runAt) + 60000);
   fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
   expect(save.mock.calls[1]![1].requestId).toBe(first.requestId);
