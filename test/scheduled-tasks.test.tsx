@@ -36,3 +36,24 @@ it('retries a lost save with the same request ID and keeps the schedule inputs',
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
   expect(save.mock.calls[1]![1].requestId).toBe(first.requestId);
 });
+
+it('saves proactive follow-ups with a time zone and daily limit, and lets the user pause them', async () => {
+  let tasks: ScheduledTask[] = [];
+  vi.spyOn(client.conversations, 'scheduledTasks').mockImplementation(async () => ({ tasks }));
+  const save = vi.spyOn(client.conversations, 'createScheduledTask').mockImplementation(async (_conversation, input) => {
+    const task: ScheduledTask = { ...input, id: 'followup', enabled: true, intervalMinutes: 1440, lastRun: { status: 'skipped', error: null, createdAt: new Date().toISOString() } };
+    tasks = [task]; return { task };
+  });
+  const cancel = vi.spyOn(client.conversations, 'cancelScheduledTask').mockImplementation(async () => { tasks = []; });
+  render(<ScheduledTasks conversationId="room" agents={[{ id: 'helper', name: 'Helper' }]} onClose={vi.fn()} onExample={vi.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Proactive follow-ups' }));
+  expect((screen.getByLabelText('Repeat') as HTMLSelectElement).value).toBe('1440');
+  expect(screen.queryByRole('option', { name: 'Every hour' })).toBeNull();
+  expect(screen.getByText(/Checks at most once per 24 hours/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+  await screen.findByText('Last check stayed quiet · still enabled');
+  expect(save.mock.calls[0]![1]).toMatchObject({ kind: 'followup', intervalMinutes: 1440, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+  await waitFor(() => expect(cancel).toHaveBeenCalledWith('room', 'followup'));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull());
+});

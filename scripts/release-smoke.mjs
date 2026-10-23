@@ -12,15 +12,22 @@ const { buildApp } = await import('../../server/dist/app.js');
 const { openDatabase } = await import('../../server/dist/db/connection.js');
 const { runMigrations } = await import('../../server/dist/db/migrate.js');
 const { runDueSchedules } = await import('../../server/dist/automations/service.js');
+const { createProviderRespond } = await import('../../server/dist/providers/respond.js');
 process.env.CREWLY_ALLOW_PRIVATE_NETWORK = 'true';
 const directory = mkdtempSync(join(tmpdir(), 'crewly-release-'));
 let browser, app, db;
 const errors = [];
+const proactiveRequests = [];
 const provider = createServer(async (request, response) => {
   if (request.url === '/v1/models') { response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data: [{ id: 'release-test-model' }] })); return; }
   if (request.url !== '/v1/chat/completions') { response.writeHead(404).end(); return; }
   const chunks = []; for await (const chunk of request) chunks.push(chunk);
-  const { messages } = JSON.parse(Buffer.concat(chunks).toString());
+  const { messages, tools } = JSON.parse(Buffer.concat(chunks).toString());
+  if (messages.some(message => message.role === 'system' && message.content.includes('This is a background review'))) {
+    proactiveRequests.push({ tools });
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: 'Next step for your release: verify the deployment backup.' }, finish_reason: 'stop' }] }));
+    return;
+  }
   const latest = messages.at(-1);
   const file = latest.role === 'user' && String(latest.content).includes('Read the attached file')
     ? JSON.parse(String(latest.content).split('metadata only; use an available tool to read contents):\n')[1])[0] : null;
@@ -72,7 +79,30 @@ try {
   await page.getByLabel('Reminder message').fill('Saved without asking a model.');
   await page.getByRole('button', { name: 'Save schedule' }).click();
   await expect(page.getByRole('dialog').getByText('Reminder from the form', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Proactive follow-ups', exact: true }).click();
+  await expect(page.getByLabel('Repeat')).toHaveValue('1440');
+  await expect(page.getByText(/Checks at most once per 24 hours/)).toBeVisible();
+  await page.getByRole('button', { name: 'Save schedule' }).click();
+  await expect(page.getByRole('dialog').getByText('Proactive follow-ups · enabled', { exact: true })).toBeVisible();
+  const followup = db.prepare("SELECT trigger_config FROM automations WHERE name = 'Proactive follow-ups'").get();
+  const followupConfig = JSON.parse(followup.trigger_config);
+  if (!followupConfig.proactive || !followupConfig.timeZone || followupConfig.intervalMinutes !== 1440) throw new Error('Proactive controls did not persist');
+  // Let the real responder review a settled conversation, regardless of the
+  // runner's clock/time zone. No real provider credentials or paid calls.
+  const reviewTime = new Date(); reviewTime.setUTCHours(12, 0, 0, 0);
+  const originalNow = Date.now;
+  try {
+    Date.now = () => reviewTime.getTime();
+    db.prepare('UPDATE messages SET created_at = ?').run(new Date(reviewTime.getTime() - 40 * 60000).toISOString());
+    db.prepare("UPDATE automations SET trigger_config = ? WHERE name = 'Proactive follow-ups'")
+      .run(JSON.stringify({ ...followupConfig, timeZone: 'UTC', runAt: new Date(reviewTime.getTime() - 60000).toISOString() }));
+    await runDueSchedules({ db, hub: app.hub, respond: createProviderRespond(db) }, reviewTime);
+  } finally { Date.now = originalNow; }
+  if (proactiveRequests.length !== 1 || proactiveRequests[0].tools) throw new Error('Proactive review must make one text-only model request');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close scheduled tasks' }).click();
+  await expect(page.getByText('Next step for your release: verify the deployment backup.', { exact: true })).toBeVisible();
   await runDueSchedules({ db, hub: app.hub, respond: async () => ({ body: 'unused' }) }, new Date(Date.now() + 660000));
   await expect(page.getByText('Your reminder arrived.', { exact: true })).toBeVisible();
   await expect(page.getByText('Saved without asking a model.', { exact: true })).toBeVisible();

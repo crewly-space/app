@@ -4,6 +4,13 @@ import type { CreateScheduledTaskInput, ScheduledTask } from '@crewly/sdk';
 import { client, snapshotClient } from '../../lib/api/client';
 import { useLayer } from '../../lib/layers';
 
+const SKIP_REASONS: Record<string, string> = {
+  no_recent_conversation: 'Waiting for a recent conversation', conversation_active: 'Conversation is still active',
+  already_reviewed: 'Waiting for a new message', daily_limit: 'Daily review limit reached',
+  agent_unavailable: 'Assistant is busy or in DND', provider_unavailable: 'Connect a model provider to resume reviews',
+  nothing_useful: 'No useful next step found', context_changed: 'Conversation or settings changed during the review',
+};
+
 function scheduleLabel(task: ScheduledTask): string {
   const date = new Date(task.runAt);
   const interval = task.intervalMinutes;
@@ -22,7 +29,7 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [kind, setKind] = useState<'reminder' | 'task'>('reminder');
+  const [kind, setKind] = useState<CreateScheduledTaskInput['kind']>('reminder');
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
   const [agentId, setAgentId] = useState(agents[0]?.id ?? '');
@@ -38,7 +45,8 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
     const date = new Date(when);
     if (!Number.isFinite(date.getTime())) { setError('Choose a valid time.'); return; }
     const details: Omit<CreateScheduledTaskInput, 'requestId'> = { kind, name: name.trim(), body: body.trim(), agentId,
-      runAt: date.toISOString(), ...(repeat ? { intervalMinutes: Number(repeat) } : {}) };
+      runAt: date.toISOString(), ...(repeat ? { intervalMinutes: Number(repeat) } : {}),
+      ...(kind === 'followup' ? { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}) };
     const signature = JSON.stringify(details);
     // A retry can arrive after delivery when the original response was lost.
     // Reuse its request ID and let the server return the already-saved task.
@@ -53,12 +61,13 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
     } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : 'Could not save this task. Retry to check the saved result.'); }
     finally { if (mounted.current) setSaving(false); }
   }
-  function template(preset: 'reminder' | 'priorities' | 'review') {
+  function template(preset: 'reminder' | 'priorities' | 'review' | 'followup') {
     setEditing(true); setError('');
-    setKind(preset === 'reminder' ? 'reminder' : 'task');
-    setName(preset === 'review' ? 'Weekly review' : preset === 'priorities' ? 'Daily priorities' : 'Reminder');
-    setRepeat(preset === 'review' ? '10080' : preset === 'priorities' ? '1440' : '');
-    setBody(preset === 'review' ? 'Review this conversation: summarize completed work, unresolved questions and the next three actions. Cite the relevant messages. Say when context is missing; do not invent progress.'
+    setKind(preset === 'followup' ? 'followup' : preset === 'reminder' ? 'reminder' : 'task');
+    setName(preset === 'followup' ? 'Proactive follow-ups' : preset === 'review' ? 'Weekly review' : preset === 'priorities' ? 'Daily priorities' : 'Reminder');
+    setRepeat(preset === 'review' ? '10080' : preset === 'priorities' || preset === 'followup' ? '1440' : '');
+    if (preset === 'followup') { const next = new Date(); next.setDate(next.getDate() + 1); next.setHours(9, 0, 0, 0); setWhen(localTime(next)); }
+    setBody(preset === 'followup' ? 'Find unresolved work in this conversation. Move it forward with one concrete next action, useful draft or decision. Stay quiet if there is nothing useful to add.' : preset === 'review' ? 'Review this conversation: summarize completed work, unresolved questions and the next three actions. Cite the relevant messages. Say when context is missing; do not invent progress.'
       : preset === 'priorities' ? 'Using the work discussed in this conversation, suggest my three priorities and the first concrete action for each. Flag blockers. Do not invent new information or claim to have checked external systems.' : '');
   }
 
@@ -84,8 +93,10 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
   function row(task: ScheduledTask) {
     return <li key={task.id} className="scheduled-task"><Clock3 size={18} /><div><strong>{task.name}</strong><p>{task.body}</p>
       <time dateTime={task.runAt}>{scheduleLabel(task)}</time>
-      <small>{task.lastRun?.status === 'running' ? 'Running now' : task.lastRun?.status === 'failed' ? `Last attempt failed: ${task.lastRun.error ?? 'Unknown error'}` : task.enabled ? task.kind === 'task' ? 'Agent task · scheduled' : 'Reminder · scheduled' : task.lastRun?.status === 'succeeded' ? 'Completed' : 'Cancelled'}</small>
-    </div>{task.enabled && <button className="text-button" disabled={Boolean(cancelling)} onClick={() => void cancel(task.id)}>{cancelling === task.id ? 'Cancelling…' : 'Cancel'}</button>}</li>;
+      {task.kind === 'followup' && <small>Proactive · 08:00–20:00 in {task.timeZone} · skips quiet conversations</small>}
+      {task.lastRun?.skipReason && SKIP_REASONS[task.lastRun.skipReason] && <small>{SKIP_REASONS[task.lastRun.skipReason]}</small>}
+      <small>{task.lastRun?.status === 'running' ? 'Running now' : task.lastRun?.status === 'failed' ? `Last attempt failed: ${task.lastRun.error ?? 'Unknown error'}` : !task.enabled ? task.lastRun?.status === 'succeeded' ? 'Completed' : 'Cancelled' : task.lastRun?.status === 'skipped' ? 'Last check stayed quiet · still enabled' : task.kind === 'task' ? 'Agent task · scheduled' : task.kind === 'followup' ? 'Proactive follow-ups · enabled' : 'Reminder · scheduled'}</small>
+    </div>{task.enabled && <button className="text-button" disabled={Boolean(cancelling)} onClick={() => void cancel(task.id)}>{cancelling === task.id ? 'Cancelling…' : task.kind === 'followup' ? 'Pause' : 'Cancel'}</button>}</li>;
   }
   return <div className="modal-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={ref} className="scheduled-dialog" role="dialog" aria-modal="true" aria-labelledby="scheduled-title">
@@ -97,16 +108,18 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
         <button className="primary-button" onClick={() => template('reminder')}><Plus size={15} />New reminder</button>
         <button className="secondary-button" onClick={() => template('priorities')}>Daily priorities</button>
         <button className="secondary-button" onClick={() => template('review')}>Weekly review</button>
+        <button className="secondary-button" onClick={() => template('followup')}>Proactive follow-ups</button>
       </div>}
       {editing && <form className="scheduled-editor form" onSubmit={event => void save(event)}>
         <h3>Work that comes back to you</h3>
-        <label>Type<select value={kind} disabled={saving} onChange={event => setKind(event.target.value as typeof kind)}><option value="reminder">Deliver a reminder</option><option value="task">Have an assistant do the work</option></select></label>
+        <label>Type<select value={kind} disabled={saving} onChange={event => { const value = event.target.value as typeof kind; setKind(value); if (value === 'followup' && Number(repeat) < 1440) setRepeat('1440'); }}><option value="reminder">Deliver a reminder</option><option value="task">Have an assistant do the work</option><option value="followup">Proactive follow-ups</option></select></label>
         <label>Task name<input required minLength={2} maxLength={80} value={name} disabled={saving} onChange={event => setName(event.target.value)} /></label>
-        <label>{kind === 'reminder' ? 'Reminder message' : 'Instructions'}<textarea required maxLength={100000} rows={4} value={body} disabled={saving} onChange={event => setBody(event.target.value)} /></label>
+        <label>{kind === 'reminder' ? 'Reminder message' : kind === 'followup' ? 'What should it look out for?' : 'Instructions'}<textarea required maxLength={100000} rows={4} value={body} disabled={saving} onChange={event => setBody(event.target.value)} /></label>
         <label>Assistant<select required value={agentId} disabled={saving} onChange={event => setAgentId(event.target.value)}>{agents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select></label>
         <div className="scheduled-fields"><label>First delivery<input type="datetime-local" required value={when} disabled={saving} onChange={event => setWhen(event.target.value)} /></label>
-          <label>Repeat<select value={repeat} disabled={saving} onChange={event => setRepeat(event.target.value)}><option value="">Once</option><option value="60">Every hour</option><option value="1440">Every 24 hours</option><option value="10080">Every 7 days</option></select></label></div>
-        <small>Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}. Repeats use fixed intervals. {kind === 'task' ? 'Assistant work uses your model provider credits.' : 'Reminders do not call a model.'} The server must be online; delivery can be up to a minute late.</small>
+          <label>Repeat<select value={repeat} disabled={saving} onChange={event => setRepeat(event.target.value)}>{kind !== 'followup' && <><option value="">Once</option><option value="60">Every hour</option></>}<option value="1440">Every 24 hours</option><option value="10080">Every 7 days</option></select></label></div>
+        <small>Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}. Repeats use fixed intervals. {kind !== 'reminder' ? 'Assistant work uses your model provider credits.' : 'Reminders do not call a model.'} The server must be online; delivery can be up to a minute late.</small>
+        {kind === 'followup' && <p>Checks at most once per 24 hours, between 08:00 and 20:00 in your time zone, after 30 minutes of quiet. Only reviews new conversation activity from the last 7 days; stays silent when there is no useful next step. DND stops checks. These reviews draft and suggest; they do not run tools or change external services. Pause any time.</p>}
         <div className="scheduled-presets"><button className="primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button><button type="button" className="text-button" disabled={saving} onClick={() => setEditing(false)}>Back to tasks</button></div>
       </form>}
       {loading ? <p role="status">Loading your tasks…</p> : <>
