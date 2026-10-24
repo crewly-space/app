@@ -47,6 +47,26 @@ function open({ role = 'owner', initialSection, api = adminApi(), providers = [p
 
 afterEach(cleanup);
 
+it('filters settings without losing the current section', () => {
+  const dialog = open({ initialSection: 'appearance' });
+  fireEvent.change(dialog.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'provider' } });
+  const nav = within(dialog.getByRole('navigation', { name: 'Settings sections' }));
+  expect(nav.getByRole('button', { name: 'AI providers' })).toBeTruthy();
+  expect(nav.queryByRole('button', { name: 'People' })).toBeNull();
+  expect(dialog.getByRole('heading', { name: 'Appearance' })).toBeTruthy();
+});
+
+it('contains a malformed settings response and keeps navigation usable', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const dialog = open({ initialSection: 'people', api: adminApi({ listMembers: async () => null as never }) });
+    await dialog.findByText('This settings section could not be displayed');
+    fireEvent.click(within(dialog.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', { name: 'Appearance' }));
+    await dialog.findByText('Color theme');
+    expect(dialog.queryByText('This settings section could not be displayed')).toBeNull();
+  } finally { error.mockRestore(); }
+});
+
 describe('one Settings for the person and the server', () => {
   it('has every section exactly once', () => {
     const ids = SETTINGS_GROUPS.flatMap((group) => group.sections.map((section) => section.id));

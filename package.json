@@ -13,7 +13,8 @@
     "vendor:check": "node scripts/vendor.mjs --check",
     "vendor:sync": "node scripts/vendor.mjs",
     "smoke:hosted": "node scripts/smoke-hosted.mjs",
-    "test:release": "node scripts/release-smoke.mjs"
+    "test:release": "node scripts/release-smoke.mjs",
+    "test:ui": "node scripts/ui-check.mjs"
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",

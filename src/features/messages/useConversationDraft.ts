@@ -48,13 +48,19 @@ export function useConversationDraft(server: string, conversation: string) {
 
   const restoreDraft = useCallback((id: string, draft: ConversationDraft) => {
     if (born.current !== generation) return;
-    drafts.set(keyFor(server, id), draft);
-    if (scope.current !== keyFor(server, id)) return;
-    latest.current = { composer: draft.text, replying: draft.replying };
-    setComposer(draft.text);
-    setReplying(draft.replying);
-    composerRef.current?.replaceChildren(...draft.nodes.map((node) => node.cloneNode(true)));
-  }, [server]);
+    const destination = keyFor(server, id);
+    const newer = scope.current === destination ? captureDraft() : drafts.get(destination);
+    const restored = newer?.text.trim() && newer.text !== draft.text ? {
+      text: `${draft.text}\n\n${newer.text}`, replying: newer.replying ?? draft.replying,
+      nodes: [...draft.nodes, document.createTextNode('\n\n'), ...newer.nodes],
+    } : draft;
+    drafts.set(destination, restored);
+    if (scope.current !== destination) return;
+    latest.current = { composer: restored.text, replying: restored.replying };
+    setComposer(restored.text);
+    setReplying(restored.replying);
+    composerRef.current?.replaceChildren(...restored.nodes.map((node) => node.cloneNode(true)));
+  }, [server, captureDraft]);
 
   return { composer, setComposer, replying, setReplying, composerRef, bindComposer, captureDraft, restoreDraft };
 }

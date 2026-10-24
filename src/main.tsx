@@ -10,6 +10,7 @@ import { CloudAccount } from "./lib/cloud/account";
 import "./styles.css";
 import "./features/shell/messenger.css";
 import "./features/account/account-actions.css";
+import "./features/errors/recovery.css";
 
 // Built with a Cloud URL, the app is the hosted client: the person signs in to
 // their Crewly account and opens a server it owns. Without one it is served by

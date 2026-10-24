@@ -7,6 +7,7 @@ import { gateway } from '../../lib/gateway';
 import { onThreadChanged } from '../../lib/realtime/events';
 import { Avatar, UserAvatar } from '../appearance/Avatar';
 import { MessageBody } from './MessageBody';
+import { useRequestScope } from '../../lib/useRequestScope';
 
 type ThreadStatus = 'open' | 'resolved' | 'archived';
 
@@ -24,6 +25,7 @@ export function ThreadPanel({ root, focusMessageId, liveMessages = [], agents, p
   onAgentClick: (agentId: string) => void;
 }) {
   const panelRef = useLayer<HTMLElement>(onClose, false);
+  const captureScope = useRequestScope(root.id);
   const [messages, setMessages] = useState<Message[]>([root]);
   const [status, setStatus] = useState<ThreadStatus>(root.thread?.status ?? 'open');
   const [draft, setDraft] = useState('');
@@ -36,7 +38,7 @@ export function ThreadPanel({ root, focusMessageId, liveMessages = [], agents, p
   useEffect(() => {
     let active = true;
     let revision = 0;
-    setBusy(true); setLoading(true); setMessages([root]); setError(''); setDraft('');
+    setBusy(true); setLoading(true); setMessages([root]); setStatus(root.thread?.status ?? 'open'); setError(''); setDraft('');
     const refresh = async () => {
       const requested = ++revision;
       try {
@@ -58,7 +60,7 @@ export function ThreadPanel({ root, focusMessageId, liveMessages = [], agents, p
   }, [root.id]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length]);
 
   const replies = [...new Map([...messages.slice(1), ...liveMessages.filter((message) => message.threadRootId === root.id)].map((message) => [message.id, message])).values()]
@@ -75,24 +77,29 @@ export function ThreadPanel({ root, focusMessageId, liveMessages = [], agents, p
   const totalReplies = Math.max(messages[0]?.thread?.replyCount ?? root.thread?.replyCount ?? 0, replies.length);
 
   const updateStatus = async (next: ThreadStatus) => {
+    const isCurrent = captureScope();
     setBusy(true); setError('');
     try {
-      await gateway.setThreadStatus(root.id, next); setStatus(next);
+      await gateway.setThreadStatus(root.id, next);
+      if (!isCurrent()) return;
+      setStatus(next);
       onRootUpdated({ ...root, thread: { status: next, replyCount: totalReplies, latestActivityAt: new Date().toISOString(), unread: false } });
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Thread could not be updated'); }
-    finally { setBusy(false); }
+    } catch (reason) { if (isCurrent()) setError(reason instanceof Error ? reason.message : 'Thread could not be updated'); }
+    finally { if (isCurrent()) setBusy(false); }
   };
 
   const send = async () => {
     const body = draft.trim(); if (!body || busy || status !== 'open') return;
+    const isCurrent = captureScope();
     const lower = body.toLowerCase();
     const mentions = agents.filter((agent) => lower.includes(`@${agent.name.toLowerCase()}`)).map((agent) => ({ targetId: agent.id, targetType: 'agent' as const }));
     setBusy(true); setError('');
     try {
       const message = await gateway.sendThread(root.id, body, mentions);
+      if (!isCurrent()) return;
       setMessages((current) => current.some((entry) => entry.id === message.id) ? current : [...current, message]); setDraft('');
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Reply could not be sent'); }
-    finally { setBusy(false); }
+    } catch (reason) { if (isCurrent()) setError(reason instanceof Error ? reason.message : 'Reply could not be sent'); }
+    finally { if (isCurrent()) setBusy(false); }
   };
 
   const author = (message: Message) => {

@@ -69,7 +69,7 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
     setName(preset === 'followup' ? 'Proactive follow-ups' : preset === 'review' ? 'Weekly review' : preset === 'priorities' ? 'Daily priorities' : 'Reminder');
     setRepeat(preset === 'review' ? '10080' : preset === 'priorities' || preset === 'followup' ? '1440' : '');
     if (preset === 'followup') { const next = new Date(); next.setDate(next.getDate() + 1); next.setHours(9, 0, 0, 0); setWhen(localTime(next)); }
-    setBody(preset === 'followup' ? 'Find unresolved work in this conversation. Move it forward with one concrete next action, useful draft or decision. Stay quiet if there is nothing useful to add.' : preset === 'review' ? 'Review this conversation: summarize completed work, unresolved questions and the next three actions. Cite the relevant messages. Say when context is missing; do not invent progress.'
+    setBody(preset === 'followup' ? 'Help move unfinished work forward with a useful next step, draft or decision.' : preset === 'review' ? 'Review this conversation: summarize completed work, unresolved questions and the next three actions. Cite the relevant messages. Say when context is missing; do not invent progress.'
       : preset === 'priorities' ? 'Using the work discussed in this conversation, suggest my three priorities and the first concrete action for each. Flag blockers. Do not invent new information or claim to have checked external systems.' : '');
   }
 
@@ -103,7 +103,8 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
   return <div className="modal-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={ref} className="scheduled-dialog" role="dialog" aria-modal="true" aria-labelledby="scheduled-title">
       <header><div><span className="eyebrow">THIS CONVERSATION</span><h2 id="scheduled-title">Your scheduled tasks</h2></div><button className="icon-button" onClick={onClose} aria-label="Close scheduled tasks"><X size={19} /></button></header>
-      <p>Ask in the chat to set a reminder or give this agent work for later. Tasks run while the Crewly server is online, even if you close this app.</p>
+      <div className="scheduled-content">
+      {!editing && <p className="scheduled-intro">Reminders, recurring work and proactive check-ins. They run while your server is online, even when this app is closed.</p>}
       <div className="scheduled-toolbar"><span>{active.length} active · times in {timeZone}</span><button className="text-button" disabled={loading} onClick={refresh}><RefreshCw size={14} />Refresh</button></div>
       {timeZone !== detectedTimeZone && <p>The browser could not detect your time zone. Follow-up quiet hours use UTC.</p>}
       {error && <p role="alert" className="dashboard-error">{error}</p>}
@@ -113,22 +114,25 @@ export function ScheduledTasks({ conversationId, onClose, onExample, agents = []
         <button className="secondary-button" onClick={() => template('review')}>Weekly review</button>
         <button className="secondary-button" onClick={() => template('followup')}>Proactive follow-ups</button>
       </div>}
-      {editing && <form className="scheduled-editor form" onSubmit={event => void save(event)}>
-        <h3>Work that comes back to you</h3>
+      {editing && <form id={`schedule-${conversationId}`} className="scheduled-editor form" onSubmit={event => void save(event)}>
+        <div className="scheduled-editor-heading"><Clock3 size={19} /><div><h3>{kind === 'followup' ? 'A thoughtful check-in' : kind === 'task' ? 'Work for later' : 'A reminder for later'}</h3><p>{kind === 'followup' ? 'Let your assistant pick up unfinished work.' : kind === 'task' ? 'Your assistant runs the instructions at the chosen time.' : 'A simple message. No model credits needed.'}</p></div></div>
+        <div className="scheduled-fields">
         <label>Type<select value={kind} disabled={saving} onChange={event => { const value = event.target.value as typeof kind; setKind(value); if (value === 'followup' && Number(repeat) < 1440) setRepeat('1440'); }}><option value="reminder">Deliver a reminder</option><option value="task">Have an assistant do the work</option><option value="followup">Proactive follow-ups</option></select></label>
         <label>Task name<input required minLength={2} maxLength={80} value={name} disabled={saving} onChange={event => setName(event.target.value)} /></label>
-        <label>{kind === 'reminder' ? 'Reminder message' : kind === 'followup' ? 'What should it look out for?' : 'Instructions'}<textarea required maxLength={100000} rows={4} value={body} disabled={saving} onChange={event => setBody(event.target.value)} /></label>
+        </div>
+        <label>{kind === 'reminder' ? 'Reminder message' : kind === 'followup' ? 'What should it look out for?' : 'Instructions'}<textarea required maxLength={100000} rows={3} value={body} disabled={saving} onChange={event => setBody(event.target.value)} /></label>
         <label>Assistant<select required value={agentId} disabled={saving} onChange={event => setAgentId(event.target.value)}>{agents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select></label>
         <div className="scheduled-fields"><label>First delivery<input type="datetime-local" required value={when} disabled={saving} onChange={event => setWhen(event.target.value)} /></label>
           <label>Repeat<select value={repeat} disabled={saving} onChange={event => setRepeat(event.target.value)}>{kind !== 'followup' && <><option value="">Once</option><option value="60">Every hour</option></>}<option value="1440">Every 24 hours</option><option value="10080">Every 7 days</option></select></label></div>
         <small>Times use {timeZone}. Repeats use fixed intervals. {kind !== 'reminder' ? 'Assistant work uses your model provider credits.' : 'Reminders do not call a model.'} The server must be online; delivery can be up to a minute late.</small>
-        {kind === 'followup' && <p>Checks at most once per 24 hours, between 08:00 and 20:00 in your time zone, after 30 minutes of quiet. Only reviews new conversation activity from the last 7 days; stays silent when there is no useful next step. DND stops checks. May consult up to two of your permitted, available agents and bring back one combined result. Choose teammates in Assistant settings → Can consult or hand work to. Consultations also use provider credits; teammates receive a focused task and cannot run tools or ask further agents. Reviews do not change external services. Pause any time.</p>}
-        <div className="scheduled-presets"><button className="primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button><button type="button" className="text-button" disabled={saving} onClick={() => setEditing(false)}>Back to tasks</button></div>
+        {kind === 'followup' && <div className="scheduled-review-info"><p>Checks at most once per 24 hours, between 08:00 and 20:00 in {timeZone}, after 30 minutes of quiet.</p><details><summary>How proactive reviews work</summary><p>Only reviews new conversation activity from the last 7 days; stays silent when there is no useful next step. DND stops checks. May consult up to two of your permitted, available agents and bring back one combined result. Choose teammates in Assistant settings → Can consult or hand work to. Consultations also use provider credits; teammates receive a focused task and cannot run tools or ask further agents. Reviews do not change external services. Pause any time.</p></details></div>}
       </form>}
-      {loading ? <p role="status">Loading your tasks…</p> : <>
+      {!editing && (loading ? <p role="status">Loading your tasks…</p> : <>
         {active.length > 0 ? <ul className="scheduled-list">{active.map(row)}</ul> : !error && <div className="scheduled-empty"><Clock3 size={30} /><h3>Nothing scheduled yet</h3><p>Try a small reminder and see it arrive here.</p><button className="secondary-button" onClick={() => { onExample('Remind me in 10 minutes to take a break.'); onClose(); }}>Write a reminder</button></div>}
         {previous.length > 0 && <details><summary>Completed and cancelled ({previous.length})</summary><ul className="scheduled-list">{previous.map(row)}</ul></details>}
-      </>}
+      </>)}
+      </div>
+      {editing && <footer className="scheduled-actions"><button type="button" className="secondary-button" disabled={saving} onClick={() => setEditing(false)}>Back to tasks</button><button type="submit" form={`schedule-${conversationId}`} className="primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button></footer>}
     </div>
   </div>;
 }

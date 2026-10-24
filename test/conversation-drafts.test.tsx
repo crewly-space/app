@@ -73,3 +73,13 @@ it('restores both the visible text and send state under StrictMode', () => {
   expect(screen.getByRole('textbox').textContent).toBe('Saved');
   expect(screen.getByRole('status').textContent).toBe('Saved');
 });
+
+it('keeps new typing when an earlier message fails in the same conversation', () => {
+  render(<Editor conversation="a" />);
+  const editor = screen.getByRole('textbox');
+  editor.textContent = 'Earlier message'; fireEvent.input(editor); const failed = capture();
+  editor.textContent = 'New thought'; fireEvent.input(editor);
+  act(() => restore('a', failed));
+  expect(editor.textContent).toBe('Earlier message\n\nNew thought');
+  expect(screen.getByRole('status').textContent).toBe('Earlier message\n\nNew thought');
+});

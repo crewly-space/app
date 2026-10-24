@@ -6,8 +6,8 @@
 .messenger-shell .sidebar { padding: 24px 14px 14px; overflow-y: auto; }
 .messenger-shell .brand small { display: none; }
 .messenger-shell .search { margin: 24px 2px 10px; background: transparent; }
-.new-chat-button { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 0 2px 18px; min-height: 40px; flex-shrink: 0; border: 1px solid var(--oc-line-strong); border-radius: 9px; background: var(--oc-panel-3); color: var(--oc-text); font: 600 12px var(--oc-font-sans); cursor: pointer; }
-.new-chat-button:hover { border-color: var(--oc-line-hover); background: var(--oc-line-soft); }
+.new-chat-button { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 0 2px 18px; min-height: 42px; flex-shrink: 0; border: 1px solid var(--oc-text); border-radius: 10px; background: var(--oc-text); color: var(--oc-bg); font: 600 12px var(--oc-font-sans); cursor: pointer; }
+.new-chat-button:hover { opacity: .88; }
 .messenger-shell .primary-nav { padding-bottom: 14px; }
 .messenger-shell .sidebar-label { letter-spacing: .06em; text-transform: uppercase; font-size: 10px; }
 .messenger-shell .conversation-row { min-height: 42px; border-radius: 9px; }
@@ -26,7 +26,9 @@
 .starter-card strong svg { flex-shrink: 0; color: var(--oc-accent-text); }
 .starter-card > span { color: var(--oc-muted); font-size: 12px; line-height: 1.65; }
 .messenger-shell .message { padding: 16px 12px; margin-bottom: 12px; }
-.messenger-shell .message.is-own { background: var(--oc-panel-2); border: 1px solid var(--oc-line-soft); }
+.messenger-shell .message.is-own { grid-template-columns: minmax(0, 1fr); margin-left: auto; width: fit-content; max-width: 85%; padding: 14px 18px; background: var(--oc-accent-wash); border: 1px solid var(--oc-accent-soft); border-radius: 16px 16px 4px 16px; }
+.messenger-shell .message.is-own > .avatar { display: none; }
+.messenger-shell .message.is-own .message-meta { justify-content: flex-end; }
 .messenger-shell .message-body { margin-top: 5px; }
 .messenger-shell .message p, .messenger-shell .message-markdown { font-size: 14px; line-height: 1.75; }
 .messenger-shell .message-meta { flex-wrap: wrap; height: auto; min-height: 21px; }
@@ -62,8 +64,12 @@
 .quick-card .primary-button { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 42px; width: 100%; }
 .quick-connect { display: grid; gap: 24px; padding: 14px 0 0; }
 .quick-card > .text-button { justify-self: center; }
-.scheduled-dialog { width: min(580px, calc(100vw - 32px)); box-sizing: border-box; max-height: calc(100dvh - 40px); overflow-y: auto; padding: 26px; background: var(--oc-panel); color: var(--oc-text); border: 1px solid var(--oc-line-strong); border-radius: 18px; box-shadow: var(--oc-shadow-lg); }
-.scheduled-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.scheduled-dialog { width: min(620px, calc(100vw - 32px)); box-sizing: border-box; max-height: min(850px, calc(100dvh - 40px)); display: flex; flex-direction: column; overflow: hidden; background: var(--oc-panel); color: var(--oc-text); border: 1px solid var(--oc-line-strong); border-radius: 18px; box-shadow: var(--oc-shadow-lg); }
+.scheduled-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; flex-shrink: 0; border-bottom: 1px solid var(--oc-line-soft); }
+.scheduled-content { overflow-y: auto; min-height: 0; padding: 0 24px 24px; overscroll-behavior: contain; }
+.scheduled-intro { margin: 18px 0 6px; }
+.scheduled-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--oc-line); flex-shrink: 0; background: var(--oc-panel); }
+.scheduled-actions button { min-height: 42px; }
 .scheduled-dialog h2 { margin: 10px 0 0; font-size: 23px; letter-spacing: -.03em; }
 .scheduled-dialog p { color: var(--oc-muted-strong); font-size: 13px; line-height: 1.7; }
 .scheduled-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--oc-line); padding: 12px 0; color: var(--oc-muted); font-size: 11px; }
@@ -94,6 +100,10 @@
   .messenger-shell .composer-wrap { padding: 10px 12px max(12px, env(safe-area-inset-bottom)); }
   .messenger-shell .composer-editor { font-size: 16px; }
   .messenger-shell .message { padding: 12px 8px; gap: 8px; }
+  .messenger-shell .message .message-actions { position: static; grid-column: 2; justify-self: end; opacity: 1; pointer-events: auto; border: 0; box-shadow: none; background: transparent; padding: 0; }
+  .messenger-shell .message.is-own .message-actions { grid-column: 1; }
+  .messenger-shell .message-actions button { width: 40px; height: 40px; }
+  .messenger-shell .header-actions .icon-button { width: 40px; height: 40px; }
   .quick-start > header { height: 64px; padding: 0 22px; }
   .quick-start > main { grid-template-columns: 1fr; padding: 30px 20px; gap: 24px; }
   .quick-story h1 { font-size: 36px; margin: 14px 0; }
@@ -101,21 +111,33 @@
   .quick-story ul, .quick-story > small { display: none; }
   .quick-story > p { margin-bottom: 0; }
   .quick-card.form { padding: 22px; }
-  .scheduled-dialog { padding: 22px; width: 100%; max-height: calc(100dvh - 16px); }
+  .scheduled-dialog { width: 100%; max-height: calc(100dvh - 16px); }
+  .scheduled-dialog > header { padding: 18px; }
+  .scheduled-content { padding: 0 18px 20px; }
+  .scheduled-actions { padding: 14px 18px max(14px, env(safe-area-inset-bottom)); }
+  .scheduled-actions button { min-height: 44px; }
 }
 
 .scheduled-message-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--oc-accent-text); background: var(--oc-accent-soft); }
 
 .scheduled-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
 .scheduled-presets button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-.scheduled-editor { display: grid; gap: 14px; padding: 20px; margin: 18px 0; background: var(--oc-panel-2); border: 1px solid var(--oc-line); border-radius: 12px; }
+.scheduled-editor { display: grid; gap: 18px; padding: 0; margin: 20px 0 0; border: 0; }
+.scheduled-editor-heading { display: flex; gap: 12px; align-items: flex-start; }
+.scheduled-editor-heading > svg { color: var(--oc-accent-text); margin-top: 2px; flex-shrink: 0; }
+.scheduled-editor-heading p { margin: 5px 0 0; font-size: 12px; }
+.scheduled-review-info { padding: 12px 14px; border: 1px solid var(--oc-line); border-radius: 10px; background: var(--oc-panel-2); }
+.scheduled-review-info > p { margin: 0; font-size: 12px; }
+.scheduled-review-info details { margin-top: 10px; }
+.scheduled-review-info summary { cursor: pointer; color: var(--oc-text); }
+.scheduled-review-info details p { font-size: 12px; }
 .scheduled-editor h3 { margin: 0; font-size: 17px; }
 .scheduled-editor label { display: grid; gap: 6px; font-size: 12px; color: var(--oc-muted-strong); min-width: 0; }
 .scheduled-editor textarea { resize: vertical; }
 .scheduled-editor small { color: var(--oc-muted); line-height: 1.7; }
 .scheduled-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; }
 .scheduled-editor input, .scheduled-editor select, .scheduled-editor textarea { width: 100%; box-sizing: border-box; min-width: 0; }
-@media (max-width: 480px) { .scheduled-fields { grid-template-columns: 1fr; } .scheduled-editor { padding: 14px; } }
+@media (max-width: 480px) { .scheduled-fields { grid-template-columns: 1fr; gap: 16px; } .scheduled-editor { padding: 0; } .scheduled-dialog h2 { font-size: 21px; } }
 .quick-jobs { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .quick-jobs legend { font-size: 12px; color: var(--oc-muted-strong); margin-bottom: 10px; }
 .quick-card .quick-jobs label { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; border: 1px solid var(--oc-line); border-radius: 10px; padding: 12px; cursor: pointer; }

@@ -18,6 +18,7 @@ import { useFirstRunSkips } from "./features/onboarding/FirstRun";
 import { QuickStart } from "./features/onboarding/QuickStart";
 import { ScheduledTasks } from "./features/conversations/ScheduledTasks";
 import { CollaborationStatus } from "./features/conversations/CollaborationStatus";
+import { ViewErrorBoundary } from "./features/errors/ViewErrorBoundary";
 import { PairingApproval } from "./features/devices/PairingApproval";
 import { SidebarSection } from "./features/shell/SidebarSection";
 import { Scrim, layers } from "./lib/layers";
@@ -213,7 +214,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   // re-render mid-redemption would otherwise drop the result.
   const providerOAuthDone = useCallback(() => {
     setFinishingProviderOAuth(false);
-    void gateway.bootstrap().then(setData);
+    void gateway.bootstrap().then(setData).catch(reason => notify(reason instanceof Error ? reason.message : "Could not refresh the workspace.", "error"));
     notify("Provider saved.");
   }, [notify]);
   const [firstDmFailed, setFirstDmFailed] = useState(false);
@@ -443,13 +444,21 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
   const openConversationId = routingConversation?.id;
   const canLoadReplyMode = Boolean(routingConversation && (!routingConversation.channel || routingConversation.channel.canPost));
   const [replyMode, setReplyMode] = useState<{ id: string; mode: ConversationReplyMode } | null>(null);
+  const replyModeRevision = useRef(0);
   const loadReplyMode = useCallback(() => {
+    const revision = ++replyModeRevision.current;
     if (!openConversationId || !canLoadReplyMode) { setReplyMode(null); return; }
     gateway.replyMode(openConversationId)
-      .then((mode) => setReplyMode({ id: openConversationId, mode }))
+      .then((mode) => { if (revision === replyModeRevision.current) setReplyMode({ id: openConversationId, mode }); })
       .catch(() => undefined);
   }, [openConversationId, canLoadReplyMode]);
   useEffect(loadReplyMode, [loadReplyMode]);
+  useEffect(() => () => { replyModeRevision.current += 1; }, []);
+  useEffect(() => {
+    if (!data) return;
+    if (profileAgentId && !data.agents.some(agent => agent.id === profileAgentId)) setProfileAgentId(null);
+    if (editingAgentId && !data.agents.some(agent => agent.id === editingAgentId)) setEditingAgentId(null);
+  }, [data?.agents, profileAgentId, editingAgentId]);
 
   if (!data) {
     const serverName = registry.selected?.name;
@@ -723,7 +732,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
       const sent = await gateway.sendMessage(destination, value, replyToMessageId, mentions, attachmentIds);
       setData((current) => current && { ...current,
         messages: current.messages.some((m) => m.id === sent.id) ? current.messages : [...current.messages, sent] });
-      setPendingAttachments([]);
+      setPendingAttachments(current => current.filter(attachment => !attachmentIds.includes(attachment.id)));
     } catch {
       notify(
         "Message could not be delivered. Your draft was restored.",
@@ -1610,12 +1619,16 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
         </main>
 
         {threadRoot ? (
-          <ThreadPanel focusMessageId={threadFocusId} liveMessages={data.messages} root={threadRoot} agents={speakers} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
+          <ViewErrorBoundary resetKey={threadRoot.id} onClose={closeThread} title="This thread could not be displayed">
+          <ThreadPanel key={threadRoot.id} focusMessageId={threadFocusId} liveMessages={data.messages} root={threadRoot} agents={speakers} people={people} onAgentClick={openAgentProfile} onClose={closeThread} onRootUpdated={(updated) => {
             setThreadRoot(updated);
             setData((current) => current && ({ ...current, messages: current.messages.map((message) => message.id === updated.id ? updated : message) }));
           }} />
+          </ViewErrorBoundary>
         ) : panel === "details" && (
+          <ViewErrorBoundary resetKey={conversation.id} onClose={() => setPanel(null)} title="These details could not be displayed">
           <DetailsPanel
+            key={conversation.id}
             canManageMemory={(id) => data.currentUser.role === 'owner' || data.currentUser.role === 'admin' || data.agents.find((agent) => agent.id === id)?.ownerUserId === data.currentUser.id}
             people={data.people.filter((person) => channel ? channel.members.some((member) => member.participantType === 'user' && member.participantId === person.id) : conversation.personIds?.includes(person.id) || person.id === data.currentUser.id)}
             conversation={conversation}
@@ -1625,6 +1638,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             onAgentClick={openAgentProfile}
             onUpdateAgent={updateAgent}
           />
+          </ViewErrorBoundary>
         )}
         {panel === "settings" && (
           <SettingsPanel serverName={registry.selected?.name}
@@ -1662,7 +1676,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             }}
           />
         )}
-        {profileAgentId && !editingAgentId && (
+        {profileAgentId && !editingAgentId && data.agents.some(agent => agent.id === profileAgentId) && (
           <AgentProfileDialog
             agent={data.agents.find((agent) => agent.id === profileAgentId)!}
             onClose={() => setProfileAgentId(null)}
@@ -1670,7 +1684,7 @@ function ServerWorkspace({ registry, serverKey, connected }: { registry: ServerR
             onMessage={() => openAgentConversation(profileAgentId)}
           />
         )}
-        {editingAgentId && (
+        {editingAgentId && data.agents.some(agent => agent.id === editingAgentId) && (
           <AgentEditor
             agent={data.agents.find((agent) => agent.id === editingAgentId)}
             onClose={() => setEditingAgentId(null)}

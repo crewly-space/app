@@ -108,6 +108,10 @@ try {
   // Let the real responder review a settled conversation, regardless of the
   // runner's clock/time zone. No real provider credentials or paid calls.
   const reviewTime = new Date(); reviewTime.setUTCHours(12, 0, 0, 0);
+  // Advancing the fixture clock to noon must not deliver unrelated reminders
+  // first: those would make the conversation active and correctly skip review.
+  const otherSchedules = db.prepare("SELECT id FROM automations WHERE enabled = 1 AND name <> 'Proactive follow-ups'").all();
+  for (const rule of otherSchedules) db.prepare('UPDATE automations SET enabled = 0 WHERE id = ?').run(rule.id);
   const originalNow = Date.now;
   const delegation = delegationToolset({ db, hub: app.hub, status: app.agentStatus, queue: app.runQueue, respond: () => reviewRespond });
   const reviewRespond = createProviderRespond(db, fetch, undefined, { proactiveToolsets: [delegation] });
@@ -119,10 +123,18 @@ try {
       .run(JSON.stringify({ ...followupConfig, timeZone: 'UTC', runAt: new Date(reviewTime.getTime() - 60000).toISOString() }));
     review = runDueSchedules({ db, hub: app.hub, respond: reviewRespond }, reviewTime);
   } finally { Date.now = originalNow; }
-  await expect(page.getByText('Release assistant is consulting Release reviewer…', { exact: true })).toBeVisible();
+  try {
+    await expect(page.getByText('Release assistant is consulting Release reviewer…', { exact: true })).toBeVisible();
+  } catch (error) {
+    console.error('Collaboration diagnostic', JSON.stringify({ requests: proactiveRequests.length, errors,
+      runs: db.prepare('SELECT trigger, status, error_message FROM agent_runs').all(),
+      schedules: db.prepare('SELECT status, error, output FROM automation_runs').all() }));
+    throw error;
+  }
   await expect.poll(() => typeof releaseConsultation).toBe('function');
   releaseConsultation(); releaseConsultation = undefined;
   await review;
+  for (const rule of otherSchedules) db.prepare('UPDATE automations SET enabled = 1 WHERE id = ?').run(rule.id);
   await expect(page.getByText('Release assistant is consulting Release reviewer…', { exact: true })).toHaveCount(0);
   if (proactiveRequests.length !== 3 || proactiveRequests.some(request => request.consultation && request.tools)
     || proactiveRequests.some(request => request.tools?.some(tool => tool.function.name !== 'delegate_to_agent'))) throw new Error('Proactive collaboration must offer only delegation to the lead and no tools to the teammate');

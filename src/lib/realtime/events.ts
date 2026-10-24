@@ -2,6 +2,8 @@ import { client, clearToken, currentToken, activeServerId } from '../api/client'
 import { messageView } from '../gateway';
 import type { AgentStatus } from '@crewly/sdk';
 import type { Message } from '../../types';
+import { MessageSchema } from '../../protocol/schemas/message';
+import { AgentStatusSchema } from '../../protocol/schemas/agent';
 
 let ws: ReturnType<typeof client.ws> | undefined;
 export type AgentWorkEvent =
@@ -50,15 +52,20 @@ export function startRealtime(
     if (state === 'unauthorized' && activeServerId() === sourceId) { onFailure('Your session has expired. Sign in again.'); clearToken(); }
   });
   connection.onEvent((event) => {
+    if (!event.payload || typeof event.payload !== 'object' || typeof event.topic !== 'string') return;
     try { localStorage.setItem(seqKey, String(event.seq)); } catch { /* storage may be unavailable */ }
     if (event.type === 'message.created' || event.type === 'thread.updated') {
-      const message = messageView(event.payload as never);
+      const parsed = MessageSchema.safeParse(event.payload);
+      if (!parsed.success) { onFailure('A live message could not be loaded. Reconnect live updates to refresh it.'); return; }
+      const message = messageView(parsed.data);
       onMessage(message);
       const rootId = message.threadRootId ?? (event.type === 'thread.updated' ? message.id : undefined);
       if (rootId) for (const listener of threadListeners) listener(rootId);
     }
     if (event.type === 'thread.message.created') {
-      onMessage(messageView(event.payload.message as never));
+      const parsed = MessageSchema.safeParse(event.payload.message);
+      if (!parsed.success) return;
+      onMessage(messageView(parsed.data));
       if (typeof event.payload.rootMessageId === 'string') {
         for (const listener of threadListeners) listener(event.payload.rootMessageId);
       }
@@ -66,7 +73,10 @@ export function startRealtime(
     if (event.type === 'agent.run.failed') onFailure(String(event.payload.error ?? 'Agent response failed'));
     // Replayed on reconnect with everything else since the last seen event, so
     // a status that changed while the socket was down is not lost.
-    if (event.type === 'agent.status') onAgentStatus(event.payload as unknown as AgentStatus);
+    if (event.type === 'agent.status') {
+      const parsed = AgentStatusSchema.safeParse(event.payload);
+      if (parsed.success) onAgentStatus(parsed.data);
+    }
     // Names only which channel changed; what this reader may see of it comes from a refetch.
     if (event.type === 'conversations.changed') onConversationsChanged();
     if (event.type === 'channels.changed') onChannelsChanged();

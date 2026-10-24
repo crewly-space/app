@@ -127,3 +127,17 @@ it('keeps the workspace usable when browser storage is blocked', () => {
     expect(screen.getAllByText('Beta room').length).toBeGreaterThan(0);
   } finally { get.mockRestore(); set.mockRestore(); }
 });
+
+it('closes a profile safely when the agent disappears during a workspace refresh', async () => {
+  const agent = { id: 'assistant', name: 'Assistant', ownerUserId: 'u1', avatarMode: 'name', initials: 'A', role: 'Personal assistant', color: 'var(--oc-accent)', status: 'online', model: 'test', runtime: 'Chat', memory: [] };
+  const cached = { ...workspace('Beta'), agents: [agent], conversations: [{ id: 'Beta-room', name: 'Assistant', type: 'dm', agentIds: [agent.id], preview: '', time: '' }] };
+  writeWorkspace('srv_b', cached, 'Beta-room');
+  const view = render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open Assistant profile' }));
+  expect(screen.getByRole('dialog', { name: 'Assistant' })).toBeTruthy();
+  bootstrap.mockResolvedValue(workspace('Beta'));
+  registry = { ...registry, connection: { state: 'connected' }, epoch: 1 };
+  view.rerender(<App />);
+  await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assistant' })).toBeNull());
+  expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
+});

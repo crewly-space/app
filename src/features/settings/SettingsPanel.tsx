@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AuthUser, Connector, DeviceInfo, DevicePairingInfo, GatewayStatus, ModelInfo, ServerBranding } from "@crewly/sdk";
-import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Laptop, LockKeyhole, LogOut, Monitor, Moon, Plus, Search, Sun, X } from "lucide-react";
 import { gateway } from "../../lib/gateway";
 import { logout } from "../../lib/logout";
 import { activeServerOrigin, client } from "../../lib/api/client";
@@ -20,6 +20,8 @@ import type { ServicesApi } from "../dashboard/services-api";
 import { ConnectorsSection } from "./ConnectorsSection";
 import { ProfileSection } from "./ProfileSection";
 import { canOpen, findSection, visibleGroups, type SettingsSectionId } from "./sections";
+import { ViewErrorBoundary } from "../errors/ViewErrorBoundary";
+import { useRequestScope } from "../../lib/useRequestScope";
 
 /** Settings sections that are rendered by the server-administration component. */
 const ADMIN_SECTIONS: Partial<Record<SettingsSectionId, AdminSectionId>> = {
@@ -102,6 +104,9 @@ export function SettingsPanel({
   );
   // Phones show either the list of sections or one section, never both.
   const [pane, setPane] = useState<"nav" | "content">(requested ? "content" : "nav");
+  const [sectionQuery, setSectionQuery] = useState("");
+  const captureScope = useRequestScope(section);
+  const modelRequest = useRef(0);
   const [addingProvider, setAddingProvider] = useState(false);
   const [managingProvider, setManagingProvider] = useState<Provider | null>(null);
   const [models, setModels] = useState<{ providerId: string; list: ModelInfo[] } | null>(null);
@@ -173,10 +178,14 @@ export function SettingsPanel({
     }
   };
   const browseModels = async (providerId: string) => {
+    const revision = ++modelRequest.current;
+    const isCurrent = captureScope();
     if (models?.providerId === providerId) { setModels(null); return; }
     setModelsError("");
-    try { setModels({ providerId, list: await adminApi.listModels(providerId) }); }
-    catch (reason) { setModels(null); setModelsError(reason instanceof Error ? reason.message : "Models could not be listed."); }
+    try {
+      const list = await adminApi.listModels(providerId);
+      if (isCurrent() && revision === modelRequest.current) setModels({ providerId, list });
+    } catch (reason) { if (isCurrent() && revision === modelRequest.current) { setModels(null); setModelsError(reason instanceof Error ? reason.message : "Models could not be listed."); } }
   };
 
   const adminSection = ADMIN_SECTIONS[section];
@@ -424,7 +433,8 @@ export function SettingsPanel({
             <span>{currentUser.email}</span>
           </div>
         </div>
-        {groups.map((group) => (
+        <label className="settings-search"><Search size={15} /><input type="search" aria-label="Search settings" placeholder="Find a setting…" value={sectionQuery} onChange={event => setSectionQuery(event.target.value)} /></label>
+        {groups.map(group => ({ ...group, sections: group.sections.filter(item => `${item.label} ${item.summary} ${group.label}`.toLowerCase().includes(sectionQuery.trim().toLowerCase())) })).filter(group => group.sections.length).map((group) => (
           <div className="settings-nav-group" key={group.id} data-group={group.id}>
             <span className="settings-nav-label">
               {group.label}
@@ -445,6 +455,7 @@ export function SettingsPanel({
             ))}
           </div>
         ))}
+        {sectionQuery && !groups.some(group => group.sections.some(item => `${item.label} ${item.summary} ${group.label}`.toLowerCase().includes(sectionQuery.trim().toLowerCase()))) && <p className="settings-no-results">No settings match “{sectionQuery}”.</p>}
         <button type="button" className="settings-logout" onClick={() => void logout().catch(() => onNotify('Could not log out. Try again.'))}>
           <span className="settings-icon" aria-hidden="true"><LogOut size={15} strokeWidth={2} /></span>
           <span>Log out</span>
@@ -458,7 +469,7 @@ export function SettingsPanel({
             <p>{current.summary}</p>
           </div>
         </div>
-        {body}
+        <ViewErrorBoundary resetKey={section} title="This settings section could not be displayed">{body}</ViewErrorBoundary>
       </div>
       </div>
       {/* The same full screen first run uses; from a panel it has to cover the
