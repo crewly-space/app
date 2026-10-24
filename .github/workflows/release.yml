@@ -8,6 +8,7 @@ name: Release
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 on:
+  create:
   push:
     tags: ["v*"]
   workflow_dispatch:
@@ -19,13 +20,19 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   release:
+    if: github.event_name != 'create' || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with: { node-version: "24", cache: npm }
@@ -33,10 +40,20 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Verify release version
+      - name: Verify release source and version
+        id: release_context
         env:
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run: test "$TAG" = "v$(node -p "require('./package.json').version")"
+          REQUESTED_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          RELEASE_EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          tag="${REQUESTED_TAG#release/}"
+          test "$tag" = "v$(node -p "require('./package.json').version")"
+          if [ "$RELEASE_EVENT" = create ]; then
+            test "$REQUESTED_TAG" = "release/$tag"
+            git merge-base --is-ancestor HEAD origin/main
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
 
       # Vendored protocol and SDK must match their owner before anything ships.
       - name: Check vendored code, build and test
@@ -50,6 +67,7 @@ jobs:
           npm test
           npx playwright install --with-deps chromium
           npm run test:release
+          npm run test:ui
 
       - name: Package
         run: |
@@ -71,15 +89,34 @@ jobs:
           test -f /tmp/unpack/index.html
           echo "archive unpacks correctly"
 
+      # A release branch uses the same checks as a tag, but creates the tag
+      # only after the distributable exists. The repository token cannot
+      # recursively trigger another tag workflow.
+      - name: Ensure the checked release tag exists
+        env:
+          TAG: ${{ steps.release_context.outputs.tag }}
+          RELEASE_EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          git fetch --tags origin
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            test "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)"
+          else
+            test "$RELEASE_EVENT" = create
+            git tag "$TAG" HEAD
+            git push origin "refs/tags/$TAG"
+          fi
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          TAG: ${{ steps.release_context.outputs.tag }}
         run: |
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Crewly App $TAG" \
-            --generate-notes \
+            --notes-file release-notes.md \
+            --latest \
             --verify-tag \
             release/crewly-app-dist.tar.gz \
             release/checksums.txt

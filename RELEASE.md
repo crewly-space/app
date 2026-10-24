@@ -36,6 +36,11 @@ layouts at 390 and 320 pixels. A failed check blocks release publication.
    app `0.2.0`; a missing, truncated or mismatched UI blocks its release. See the
    server's `RELEASE.md` for signed binaries and deployment.
 
+Creating `release/v0.2.0` at a checked commit already merged into `main` is also
+supported. The same Release workflow runs its gates, creates the matching tag
+only after the archive is ready, and publishes it as Latest. Existing tags are
+verified against the checked commit and are never moved.
+
 No Cloud account, subscription gateway or paired computer is required when
 using your own model API key. Reminders require the server to remain online.
 For local models, pair the computer that runs them. A hosting URL is not a
