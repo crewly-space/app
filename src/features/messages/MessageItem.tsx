@@ -1,5 +1,5 @@
 import type { AvatarMode } from "@crewly/protocol";
-import { Activity, Check, Download, Folder, MessageSquare, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
+import { Activity, Check, Clock3, Download, Folder, MessageSquare, Paperclip, Reply, ShieldCheck, X } from "lucide-react";
 import { statusLabel, statusTitle } from "../../lib/agent-status";
 import type { Agent, Approval, Message } from "../../types";
 import { MessageBody } from "./MessageBody";
@@ -39,7 +39,7 @@ export function MessageItem({
     : null;
   return (
     // Focusable so a tap selects it: on a touch screen that is what shows its actions.
-    <article data-message-id={message.id} tabIndex={-1} className={`message ${message.streaming ? "streaming" : ""}`}>
+    <article data-message-id={message.id} tabIndex={-1} className={`message ${message.author === "you" && !someoneElse ? "is-own" : ""} ${message.streaming ? "streaming" : ""}`}>
       {message.author === "you" ? (
         <UserAvatar
           id={message.userId ?? people.me.id}
@@ -54,7 +54,7 @@ export function MessageItem({
         >
           <Avatar agent={agent} />
         </button>
-      ) : <Avatar agent={undefined} />}
+      ) : message.author === "Scheduled" ? <span className="scheduled-message-icon"><Clock3 size={18} /></span> : <Avatar agent={undefined} />}
       <div className="message-content">
         {replied && (
           <div className="reply-reference">
@@ -67,7 +67,7 @@ export function MessageItem({
           {agent ? (
             <button onClick={() => onAgentClick(agent.id)}>{agent.name}</button>
           ) : (
-            <strong>{someoneElse ?? (message.author === "you" ? "You" : message.author === "Webhook" ? "Webhook" : "Agent")}</strong>
+            <strong>{someoneElse ?? (message.author === "you" ? "You" : message.author === "Webhook" ? "Webhook" : message.author === "Scheduled" ? "Scheduled" : "Agent")}</strong>
           )}
           {agent && (
             <span
@@ -257,5 +257,5 @@ export function ApprovalMessage({
 export function authorName(id: string, agents: Agent[]) {
   return id === "you"
     ? "You"
-    : (agents.find((agent) => agent.id === id)?.name ?? "Agent");
+    : id === "Scheduled" || id === "Webhook" ? id : (agents.find((agent) => agent.id === id)?.name ?? "Agent");
 }

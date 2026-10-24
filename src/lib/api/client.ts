@@ -1,5 +1,5 @@
 import { CrewlyClient } from '@crewly/sdk';
-import { clientFor, readServerToken, storeServerToken } from '../servers/session';
+import { clientFor, clearServerToken, readServerToken, storeServerToken } from '../servers/session';
 import type { RegistryServer } from '../servers/types';
 import { APP_VERSION } from '../../version';
 
@@ -14,9 +14,10 @@ const TOKEN_KEY = 'crewly:session';
 
 /** The server the app is currently showing; null in standalone mode. */
 let active: RegistryServer | null = null;
+let standaloneToken: string | null = null;
 let standalone = new CrewlyClient({ baseUrl: window.location.origin, clientVersion: APP_VERSION });
 
-function current(): CrewlyClient {
+export function snapshotClient(): CrewlyClient {
   return active ? clientFor(active).client : standalone;
 }
 
@@ -30,14 +31,14 @@ function current(): CrewlyClient {
  */
 export const client = new Proxy({} as CrewlyClient, {
   get(_target, property, receiver) {
-    const instance = current();
+    const instance = snapshotClient();
     return Reflect.get(instance, property, receiver === undefined ? instance : instance);
   },
   set(_target, property, value) {
-    return Reflect.set(current(), property, value);
+    return Reflect.set(snapshotClient(), property, value);
   },
   has(_target, property) {
-    return Reflect.has(current(), property);
+    return Reflect.has(snapshotClient(), property);
   },
 }) as CrewlyClient;
 
@@ -73,9 +74,9 @@ export function activateServer(server: RegistryServer | null): void {
 export function currentToken(): string | null {
   if (active) return readServerToken(active.id);
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY) ?? standaloneToken;
   } catch {
-    return null;
+    return standaloneToken;
   }
 }
 
@@ -84,8 +85,10 @@ export function storeToken(token: string): void {
     storeServerToken(active.id, token);
     return;
   }
+  standaloneToken = token;
   try {
     localStorage.setItem(TOKEN_KEY, token);
+    standaloneToken = null;
   } catch {
     /* a private window can refuse storage; the session still works until reload */
   }
@@ -94,12 +97,9 @@ export function storeToken(token: string): void {
 
 export function clearToken(): void {
   if (active) {
-    // Signing out of one server leaves the account and the others alone.
-    try {
-      localStorage.removeItem(`crewly:session:${active.id}`);
-    } catch { /* see storeToken */ }
-    clientFor(active).client.setToken(undefined);
+    clearServerToken(active.id);
   } else {
+    standaloneToken = null;
     try {
       localStorage.removeItem(TOKEN_KEY);
     } catch { /* see storeToken */ }

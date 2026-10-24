@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudAccount } from '../src/lib/cloud/account';
-import { clearServerToken, clientFor, readServerToken, storeServerToken } from '../src/lib/servers/session';
+import { clearServerToken, clientFor, readServerToken, resetConnections, storeServerToken } from '../src/lib/servers/session';
 import { connectToServer } from '../src/lib/servers/connect';
 import type { RegistryServer } from '../src/lib/servers/types';
 import { CrewlyApiError } from '../src/sdk/errors';
@@ -30,6 +30,7 @@ const selfHosted: RegistryServer = {
 
 beforeEach(() => {
   localStorage.clear();
+  resetConnections();
 });
 
 describe('per-server sessions', () => {
@@ -164,5 +165,45 @@ describe('the cloud account', () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }));
     const account = new CloudAccount('https://cloud.crewly.space', fetchImpl as unknown as typeof fetch);
     expect(await account.me()).toBeNull();
+  });
+});
+
+
+describe('session recovery regressions', () => {
+  it('keeps the session usable when browser storage is blocked', () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    try {
+      storeServerToken(cloudServer.id, 'memory-session');
+      expect(readServerToken(cloudServer.id)).toBe('memory-session');
+      clientFor(cloudServer);
+      expect(readServerToken(cloudServer.id)).toBe('memory-session');
+      clearServerToken(cloudServer.id);
+      expect(readServerToken(cloudServer.id)).toBeNull();
+    } finally { get.mockRestore(); set.mockRestore(); }
+  });
+
+  it('rebuilds a cached client when its endpoint changes', () => {
+    const original = clientFor(cloudServer);
+    const moved = clientFor({ ...cloudServer, endpoint: 'https://moved.test' });
+    expect(moved.client).not.toBe(original.client);
+    expect(moved.endpoint).toBe('https://moved.test');
+  });
+
+  it('preserves stored credentials on a temporary verification failure', async () => {
+    const fetchImpl = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Bad Gateway', { status: 502 }));
+    const account = new CloudAccount('https://cloud.test', vi.fn());
+    storeServerToken(cloudServer.id, 'valid-session');
+    try {
+      await expect(connectToServer(cloudServer, account)).rejects.toMatchObject({ status: 502 });
+      expect(readServerToken(cloudServer.id)).toBe('valid-session');
+    } finally { fetchImpl.mockRestore(); }
+  });
+
+  it('discards a rejected session before falling back to local login', async () => {
+    storeServerToken(selfHosted.id, 'expired-session');
+    const account = new CloudAccount('https://cloud.test', vi.fn());
+    await connectToServer(selfHosted, account, { verifyToken: async () => false });
+    expect(readServerToken(selfHosted.id)).toBeNull();
   });
 });

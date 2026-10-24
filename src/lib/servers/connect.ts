@@ -1,6 +1,6 @@
 import type { CloudAccount } from '../cloud/account';
 import { CrewlyApiError } from '../../sdk/errors';
-import { clientFor, readServerToken, storeServerToken } from './session';
+import { clearServerToken, clientFor, readServerToken, storeServerToken } from './session';
 import type { RegistryServer } from './types';
 
 export type ConnectionResult =
@@ -21,8 +21,9 @@ async function defaultVerify(server: RegistryServer, token: string): Promise<boo
   try {
     await client.auth.me();
     return true;
-  } catch {
-    return false;
+  } catch (reason) {
+    if (reason instanceof CrewlyApiError && reason.status === 401) return false;
+    throw reason;
   }
 }
 
@@ -50,7 +51,10 @@ export async function connectToServer(
   const exchange = options.exchangeHandoff ?? defaultExchange;
 
   const stored = readServerToken(server.id);
-  if (stored && (await verify(server, stored))) return { state: 'connected' };
+  if (stored) {
+    if (await verify(server, stored)) return { state: 'connected' };
+    clearServerToken(server.id);
+  }
 
   // A server still being built has no door to knock on yet, and saying so is
   // more use than a connection error.

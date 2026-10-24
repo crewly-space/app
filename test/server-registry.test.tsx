@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement, StrictMode } from 'react';
 import type { RegistryServer } from '../src/lib/servers/types';
 
 const server: RegistryServer = {
@@ -27,6 +28,10 @@ beforeAll(async () => {
   ({ useServerRegistry } = await import('../src/features/servers/useServerRegistry'));
 });
 
+beforeEach(() => {
+  localStorage.clear();
+  me.mockClear(); servers.mockClear(); connectToServer.mockClear();
+});
 afterEach(cleanup);
 
 describe('server registry', () => {
@@ -83,5 +88,51 @@ describe('server registry', () => {
     servers.mockRejectedValueOnce(new Error('502'));
     const { result } = renderHook(() => useServerRegistry());
     await waitFor(() => expect(result.current.connection.state).toBe('cloud_unreachable'));
+  });
+});
+
+
+describe('connection lifecycle regressions', () => {
+  it('opens a cached server under React StrictMode', async () => {
+    localStorage.setItem('crewly:server-registry', JSON.stringify({
+      profile: { id: 'u1', email: 'a@example.com' }, servers: [server], selectedId: server.id,
+    }));
+    const { result } = renderHook(() => useServerRegistry(), {
+      wrapper: ({ children }) => createElement(StrictMode, null, children),
+    });
+    await waitFor(() => expect(result.current.connection.state).toBe('connected'));
+  });
+
+  it('can retry while the original connection is still pending', async () => {
+    let finish!: (value: { state: 'connected' }) => void;
+    connectToServer.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(connectToServer).toHaveBeenCalledTimes(1));
+    act(() => result.current.reconnect());
+    await waitFor(() => expect(result.current.connection.state).toBe('connected'));
+    await act(async () => finish({ state: 'connected' }));
+    expect(result.current.epoch).toBe(1);
+  });
+
+  it('reconnects when a server is moved to a different endpoint', async () => {
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('connected'));
+    servers.mockResolvedValueOnce([{ ...server, endpoint: 'https://moved.test' }]);
+    await act(() => result.current.refresh());
+    await waitFor(() => expect(result.current.epoch).toBe(2));
+    expect(connectToServer.mock.lastCall?.[0]).toMatchObject({ endpoint: 'https://moved.test' });
+  });
+
+  it('ignores an older registry response arriving after a newer one', async () => {
+    const { result } = renderHook(() => useServerRegistry());
+    await waitFor(() => expect(result.current.connection.state).toBe('connected'));
+    let finish!: (value: typeof server[]) => void;
+    servers.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    let older!: Promise<void>;
+    act(() => { older = result.current.refresh(); });
+    servers.mockResolvedValueOnce([{ ...server, name: 'Newest' }]);
+    await act(() => result.current.refresh());
+    await act(async () => { finish([{ ...server, name: 'Stale' }]); await older; });
+    expect(result.current.selected?.name).toBe('Newest');
   });
 });

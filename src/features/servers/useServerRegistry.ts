@@ -122,18 +122,21 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
   const [loaded, setLoaded] = useState(false);
   const [cloudDown, setCloudDown] = useState(false);
   const [states, setStates] = useState<Record<string, ServerConnection>>({});
+  const connectionKey = useRef<string | null>(null);
+  const refreshVersion = useRef(0);
   const [attempt, setAttempt] = useState(0);
-  const connecting = useRef<string | null>(null);
   // A refresh hands back a new object for the same server. Connecting again
   // for that would reload the whole app, so only a different server, or the
   // same one changing state (becoming ready), is a reason to reconnect.
-  const selectedKey = selected ? `${selected.id}:${selected.status}` : null;
+  const selectedKey = selected ? `${selected.id}:${selected.status}:${selected.endpoint}:${selected.authMode}` : null;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
 
   const refresh = useCallback(async () => {
     if (!account) return;
+    const version = ++refreshVersion.current;
     const [me, list] = await Promise.all([account.me(), account.servers()]);
+    if (version !== refreshVersion.current) return;
     setProfile(me);
     setServers(list);
     setLoaded(true);
@@ -157,11 +160,10 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
   useEffect(() => {
     const selected = selectedRef.current;
     if (!account || !selected) return;
-    if (connecting.current === selected.id) return;
-    connecting.current = selected.id;
     let cancelled = false;
     const settle = (state: ServerConnection) => setStates((current) => ({ ...current, [selected.id]: state }));
 
+    connectionKey.current = selectedKey;
     settle({ state: 'connecting' });
     activateServer(selected);
     void connectToServer(selected, account)
@@ -185,8 +187,7 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
         if (cancelled) return;
         settle({ state: 'unreachable' });
         setFailures((current) => ({ ...current, [selected.id]: 'Could not reach this server' }));
-      })
-      .finally(() => { connecting.current = null; });
+      });
 
     return () => { cancelled = true; };
   }, [account, selectedKey, attempt]);
@@ -211,6 +212,7 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
   }, [account, servers, selected]);
 
   const select = useCallback((server: RegistryServer) => {
+    if (selectedRef.current?.id === server.id && selectedRef.current.endpoint === server.endpoint) return;
     remember(server.id);
     try {
       const raw = localStorage.getItem(REGISTRY_CACHE_KEY);
@@ -219,6 +221,7 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
         localStorage.setItem(REGISTRY_CACHE_KEY, JSON.stringify({ ...current, selectedId: server.id }));
       }
     } catch { /* storage can be refused; selection still works for this session */ }
+    setStates((current) => ({ ...current, [server.id]: { state: 'connecting' } }));
     setSelected(server);
   }, []);
 
@@ -228,7 +231,7 @@ export function useServerRegistry(account = defaultAccount): ServerRegistry {
   if (!account) connection = { state: 'connected' };
   else if (!loaded) connection = cloudDown ? { state: 'cloud_unreachable' } : { state: 'loading' };
   else if (!selected) connection = { state: 'no_servers' };
-  else connection = states[selected.id] ?? { state: 'connecting' };
+  else connection = connectionKey.current === selectedKey ? states[selected.id] ?? { state: 'connecting' } : { state: 'connecting' };
 
   return useMemo(
     () => ({

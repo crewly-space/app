@@ -1,0 +1,15 @@
+.view-recovery { min-width: 0; padding: 32px 24px; align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; color: var(--oc-text); }
+.view-recovery-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--oc-warning-text); background: var(--oc-warning-soft); }
+.view-recovery h3 { margin: 4px 0 0; font-size: 17px; }
+.view-recovery p { margin: 0 0 4px; max-width: 360px; color: var(--oc-muted-strong); font-size: 13px; line-height: 1.7; }
+.view-recovery .secondary-button { display: inline-flex; align-items: center; gap: 8px; }
+.settings-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; min-height: 38px; border: 1px solid var(--oc-line); border-radius: 9px; color: var(--oc-muted); background: var(--oc-field); }
+.settings-search input { width: 100%; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--oc-text); font-size: 12px; box-shadow: none; }
+.settings-search:focus-within { outline: 2px solid var(--oc-accent-ring); outline-offset: 1px; }
+.settings-search input:focus { outline: 0; box-shadow: none; }
+.settings-no-results { color: var(--oc-muted); font-size: 12px; line-height: 1.7; padding: 0 8px; }
+.settings-modal .settings-nav .settings-icon { color: var(--oc-muted-strong); background: transparent; box-shadow: none; }
+.settings-modal .settings-nav button.active .settings-icon { color: var(--oc-accent-text); background: var(--oc-accent-soft); }
+.settings-modal .settings-nav button.active { box-shadow: none; background: var(--oc-panel); }
+.settings-modal .settings-nav-label { color: var(--oc-muted); letter-spacing: .04em; }
+@media (max-width: 720px) { .settings-search { min-height: 44px; } .settings-search input { font-size: 16px; } }

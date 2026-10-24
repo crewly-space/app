@@ -15,11 +15,11 @@ vi.mock('../src/features/servers/useServerRegistry', () => ({
   useServerRegistry: () => registry,
   cloudUrl: undefined,
 }));
-vi.mock('../src/lib/realtime/events', () => ({ startRealtime: () => () => {}, resubscribeConversations: () => {} }));
+vi.mock('../src/lib/realtime/events', () => ({ startRealtime: () => () => {}, resubscribeConversations: () => {}, onAgentWorkChanged: () => () => {} }));
 const bootstrap = vi.fn();
 vi.mock('../src/lib/gateway', async (original) => {
   const actual = await original<typeof import('../src/lib/gateway')>();
-  return { ...actual, gateway: { ...actual.gateway, bootstrap: (...args: unknown[]) => bootstrap(...args) } };
+  return { ...actual, gateway: { ...actual.gateway, history: async () => [], bootstrap: (...args: unknown[]) => bootstrap(...args) } };
 });
 
 function workspace(name: string) {
@@ -101,4 +101,43 @@ describe('loading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalled();
   });
+});
+
+
+it('keeps a cached workspace readable and offers recovery when refreshing fails', async () => {
+  writeWorkspace('srv_b', workspace('Beta'), 'Beta-room');
+  bootstrap.mockRejectedValueOnce(new Error('Server is restarting'));
+  registry = { ...registry, connection: { state: 'connected' } };
+  render(<App />);
+  expect((await screen.findByRole('alert')).textContent).toContain('Server is restarting');
+  expect(screen.getAllByText('Beta room').length).toBeGreaterThan(0);
+  bootstrap.mockResolvedValueOnce(workspace('Recovered'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reload workspace' }));
+  expect(await screen.findAllByText('Recovered room')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+
+it('keeps the workspace usable when browser storage is blocked', () => {
+  writeWorkspace('srv_b', workspace('Beta'), 'Beta-room');
+  const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+  const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+  try {
+    render(<App />);
+    expect(screen.getAllByText('Beta room').length).toBeGreaterThan(0);
+  } finally { get.mockRestore(); set.mockRestore(); }
+});
+
+it('closes a profile safely when the agent disappears during a workspace refresh', async () => {
+  const agent = { id: 'assistant', name: 'Assistant', ownerUserId: 'u1', avatarMode: 'name', initials: 'A', role: 'Personal assistant', color: 'var(--oc-accent)', status: 'online', model: 'test', runtime: 'Chat', memory: [] };
+  const cached = { ...workspace('Beta'), agents: [agent], conversations: [{ id: 'Beta-room', name: 'Assistant', type: 'dm', agentIds: [agent.id], preview: '', time: '' }] };
+  writeWorkspace('srv_b', cached, 'Beta-room');
+  const view = render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open Assistant profile' }));
+  expect(screen.getByRole('dialog', { name: 'Assistant' })).toBeTruthy();
+  bootstrap.mockResolvedValue(workspace('Beta'));
+  registry = { ...registry, connection: { state: 'connected' }, epoch: 1 };
+  view.rerender(<App />);
+  await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assistant' })).toBeNull());
+  expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
 });

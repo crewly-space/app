@@ -69,7 +69,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
     takeInviteFromUrl();
     takeRequestedServer();
     void enter();
-    fetch(`${base}/api/v1/auth/oauth/providers`, { credentials: 'include' })
+    fetch(`${base}/api/v1/auth/oauth/providers`, { credentials: 'include', signal: AbortSignal.timeout(30_000) })
       .then((response) => (response.ok ? response.json() : { providers: [] }))
       .then((body: { providers?: Array<{ id: string; label: string }> }) => setProviders(body.providers ?? []))
       .catch(() => setProviders([]));
@@ -114,6 +114,7 @@ export function CloudGate({ account, cloudUrl, children }: { account: CloudAccou
       const response = await fetch(`${base}/api/v1/auth/login`, {
         method: 'POST',
         credentials: 'include',
+        signal: AbortSignal.timeout(30_000),
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       });

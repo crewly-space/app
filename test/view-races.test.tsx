@@ -1,0 +1,40 @@
+// @vitest-environment jsdom
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { ReplyModePicker } from '../src/features/conversations/ReplyModePicker';
+import { ThreadPanel } from '../src/features/messages/ThreadPanel';
+import { gateway } from '../src/lib/gateway';
+import type { Message } from '../src/types';
+const deferred = <T,>() => { let resolve!: (value: T) => void; let reject!: (reason: Error) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it('does not revert the next conversation when an earlier reply-mode change fails', async () => {
+  const request = deferred<void>();
+  vi.spyOn(gateway, 'replyMode').mockResolvedValueOnce('mentions').mockResolvedValueOnce('open');
+  vi.spyOn(gateway, 'setReplyMode').mockReturnValue(request.promise as never);
+  const notify = vi.fn(); const view = render(<ReplyModePicker conversationId="a" onNotify={notify} />);
+  fireEvent.click(await screen.findByRole('radio', { name: /A model picks/ }));
+  view.rerender(<ReplyModePicker conversationId="b" onNotify={notify} />);
+  await screen.findByRole('radio', { name: /Every agent may answer/ });
+  await act(async () => { request.reject(new Error('Old request failed')); });
+  expect((screen.getByRole('radio', { name: /Every agent may answer/ }) as HTMLInputElement).checked).toBe(true);
+  expect(notify).not.toHaveBeenCalled();
+});
+it('does not put an old reply into a different thread or erase its new draft', async () => {
+  const first: Message = { id: 'a', conversationId: 'room', author: 'you', body: 'First root', time: '', attachments: [] };
+  const second = { ...first, id: 'b', body: 'Second root' };
+  const request = deferred<Message>();
+  vi.spyOn(gateway, 'openThread').mockResolvedValue({} as never);
+  vi.spyOn(gateway, 'thread').mockImplementation(async id => ({ messages: [id === 'a' ? first : second], thread: { status: 'open' } }) as never);
+  vi.spyOn(gateway, 'sendThread').mockReturnValue(request.promise);
+  const props = { agents: [], people: { byId: new Map(), me: { id: 'me', name: 'Me', mode: 'name' as const } }, onClose: vi.fn(), onRootUpdated: vi.fn(), onAgentClick: vi.fn() };
+  const view = render(<ThreadPanel root={first} {...props} />);
+  await vi.waitFor(() => expect((screen.getByRole('textbox', { name: 'Thread reply' }) as HTMLTextAreaElement).disabled).toBe(false));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Thread reply' }), { target: { value: 'Old reply' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send reply' }));
+  view.rerender(<ThreadPanel root={second} {...props} />);
+  await vi.waitFor(() => expect((screen.getByRole('textbox', { name: 'Thread reply' }) as HTMLTextAreaElement).disabled).toBe(false));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Thread reply' }), { target: { value: 'New draft' } });
+  await act(async () => { request.resolve({ ...first, id: 'reply', body: 'Old reply', threadRootId: 'a' }); });
+  expect((screen.getByRole('textbox', { name: 'Thread reply' }) as HTMLTextAreaElement).value).toBe('New draft');
+  expect(screen.queryByText('Old reply')).toBeNull();
+});

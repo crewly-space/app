@@ -1,0 +1,12 @@
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { resolve, relative, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const directory = resolve(root, 'dist');
+const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+const { serverRef } = JSON.parse(readFileSync(resolve(root, 'release.json'), 'utf8'));
+const files = readdirSync(directory, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => resolve(entry.parentPath, entry.name)).sort();
+const assets = Object.fromEntries(files.filter(file => !file.endsWith('/crewly-app.json')).map(file => [relative(directory, file).replaceAll('\\', '/'), createHash('sha256').update(readFileSync(file)).digest('hex')]));
+writeFileSync(resolve(directory, 'crewly-app.json'), JSON.stringify({ version: pkg.version, serverRef, assets }, null, 2) + '\n');
+console.log(`release metadata: Crewly ${pkg.version}, ${files.length} assets`);

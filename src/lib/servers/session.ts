@@ -8,20 +8,24 @@ import type { RegistryServer } from './types';
  * Keying storage by server id is what keeps them apart: signing out of one
  * server, or having its session expire, leaves every other one alone.
  */
+const sessionTokens = new Map<string, string>();
+
 const tokenKey = (serverId: string) => `crewly:session:${serverId}`;
 
 export function readServerToken(serverId: string): string | null {
   try {
-    return localStorage.getItem(tokenKey(serverId));
+    return localStorage.getItem(tokenKey(serverId)) ?? sessionTokens.get(serverId) ?? null;
   } catch {
     // A browser with storage blocked can still use the app for this session.
-    return null;
+    return sessionTokens.get(serverId) ?? null;
   }
 }
 
 export function storeServerToken(serverId: string, token: string): void {
+  sessionTokens.set(serverId, token);
   try {
     localStorage.setItem(tokenKey(serverId), token);
+    sessionTokens.delete(serverId);
   } catch {
     /* ignored: see readServerToken */
   }
@@ -29,6 +33,7 @@ export function storeServerToken(serverId: string, token: string): void {
 }
 
 export function clearServerToken(serverId: string): void {
+  sessionTokens.delete(serverId);
   try {
     localStorage.removeItem(tokenKey(serverId));
   } catch {
@@ -53,9 +58,9 @@ const connections = new Map<string, ServerConnection>();
  */
 export function clientFor(server: RegistryServer): ServerConnection {
   const existing = connections.get(server.id);
-  if (existing) return existing;
-
   const endpoint = server.endpoint ?? window.location.origin;
+  if (existing?.endpoint === endpoint) return existing;
+  existing?.client.setToken(undefined);
   const client = new CrewlyClient({ baseUrl: endpoint, clientVersion: APP_VERSION });
   const token = readServerToken(server.id);
   if (token) client.setToken(token);
@@ -68,4 +73,5 @@ export function clientFor(server: RegistryServer): ServerConnection {
 export function resetConnections(): void {
   for (const connection of connections.values()) connection.client.setToken(undefined);
   connections.clear();
+  sessionTokens.clear();
 }
